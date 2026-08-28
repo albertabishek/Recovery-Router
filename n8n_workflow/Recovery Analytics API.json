@@ -1,0 +1,134 @@
+{
+  "name": "Recovery Analytics API",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "recovery-analytics",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "e32b3ce4-29df-477a-8d21-beff506a91d9",
+      "name": "Analytics API",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        240,
+        304
+      ],
+      "webhookId": "04f6c639-f75f-4dc7-a1f3-13a89b1ec341"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "recovery_events",
+        "returnAll": true
+      },
+      "id": "6fb532f3-c5b0-460a-84af-b7e4a93998b2",
+      "name": "Fetch All Events",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        544,
+        304
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "gm8ZsBdGRtG7Ohlk",
+          "name": "Supabase routing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const events = $input.all().map(i => i.json);\n\nconst total = events.length;\nconst recovered = events.filter(e => e.status === 'recovered');\nconst pending = events.filter(e => e.status === 'pending');\nconst exhausted = events.filter(e => e.status === 'exhausted');\nconst noAction = events.filter(e => e.status === 'no_action_needed');\n\nconst totalAmount = events.reduce((s, e) => s + (Number(e.amount) || 0), 0);\nconst recoveredAmount = recovered.reduce((s, e) => s + (Number(e.recovered_amount) || Number(e.amount) || 0), 0);\nconst pendingAmount = pending.reduce((s, e) => s + (Number(e.amount) || 0), 0);\n\nconst recoveryRate = total > 0 ? (recovered.length / total * 100).toFixed(1) : 0;\n\n// BASELINE COMPARISON: Industry avg recovery rate without AI is 15-20% (simple retries)\n// Source: Razorpay blog - 15-20% of failed transactions recovered via simple retries\nconst INDUSTRY_BASELINE_RATE = 17.5; // midpoint of 15-20%\nconst aiRecoveryRate = Number(recoveryRate);\nconst aiLift = aiRecoveryRate > 0 ? Number((aiRecoveryRate - INDUSTRY_BASELINE_RATE).toFixed(1)) : 0;\nconst aiLiftMultiplier = INDUSTRY_BASELINE_RATE > 0 ? Number((aiRecoveryRate / INDUSTRY_BASELINE_RATE).toFixed(2)) : 0;\n\n// Revenue impact: how much MORE was recovered vs baseline\nconst actionableEvents = events.filter(e => e.status !== 'no_action_needed');\nconst actionableAmount = actionableEvents.reduce((s, e) => s + (Number(e.amount) || 0), 0);\nconst baselineRecovery = actionableAmount * (INDUSTRY_BASELINE_RATE / 100);\nconst additionalRevenue = Math.max(0, recoveredAmount - baselineRecovery);\n\n// Time metrics\nconst recoveredWithTime = recovered.filter(e => e.created_at && e.recovered_at);\nconst avgRecoveryTimeHours = recoveredWithTime.length > 0\n  ? Number((recoveredWithTime.reduce((s, e) => {\n      const created = new Date(e.created_at).getTime();\n      const rec = new Date(e.recovered_at).getTime();\n      return s + (rec - created) / 3600000;\n    }, 0) / recoveredWithTime.length).toFixed(1))\n  : null;\n\nconst byType = {};\nfor (const e of events) {\n  const t = e.event_type || 'unknown';\n  if (!byType[t]) byType[t] = { total: 0, recovered: 0, amount: 0, recovered_amount: 0, recovery_rate: 0 };\n  byType[t].total++;\n  byType[t].amount += Number(e.amount) || 0;\n  if (e.status === 'recovered') {\n    byType[t].recovered++;\n    byType[t].recovered_amount += Number(e.recovered_amount) || Number(e.amount) || 0;\n  }\n  byType[t].recovery_rate = Number((byType[t].recovered / byType[t].total * 100).toFixed(1));\n}\n\nconst byChannel = {};\nfor (const e of events) {\n  const c = e.recommended_channel || 'none';\n  if (!byChannel[c]) byChannel[c] = { total: 0, recovered: 0, amount: 0, recovery_rate: 0 };\n  byChannel[c].total++;\n  byChannel[c].amount += Number(e.amount) || 0;\n  if (e.status === 'recovered') byChannel[c].recovered++;\n  byChannel[c].recovery_rate = Number((byChannel[c].recovered / byChannel[c].total * 100).toFixed(1));\n}\n\nconst byCategory = {};\nfor (const e of events) {\n  const c = e.failure_category || 'unknown';\n  if (!byCategory[c]) byCategory[c] = { total: 0, recovered: 0, avg_probability: 0, probSum: 0, recovery_rate: 0 };\n  byCategory[c].total++;\n  byCategory[c].probSum += Number(e.recovery_probability) || 0;\n  byCategory[c].avg_probability = Number((byCategory[c].probSum / byCategory[c].total).toFixed(2));\n  if (e.status === 'recovered') byCategory[c].recovered++;\n  byCategory[c].recovery_rate = Number((byCategory[c].recovered / byCategory[c].total * 100).toFixed(1));\n}\nfor (const k in byCategory) delete byCategory[k].probSum;\n\nconst recoveredWithAttempts = recovered.filter(e => e.attempt_count > 0);\nconst avgAttemptsToRecover = recoveredWithAttempts.length > 0\n  ? Number((recoveredWithAttempts.reduce((s, e) => s + e.attempt_count, 0) / recoveredWithAttempts.length).toFixed(1))\n  : 0;\n\n// Channel effectiveness ranking\nconst channelRanking = Object.entries(byChannel)\n  .filter(([k]) => k !== 'none')\n  .sort((a, b) => b[1].recovery_rate - a[1].recovery_rate)\n  .map(([k, v]) => ({ channel: k, ...v }));\n\nreturn [{\n  json: {\n    summary: {\n      total_events: total,\n      recovered_count: recovered.length,\n      pending_count: pending.length,\n      exhausted_count: exhausted.length,\n      no_action_count: noAction.length,\n      recovery_rate_percent: Number(recoveryRate),\n      total_amount: totalAmount,\n      recovered_amount: recoveredAmount,\n      pending_amount: pendingAmount,\n      avg_attempts_to_recover: avgAttemptsToRecover,\n      avg_recovery_time_hours: avgRecoveryTimeHours\n    },\n    ai_lift: {\n      baseline_rate_percent: INDUSTRY_BASELINE_RATE,\n      ai_recovery_rate_percent: aiRecoveryRate,\n      improvement_points: aiLift,\n      lift_multiplier: aiLiftMultiplier,\n      additional_revenue_recovered: Number(additionalRevenue.toFixed(2)),\n      baseline_source: 'Razorpay blog: 15-20% recovery via simple retries'\n    },\n    by_event_type: byType,\n    by_channel: byChannel,\n    channel_ranking: channelRanking,\n    by_failure_category: byCategory,\n    generated_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "2252c8d5-9e0f-4daf-a4d5-0a4340172aaa",
+      "name": "Compute Analytics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        848,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "0dbc4c42-16a0-43cd-a45a-88788a1dd1e7",
+      "name": "Respond with Analytics",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1152,
+        304
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Analytics API": {
+      "main": [
+        [
+          {
+            "node": "Fetch All Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch All Events": {
+      "main": [
+        [
+          {
+            "node": "Compute Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Analytics": {
+      "main": [
+        [
+          {
+            "node": "Respond with Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "5e49943f-7986-49b5-b31b-16d0f07c7e99",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "0b685d6b3c7df1863014d0ff8372fb99bbd8c6a0a7a4fdbf85ac576190555150"
+  },
+  "nodeGroups": [],
+  "id": "N0qClQhURICRTvbU",
+  "tags": []
+}

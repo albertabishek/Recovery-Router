@@ -1,0 +1,756 @@
+{
+  "name": "Recovery Router",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "recovery-router",
+        "options": {}
+      },
+      "id": "566fb38e-5e1a-438d-ad28-a5cb2f22c536",
+      "name": "Recovery Router Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        240,
+        304
+      ],
+      "webhookId": "96545a55-ba96-44fc-b25b-60961c4b0d7b"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ \"Classify this revenue leak event and recommend recovery action:\\n\\nEvent Type: \" + $json.event_type + \"\\nPayment Method: \" + $json.method + \"\\nError Code: \" + $json.error_code + \"\\nAmount: \" + $json.amount + \" \" + $json.currency + \"\\nCustomer: \" + $json.customer_name + \"\\nDays Overdue: \" + $json.days_overdue + \"\\nCart Value: \" + $json.cart_value + \"\\nItems in Cart: \" + $json.items_in_cart }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are Recovery Router, an intelligent revenue leak classifier for Indian digital payments (Razorpay ecosystem). Your job: classify the revenue leak and recommend the optimal recovery action.\n\nCLASSIFICATION RULES:\n\nFor payment_failure events:\n- error_code TIMEOUT + method upi: failure_category upi_timeout, recovery_probability 0.75-0.85, recommended_channel whatsapp, recommended_action whatsapp_retry_link, timing immediate\n- error_code INSUFFICIENT_FUNDS: failure_category insufficient_funds, recovery_probability 0.3-0.5, recommended_channel sms, recommended_action sms_retry_link, timing 4_hours\n- error_code CARD_EXPIRED: failure_category card_expired, recovery_probability 0.4-0.6, recommended_channel email, recommended_action email_update_card, timing immediate\n- error_code BANK_DOWNTIME: failure_category bank_downtime, recovery_probability 0.7-0.85, recommended_channel whatsapp, recommended_action whatsapp_retry_link, timing 30_minutes\n- error_code FRAUD or STOLEN_CARD or INTERNATIONAL_CARD_BLOCKED: failure_category unrecoverable_decline, recovery_probability 0, recommended_channel none, recommended_action flag_and_block, skip_reason Unrecoverable decline - Razorpay Vulcan handles fraud detection\n- error_code NETWORK_ERROR or GATEWAY_ERROR: failure_category gateway_error, recovery_probability 0.8-0.9, recommended_channel whatsapp, recommended_action whatsapp_retry_link, timing 5_minutes\n\nFor cart_abandonment events:\n- cart_value > 2000 AND items_in_cart > 0: failure_category high_intent_abandonment, recovery_probability 0.3-0.5, recommended_channel whatsapp, recommended_action whatsapp_cart_reminder, timing 1_hour\n- cart_value < 500: failure_category browse_only_abandonment, recovery_probability 0.05-0.1, recommended_channel none, recommended_action no_action, skip_reason Low value cart not worth recovery cost\n\nFor invoice_overdue events:\n- days_overdue <= 7: failure_category recently_overdue, recovery_probability 0.6-0.8, recommended_channel whatsapp, recommended_action whatsapp_payment_reminder, timing immediate\n- days_overdue 8-30: failure_category moderately_overdue, recovery_probability 0.3-0.5, recommended_channel email, recommended_action email_invoice_reminder, timing immediate\n- days_overdue > 30: failure_category long_overdue, recovery_probability 0.1-0.2, recommended_channel email, recommended_action email_final_notice, alternative_action sms_final_notice\n\nAlways respond with the structured JSON output matching the output parser schema."
+        }
+      },
+      "id": "b6ac0b69-29f1-4c49-a8c7-fb5d5ae0b766",
+      "name": "Classify Revenue Leak",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        848,
+        304
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "071c3d6e-e743-44d0-b4dd-89e009d3725e",
+      "name": "OpenAI GPT-5 Mini",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        848,
+        528
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "ucY4ufVmzS2UNai3",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\"leak_type\":\"payment_failure\",\"failure_category\":\"upi_timeout\",\"recovery_probability\":0.78,\"recommended_action\":\"whatsapp_retry_link\",\"recommended_channel\":\"whatsapp\",\"recommended_timing\":\"immediate\",\"reasoning\":\"UPI timeout during peak hours\",\"alternative_action\":\"sms_upi_deeplink\",\"skip_reason\":null}"
+      },
+      "id": "e171920d-d01c-4656-a278-57487b2d7deb",
+      "name": "Classification Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1024,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "recovery_events",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "event_type",
+              "fieldValue": "={{ $(\"Normalize Event Data\").item.json.event_type }}"
+            },
+            {
+              "fieldId": "payment_id",
+              "fieldValue": "={{ $(\"Normalize Event Data\").item.json.payment_id }}"
+            },
+            {
+              "fieldId": "order_id",
+              "fieldValue": "={{ $(\"Normalize Event Data\").item.json.order_id }}"
+            },
+            {
+              "fieldId": "invoice_id",
+              "fieldValue": "={{ $(\"Normalize Event Data\").item.json.invoice_id }}"
+            },
+            {
+              "fieldId": "amount",
+              "fieldValue": "={{ $(\"Normalize Event Data\").item.json.amount }}"
+            },
+            {
+              "fieldId": "currency",
+              "fieldValue": "={{ $(\"Normalize Event Data\").item.json.currency }}"
+            },
+            {
+              "fieldId": "customer_email",
+              "fieldValue": "={{ $(\"Normalize Event Data\").item.json.customer_email }}"
+            },
+            {
+              "fieldId": "customer_phone",
+              "fieldValue": "={{ $(\"Normalize Event Data\").item.json.customer_phone }}"
+            },
+            {
+              "fieldId": "customer_name",
+              "fieldValue": "={{ $(\"Normalize Event Data\").item.json.customer_name }}"
+            },
+            {
+              "fieldId": "leak_type",
+              "fieldValue": "={{ $json.output.leak_type }}"
+            },
+            {
+              "fieldId": "failure_category",
+              "fieldValue": "={{ $json.output.failure_category }}"
+            },
+            {
+              "fieldId": "recovery_probability",
+              "fieldValue": "={{ $json.output.recovery_probability }}"
+            },
+            {
+              "fieldId": "recommended_action",
+              "fieldValue": "={{ $json.output.recommended_action }}"
+            },
+            {
+              "fieldId": "recommended_channel",
+              "fieldValue": "={{ $json.output.recommended_channel }}"
+            },
+            {
+              "fieldId": "recommended_timing",
+              "fieldValue": "={{ $json.output.recommended_timing }}"
+            },
+            {
+              "fieldId": "reasoning",
+              "fieldValue": "={{ $json.output.reasoning }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "pending"
+            },
+            {
+              "fieldId": "attempt_count",
+              "fieldValue": "0"
+            },
+            {
+              "fieldId": "current_strategy",
+              "fieldValue": "initial"
+            },
+            {
+              "fieldId": "escalation_level",
+              "fieldValue": "0"
+            },
+            {
+              "fieldId": "recovery_window_ends",
+              "fieldValue": "={{ $now.plus({hours: 72}).toISO() }}"
+            },
+            {
+              "fieldId": "next_action_at",
+              "fieldValue": "={{ $json.output.recommended_timing === 'immediate' ? $now.toISO() : $json.output.recommended_timing === '30_minutes' ? $now.plus({minutes: 30}).toISO() : $json.output.recommended_timing === '1_hour' ? $now.plus({hours: 1}).toISO() : $json.output.recommended_timing === '4_hours' ? $now.plus({hours: 4}).toISO() : $now.plus({hours: 1}).toISO() }}"
+            }
+          ]
+        }
+      },
+      "id": "6e9407c6-2ed5-417e-b5b6-fb956d78afa4",
+      "name": "Log Recovery Event",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        304
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "gm8ZsBdGRtG7Ohlk",
+          "name": "Supabase routing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $(\"Classify Revenue Leak\").item.json.output.recommended_channel }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "whatsapp"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "WhatsApp"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $(\"Classify Revenue Leak\").item.json.output.recommended_channel }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "email"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Email"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $(\"Classify Revenue Leak\").item.json.output.recommended_channel }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "sms"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "SMS"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "No Action"
+        }
+      },
+      "id": "88ad84fc-260d-4519-a9a8-fb2f80ad8e17",
+      "name": "Route by Channel",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1504,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "from": "+17372508034",
+        "to": "={{ $(\"Normalize Event Data\").item.json.customer_phone }}",
+        "message": "={{ \"Hi \" + $(\"Normalize Event Data\").item.json.customer_name + \", your payment of Rs.\" + $(\"Normalize Event Data\").item.json.amount + \" could not be completed (\" + $(\"Classify Revenue Leak\").item.json.output.failure_category.replace(\"_\", \" \") + \"). Complete it securely here: \" + $(\"Generate Payment Link\").item.json.short_url }}",
+        "options": {}
+      },
+      "id": "dd20af3c-19c9-426b-967c-bfa1a0ba8431",
+      "name": "Send WhatsApp",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        1744,
+        112
+      ],
+      "credentials": {
+        "twilioApi": {
+          "id": "zy0whALRfEa1czn3",
+          "name": "Twilio account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resource": "mail",
+        "fromEmail": "abishekialbert@gmail.com",
+        "fromName": "Payment Recovery",
+        "toEmail": "={{ $(\"Normalize Event Data\").item.json.customer_email }}",
+        "subject": "={{ \"Action Required: Complete your payment of Rs.\" + $(\"Normalize Event Data\").item.json.amount }}",
+        "contentType": "text/html",
+        "contentValue": "={{ \"<h2>Payment Recovery</h2><p>Hi \" + $(\"Normalize Event Data\").item.json.customer_name + \",</p><p>Your payment of Rs.\" + $(\"Normalize Event Data\").item.json.amount + \" requires attention (\" + $(\"Classify Revenue Leak\").item.json.output.failure_category.replace(\"_\", \" \") + \").</p><p><a href='\" + $(\"Generate Payment Link\").item.json.short_url + \"' style='display:inline-block;padding:12px 24px;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none;font-weight:bold'>Complete Payment</a></p><p>Reason: \" + $(\"Classify Revenue Leak\").item.json.output.reasoning + \"</p><p style='color:#666;font-size:12px'>This is a secure Razorpay payment link. It will expire in 24 hours.</p>\" }}",
+        "additionalFields": {}
+      },
+      "id": "277c7f39-78a7-468e-8d0c-fd8cfdcd180d",
+      "name": "Send Recovery Email",
+      "type": "n8n-nodes-base.sendGrid",
+      "typeVersion": 1,
+      "position": [
+        1744,
+        304
+      ],
+      "credentials": {
+        "sendGridApi": {
+          "id": "j5d8Aem1m1f0EamE",
+          "name": "SendGrid account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "from": "+17372508034",
+        "to": "={{ $(\"Normalize Event Data\").item.json.customer_phone }}",
+        "message": "={{ \"Hi \" + $(\"Normalize Event Data\").item.json.customer_name + \", your payment of Rs.\" + $(\"Normalize Event Data\").item.json.amount + \" is pending. Complete it securely here: \" + $(\"Generate Payment Link\").item.json.short_url }}",
+        "options": {}
+      },
+      "id": "c9d673d6-8038-4160-bc72-20b48297ca41",
+      "name": "Send SMS",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        1744,
+        512
+      ],
+      "credentials": {
+        "twilioApi": {
+          "id": "zy0whALRfEa1czn3",
+          "name": "Twilio account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "action_taken",
+              "value": "none",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "reason",
+              "value": "={{ $(\"Classify Revenue Leak\").item.json.output.skip_reason ?? \"No recovery action needed\" }}",
+              "type": "string"
+            },
+            {
+              "id": "3",
+              "name": "failure_category",
+              "value": "={{ $(\"Classify Revenue Leak\").item.json.output.failure_category }}",
+              "type": "string"
+            },
+            {
+              "id": "4",
+              "name": "recovery_probability",
+              "value": "={{ $(\"Classify Revenue Leak\").item.json.output.recovery_probability }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d04ce864-4b21-4c23-9135-7f3b17f7bbe0",
+      "name": "Log No Action",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1744,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "recovery_attempts",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "recovery_event_id",
+              "fieldValue": "={{ $(\"Log Recovery Event\").item.json.id }}"
+            },
+            {
+              "fieldId": "attempt_number",
+              "fieldValue": "1"
+            },
+            {
+              "fieldId": "channel_used",
+              "fieldValue": "whatsapp"
+            },
+            {
+              "fieldId": "action_taken",
+              "fieldValue": "={{ $(\"Classify Revenue Leak\").item.json.output.recommended_action }}"
+            },
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $json.sid ?? '' }}"
+            },
+            {
+              "fieldId": "outcome",
+              "fieldValue": "sent"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{ JSON.stringify({ payment_link_id: $(\"Generate Payment Link\").item.json.id, payment_link_url: $(\"Generate Payment Link\").item.json.short_url }) }}"
+            }
+          ]
+        }
+      },
+      "id": "277fae40-1e78-4f98-9db6-5cdd064e6f6e",
+      "name": "Log WhatsApp Attempt",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2064,
+        112
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "gm8ZsBdGRtG7Ohlk",
+          "name": "Supabase routing"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "tableId": "recovery_attempts",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "recovery_event_id",
+              "fieldValue": "={{ $(\"Log Recovery Event\").item.json.id }}"
+            },
+            {
+              "fieldId": "attempt_number",
+              "fieldValue": "1"
+            },
+            {
+              "fieldId": "channel_used",
+              "fieldValue": "email"
+            },
+            {
+              "fieldId": "action_taken",
+              "fieldValue": "={{ $(\"Classify Revenue Leak\").item.json.output.recommended_action }}"
+            },
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $json.headerMsgId ?? '' }}"
+            },
+            {
+              "fieldId": "outcome",
+              "fieldValue": "sent"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{ JSON.stringify({ payment_link_id: $(\"Generate Payment Link\").item.json.id, payment_link_url: $(\"Generate Payment Link\").item.json.short_url }) }}"
+            }
+          ]
+        }
+      },
+      "id": "a483c37d-4ddb-4994-b7f1-619ff20b34df",
+      "name": "Log Email Attempt",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2064,
+        304
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "gm8ZsBdGRtG7Ohlk",
+          "name": "Supabase routing"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "tableId": "recovery_attempts",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "recovery_event_id",
+              "fieldValue": "={{ $(\"Log Recovery Event\").item.json.id }}"
+            },
+            {
+              "fieldId": "attempt_number",
+              "fieldValue": "1"
+            },
+            {
+              "fieldId": "channel_used",
+              "fieldValue": "sms"
+            },
+            {
+              "fieldId": "action_taken",
+              "fieldValue": "={{ $(\"Classify Revenue Leak\").item.json.output.recommended_action }}"
+            },
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $json.sid ?? '' }}"
+            },
+            {
+              "fieldId": "outcome",
+              "fieldValue": "sent"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{ JSON.stringify({ payment_link_id: $(\"Generate Payment Link\").item.json.id, payment_link_url: $(\"Generate Payment Link\").item.json.short_url }) }}"
+            }
+          ]
+        }
+      },
+      "id": "2530f979-7396-4bc3-8085-11a4bd37c5f9",
+      "name": "Log SMS Attempt",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2064,
+        512
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "gm8ZsBdGRtG7Ohlk",
+          "name": "Supabase routing"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.razorpay.com/v1/payment_links/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ amount: Math.round($(\"Normalize Event Data\").item.json.amount * 100), currency: $(\"Normalize Event Data\").item.json.currency || \"INR\", description: \"Recovery payment for order \" + $(\"Normalize Event Data\").item.json.order_id, customer: { name: $(\"Normalize Event Data\").item.json.customer_name || undefined, email: $(\"Normalize Event Data\").item.json.customer_email || undefined, contact: $(\"Normalize Event Data\").item.json.customer_phone || undefined }, notify: { sms: false, email: false }, reference_id: $(\"Normalize Event Data\").item.json.order_id || $(\"Normalize Event Data\").item.json.payment_id, notes: { source: \"recovery_router\", event_type: $(\"Normalize Event Data\").item.json.event_type, failure_category: $(\"Classify Revenue Leak\").item.json.output.failure_category, recovery_event_id: String($(\"Log Recovery Event\").item.json.id || \"\") } }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "3116a06f-ce2d-4c08-b8d3-b70e25bd2c20",
+      "name": "Generate Payment Link",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1328,
+        304
+      ],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "frkgneFwFDPU9g7U",
+          "name": "Razor router"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Detect if this is a raw Razorpay webhook (payment.failed / payment_link.paid)\nconst body = $json.body || $json;\nconst rzpEvent = body.event; // e.g. 'payment.failed', 'payment_link.paid'\nconst entity = body.payload?.payment?.entity;\n\nif (rzpEvent === 'payment.failed' && entity) {\n  // Raw Razorpay payment.failed webhook\n  return {\n    event_type: 'payment_failure',\n    payment_id: entity.id || '',\n    amount: (entity.amount || 0) / 100, // paise to rupees\n    currency: entity.currency || 'INR',\n    method: entity.method || '',\n    error_code: entity.error_code || '',\n    customer_email: entity.email || '',\n    customer_phone: entity.contact || '',\n    customer_name: entity.notes?.customer_name || entity.card?.name || '',\n    order_id: entity.order_id || '',\n    invoice_id: entity.invoice_id || '',\n    event_timestamp: new Date().toISOString(),\n    cart_value: 0,\n    items_in_cart: 0,\n    days_overdue: 0,\n    error_description: entity.error_description || '',\n    error_reason: entity.error_reason || '',\n    error_source: entity.error_source || '',\n    error_step: entity.error_step || '',\n    razorpay_raw: true\n  };\n}\n\n// Custom webhook format (existing behavior)\nreturn {\n  event_type: body.event_type || 'unknown',\n  payment_id: body.razorpay_payment_id || body.payment_id || '',\n  amount: body.amount || 0,\n  currency: body.currency || 'INR',\n  method: body.method || '',\n  error_code: body.error_code || '',\n  customer_email: body.customer_email || '',\n  customer_phone: body.customer_phone || '',\n  customer_name: body.customer_name || '',\n  order_id: body.order_id || body.invoice_id || '',\n  invoice_id: body.invoice_id || '',\n  event_timestamp: body.timestamp || new Date().toISOString(),\n  cart_value: body.cart_value || 0,\n  items_in_cart: body.items_in_cart || 0,\n  days_overdue: body.days_overdue || 0,\n  razorpay_raw: false\n};"
+      },
+      "id": "d0bf46b7-4c30-4dd1-97d1-a57402b7fcf8",
+      "name": "Normalize Event Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        544,
+        304
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Classify Revenue Leak": {
+      "main": [
+        [
+          {
+            "node": "Log Recovery Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI GPT-5 Mini": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Classify Revenue Leak",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classification Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Classify Revenue Leak",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Channel": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Recovery Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send SMS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log No Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Log WhatsApp Attempt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Recovery Email": {
+      "main": [
+        [
+          {
+            "node": "Log Email Attempt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send SMS": {
+      "main": [
+        [
+          {
+            "node": "Log SMS Attempt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Recovery Event": {
+      "main": [
+        [
+          {
+            "node": "Generate Payment Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Payment Link": {
+      "main": [
+        [
+          {
+            "node": "Route by Channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recovery Router Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Event Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Event Data": {
+      "main": [
+        [
+          {
+            "node": "Classify Revenue Leak",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "55399f48-0f8d-4fdd-bb3f-e05691944510",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0b685d6b3c7df1863014d0ff8372fb99bbd8c6a0a7a4fdbf85ac576190555150"
+  },
+  "nodeGroups": [],
+  "id": "qWboQxSvPDSiyg4d",
+  "tags": []
+}

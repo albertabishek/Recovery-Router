@@ -1,0 +1,257 @@
+{
+  "name": "Recovery Tracker",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "recovery-tracker",
+        "options": {}
+      },
+      "id": "ff08766f-a0bf-4a47-880c-b69fd25e15f8",
+      "name": "Payment Captured Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        240,
+        304
+      ],
+      "webhookId": "a4139455-68a7-4e99-86fc-8094e63fe873"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.id }}",
+              "operator": {
+                "type": "string",
+                "operation": "exists"
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "80859741-06ad-4a05-b99a-93da2c0be3ec",
+      "name": "Recovery Event Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1152,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "recovery_events",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "recovered"
+            },
+            {
+              "fieldId": "recovered_at",
+              "fieldValue": "={{ $(\"Extract Payment Data\").item.json.captured_at }}"
+            },
+            {
+              "fieldId": "recovered_amount",
+              "fieldValue": "={{ $(\"Extract Payment Data\").item.json.amount }}"
+            },
+            {
+              "fieldId": "payment_id",
+              "fieldValue": "={{ $(\"Extract Payment Data\").item.json.payment_id }}"
+            }
+          ]
+        }
+      },
+      "id": "6646a19e-2ca3-4a22-8dd2-34c7b04240a9",
+      "name": "Mark as Recovered",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        208
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "gm8ZsBdGRtG7Ohlk",
+          "name": "Supabase routing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "status",
+              "value": "organic_payment",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "payment_id",
+              "value": "={{ $(\"Extract Payment Data\").item.json.payment_id }}",
+              "type": "string"
+            },
+            {
+              "id": "3",
+              "name": "note",
+              "value": "Payment captured with no matching recovery event - likely organic",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c8a2f617-6ba3-4c23-9ce2-c8aba53bba6e",
+      "name": "Log Organic Payment",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1440,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const body = $json.body || $json;\nconst event = body.event || '';\n\n// Handle payment_link.paid event\nif (event === 'payment_link.paid') {\n  const plEntity = body.payload?.payment_link?.entity || {};\n  const payEntity = body.payload?.payment?.entity || {};\n  return {\n    payment_id: payEntity.id || '',\n    amount: (payEntity.amount || plEntity.amount || 0) / 100,\n    order_id: payEntity.order_id || plEntity.reference_id || '',\n    method: payEntity.method || '',\n    captured_at: new Date().toISOString(),\n    event_source: 'payment_link.paid',\n    payment_link_id: plEntity.id || '',\n    reference_id: plEntity.reference_id || ''\n  };\n}\n\n// Handle payment.captured event (existing)\nconst entity = body.payload?.payment?.entity || {};\nreturn {\n  payment_id: entity.id || '',\n  amount: (entity.amount || 0) / 100,\n  order_id: entity.order_id || '',\n  method: entity.method || '',\n  captured_at: new Date().toISOString(),\n  event_source: event || 'payment.captured',\n  payment_link_id: '',\n  reference_id: ''\n};"
+      },
+      "id": "3bbb34de-aab0-45a1-95ea-23b01fd8ebb7",
+      "name": "Extract Payment Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        544,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "recovery_events",
+        "limit": 1,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "order_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.order_id }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "pending"
+            }
+          ]
+        }
+      },
+      "id": "95e523fc-ab00-422c-a515-02fbbc2ee171",
+      "name": "Find Recovery Event",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        848,
+        304
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "gm8ZsBdGRtG7Ohlk",
+          "name": "Supabase routing"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Recovery Event Found?": {
+      "main": [
+        [
+          {
+            "node": "Mark as Recovered",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Organic Payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Payment Captured Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Payment Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Payment Data": {
+      "main": [
+        [
+          {
+            "node": "Find Recovery Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Recovery Event": {
+      "main": [
+        [
+          {
+            "node": "Recovery Event Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "ac6cc49e-703b-4aa1-b500-32b2f39b9f4a",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "0b685d6b3c7df1863014d0ff8372fb99bbd8c6a0a7a4fdbf85ac576190555150"
+  },
+  "nodeGroups": [],
+  "id": "i0Nku6eWdDUj05Dx",
+  "tags": []
+}

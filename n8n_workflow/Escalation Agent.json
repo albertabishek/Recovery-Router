@@ -1,0 +1,646 @@
+{
+  "name": "Escalation Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes"
+            }
+          ]
+        }
+      },
+      "id": "980c92db-2c62-4c57-89e5-a791b1ea1682",
+      "name": "Every 5 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        240,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "recovery_events",
+        "limit": 20,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "pending"
+            },
+            {
+              "keyName": "next_action_at",
+              "condition": "lte",
+              "keyValue": "={{ $now.toISO() }}"
+            }
+          ]
+        }
+      },
+      "id": "2d7ef70a-0d71-4810-85dc-04bf9c34c392",
+      "name": "Fetch Pending Events",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        544,
+        304
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "gm8ZsBdGRtG7Ohlk",
+          "name": "Supabase routing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst actionable = [];\nfor (const item of $input.all()) {\n  const e = item.json;\n  const windowEnds = e.recovery_window_ends ? new Date(e.recovery_window_ends) : new Date(now.getTime() + 259200000);\n  const attemptCount = e.attempt_count || 0;\n  const maxAttempts = e.max_attempts || 5;\n  if (e.opted_out) continue;\n  if (windowEnds <= now) continue;\n  if (attemptCount >= maxAttempts) continue;\n  // Skip unrecoverable declines (fraud/stolen card)\n  if (e.failure_category === 'unrecoverable_decline' || e.failure_category === 'fraud_detected') continue;\n  if (e.recovery_probability === 0) continue;\n  actionable.push({ json: e });\n}\nreturn actionable.length > 0 ? actionable : [{ json: { _empty: true } }];"
+      },
+      "id": "d104cef1-538e-49b3-9b1c-825399318bd9",
+      "name": "Filter Actionable",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        848,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ 'Decide next recovery action:\\n\\nEvent ID: ' + $json.id + '\\nType: ' + ($json.event_type || 'unknown') + '\\nCategory: ' + ($json.failure_category || 'unknown') + '\\nAmount: Rs.' + ($json.amount || 0) + '\\nCustomer: ' + ($json.customer_name || 'Unknown') + '\\nPhone: ' + ($json.customer_phone || 'N/A') + '\\nEmail: ' + ($json.customer_email || 'N/A') + '\\nAttempts so far: ' + ($json.attempt_count ?? 0) + '/' + ($json.max_attempts ?? 5) + '\\nCurrent strategy: ' + ($json.current_strategy ?? 'initial') + '\\nEscalation level: ' + ($json.escalation_level ?? 0) + '\\nOriginal channel: ' + ($json.recommended_channel ?? 'none') + '\\nRecovery probability: ' + ($json.recovery_probability ?? 0) + '\\nPayment Link: ' + ($(\"Generate Esc Payment Link\").item.json.short_url ?? 'https://rzp.io/retry') }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Escalation Agent for Recovery Router, an autonomous AI revenue recovery system for Indian digital payments (Razorpay). You decide the NEXT recovery action for pending revenue leaks based on attempt history.\n\nESCALATION STRATEGY:\n- Attempt 0 (first contact): Use originally recommended channel with friendly reminder tone\n- Attempt 1: Switch channel. WhatsApp->Email, Email->WhatsApp, SMS->WhatsApp\n- Attempt 2: Use SMS with urgent tone (time-sensitive language)\n- Attempt 3: Send final notice via email (formal, mention escalation)\n- Attempt 4+: Set next_channel to give_up (max attempts reached)\n\nCHANNEL SELECTION:\n- High recovery_probability (>0.6): Aggressive - WhatsApp first, then SMS, then email final\n- Medium (0.3-0.6): Moderate - Email first, then WhatsApp, then SMS\n- Low (<0.3): Conservative - One attempt via cheapest channel, then give_up\n\nFor unrecoverable_decline (was fraud_detected) or recovery_probability 0: Always set next_channel to give_up.\n\nMESSAGE TONE ESCALATION:\n- Level 0: Friendly reminder. Hi {name}, your payment of Rs.{amount} needs attention.\n- Level 1: Firm follow-up. We noticed your payment is still pending.\n- Level 2: Urgent. Action required - your payment of Rs.{amount} needs immediate attention.\n- Level 3: Final notice. This is our final reminder regarding your pending payment.\n\nRULES:\n- message_text must be complete, ready to send, with customer name and amount\n- Keep SMS under 160 characters\n- For give_up: set message_text to empty string\n- ALWAYS use the exact Payment Link URL provided in the input (NOT a placeholder)\n- next_channel MUST be one of: whatsapp, email, sms, give_up\n\nReturn structured JSON matching the output parser schema."
+        }
+      },
+      "id": "e143ee62-8c20-4576-8ec6-b0d3bd0f3315",
+      "name": "Escalation Decision",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1152,
+        304
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "6b2cf1e0-396f-4bde-be7e-f897a5dcd116",
+      "name": "OpenAI Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1152,
+        528
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "ucY4ufVmzS2UNai3",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\"next_channel\":\"whatsapp\",\"message_text\":\"Hi Customer, your payment of Rs.1000 is still pending. Please retry here: https://rzp.io/retry\",\"escalation_level\":1,\"strategy\":\"escalate_channel\",\"reasoning\":\"Switching channel after no response\"}"
+      },
+      "id": "44db193b-7b3a-4ded-9186-b510373c158d",
+      "name": "Escalation Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1312,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.output.next_channel }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "whatsapp"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "WhatsApp"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.output.next_channel }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "email"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Email"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.output.next_channel }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "sms"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "SMS"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "Give Up"
+        }
+      },
+      "id": "cb937a3e-1c8b-4632-8052-dfdea3be711c",
+      "name": "Route Escalation",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1440,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "from": "+17372508034",
+        "to": "={{ $(\"Filter Actionable\").item.json.customer_phone }}",
+        "message": "={{ $(\"Escalation Decision\").item.json.output.message_text.replace('https://rzp.io/retry', $(\"Generate Esc Payment Link\").item.json.short_url || 'https://rzp.io/retry') }}",
+        "options": {}
+      },
+      "id": "3a8389c1-4b3e-409d-a747-3d0d8d85164f",
+      "name": "Send WhatsApp Esc",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        1744,
+        80
+      ],
+      "credentials": {
+        "twilioApi": {
+          "id": "zy0whALRfEa1czn3",
+          "name": "Twilio account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resource": "mail",
+        "fromEmail": "abishekialbert@gmail.com",
+        "fromName": "Payment Recovery",
+        "toEmail": "={{ $(\"Filter Actionable\").item.json.customer_email }}",
+        "subject": "={{ \"Payment Reminder: Rs.\" + $(\"Filter Actionable\").item.json.amount }}",
+        "contentType": "text/html",
+        "contentValue": "={{ \"<h3>Payment Recovery Notice</h3><p>\" + $(\"Escalation Decision\").item.json.output.message_text.replace('https://rzp.io/retry', '') + \"</p><p><a href='\" + ($(\"Generate Esc Payment Link\").item.json.short_url || 'https://rzp.io/retry') + \"' style='display:inline-block;padding:12px 24px;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none;font-weight:bold'>Complete Payment</a></p>\" }}",
+        "additionalFields": {}
+      },
+      "id": "f79f259a-492a-44a4-a49f-869e0295499b",
+      "name": "Send Email Esc",
+      "type": "n8n-nodes-base.sendGrid",
+      "typeVersion": 1,
+      "position": [
+        1744,
+        288
+      ],
+      "credentials": {
+        "sendGridApi": {
+          "id": "j5d8Aem1m1f0EamE",
+          "name": "SendGrid account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "from": "+17372508034",
+        "to": "={{ $(\"Filter Actionable\").item.json.customer_phone }}",
+        "message": "={{ $(\"Escalation Decision\").item.json.output.message_text.replace('https://rzp.io/retry', $(\"Generate Esc Payment Link\").item.json.short_url || 'https://rzp.io/retry') }}",
+        "options": {}
+      },
+      "id": "27815050-bc07-4e23-95f9-7361c6dd12e0",
+      "name": "Send SMS Esc",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        1744,
+        480
+      ],
+      "credentials": {
+        "twilioApi": {
+          "id": "zy0whALRfEa1czn3",
+          "name": "Twilio account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "recovery_events",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $(\"Filter Actionable\").item.json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "exhausted"
+            },
+            {
+              "fieldId": "current_strategy",
+              "fieldValue": "exhausted"
+            }
+          ]
+        }
+      },
+      "id": "e119111d-a6ba-4237-a977-16c4f769c3aa",
+      "name": "Mark Exhausted",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1744,
+        688
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "gm8ZsBdGRtG7Ohlk",
+          "name": "Supabase routing"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "tableId": "recovery_attempts",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "recovery_event_id",
+              "fieldValue": "={{ $(\"Filter Actionable\").item.json.id }}"
+            },
+            {
+              "fieldId": "attempt_number",
+              "fieldValue": "={{ ($(\"Filter Actionable\").item.json.attempt_count ?? 0) + 1 }}"
+            },
+            {
+              "fieldId": "channel_used",
+              "fieldValue": "={{ $(\"Escalation Decision\").item.json.output.next_channel }}"
+            },
+            {
+              "fieldId": "action_taken",
+              "fieldValue": "={{ $(\"Escalation Decision\").item.json.output.strategy }}"
+            },
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $json.sid ?? '' }}"
+            },
+            {
+              "fieldId": "outcome",
+              "fieldValue": "sent"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{ JSON.stringify({ payment_link_id: $(\"Generate Esc Payment Link\").item.json.id, payment_link_url: $(\"Generate Esc Payment Link\").item.json.short_url, escalation_level: $(\"Escalation Decision\").item.json.output.escalation_level }) }}"
+            }
+          ]
+        }
+      },
+      "id": "bc93237d-fc85-4f17-a968-b491afdded96",
+      "name": "Log Escalation Attempt",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2048,
+        288
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "gm8ZsBdGRtG7Ohlk",
+          "name": "Supabase routing"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "recovery_events",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $(\"Filter Actionable\").item.json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "attempt_count",
+              "fieldValue": "={{ ($(\"Filter Actionable\").item.json.attempt_count ?? 0) + 1 }}"
+            },
+            {
+              "fieldId": "last_attempt_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            },
+            {
+              "fieldId": "escalation_level",
+              "fieldValue": "={{ $(\"Escalation Decision\").item.json.output.escalation_level }}"
+            },
+            {
+              "fieldId": "current_strategy",
+              "fieldValue": "={{ $(\"Escalation Decision\").item.json.output.strategy }}"
+            },
+            {
+              "fieldId": "next_action_at",
+              "fieldValue": "={{ $now.plus({hours: 4}).toISO() }}"
+            }
+          ]
+        }
+      },
+      "id": "192a7a36-96dd-4768-a668-6a8dbe0e0112",
+      "name": "Update Event State",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2352,
+        288
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "gm8ZsBdGRtG7Ohlk",
+          "name": "Supabase routing"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.razorpay.com/v1/payment_links/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ amount: Math.round(($(\"Filter Actionable\").item.json.amount || 0) * 100), currency: $(\"Filter Actionable\").item.json.currency || \"INR\", description: \"Recovery payment - \" + ($(\"Filter Actionable\").item.json.order_id || $(\"Filter Actionable\").item.json.payment_id || \"pending\"), customer: { name: $(\"Filter Actionable\").item.json.customer_name || undefined, email: $(\"Filter Actionable\").item.json.customer_email || undefined, contact: $(\"Filter Actionable\").item.json.customer_phone || undefined }, notify: { sms: false, email: false }, reference_id: ($(\"Filter Actionable\").item.json.order_id || $(\"Filter Actionable\").item.json.payment_id || String($(\"Filter Actionable\").item.json.id)) + \"_esc_\" + (($(\"Filter Actionable\").item.json.attempt_count || 0) + 1), notes: { source: \"escalation_agent\", event_type: $(\"Filter Actionable\").item.json.event_type || \"unknown\", failure_category: $(\"Filter Actionable\").item.json.failure_category || \"unknown\", recovery_event_id: String($(\"Filter Actionable\").item.json.id || \"\"), escalation_level: String($(\"Filter Actionable\").item.json.escalation_level || 0) } }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "f8db0456-3a37-44ad-bbca-f31e7b978098",
+      "name": "Generate Esc Payment Link",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1040,
+        144
+      ],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "frkgneFwFDPU9g7U",
+          "name": "Razor router"
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Fetch Pending Events": {
+      "main": [
+        [
+          {
+            "node": "Filter Actionable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Escalation Decision": {
+      "main": [
+        [
+          {
+            "node": "Route Escalation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Escalation Decision",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Escalation Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Escalation Decision",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Escalation": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Esc",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Email Esc",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send SMS Esc",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Exhausted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp Esc": {
+      "main": [
+        [
+          {
+            "node": "Log Escalation Attempt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email Esc": {
+      "main": [
+        [
+          {
+            "node": "Log Escalation Attempt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send SMS Esc": {
+      "main": [
+        [
+          {
+            "node": "Log Escalation Attempt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Escalation Attempt": {
+      "main": [
+        [
+          {
+            "node": "Update Event State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Every 5 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Fetch Pending Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Actionable": {
+      "main": [
+        [
+          {
+            "node": "Generate Esc Payment Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Esc Payment Link": {
+      "main": [
+        [
+          {
+            "node": "Escalation Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "a433557e-261a-4c87-8a2c-749d70f70cab",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "0b685d6b3c7df1863014d0ff8372fb99bbd8c6a0a7a4fdbf85ac576190555150"
+  },
+  "nodeGroups": [],
+  "id": "PaPzRiBHQaAw5nF0",
+  "tags": []
+}

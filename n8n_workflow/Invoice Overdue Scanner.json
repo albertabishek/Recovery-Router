@@ -1,0 +1,201 @@
+{
+  "name": "Invoice Overdue Scanner",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "904bd40a-dbae-46ed-94b0-fbf9e3323f6e",
+      "name": "Every 6 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        240,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.razorpay.com/v1/invoices",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "invoice"
+            },
+            {
+              "name": "status",
+              "value": "issued"
+            },
+            {
+              "name": "count",
+              "value": "100"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "98cce71b-3a57-4747-8b9c-ebead02b51ec",
+      "name": "Fetch Razorpay Invoices",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        544,
+        304
+      ],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "frkgneFwFDPU9g7U",
+          "name": "Razor router"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "items",
+        "options": {}
+      },
+      "id": "e23c5c1b-05e4-4cee-94f2-e54e4243e833",
+      "name": "Split Invoice Items",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        752,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n.betiwonthearback.com/webhook/recovery-router",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "event_type",
+              "value": "invoice_overdue"
+            },
+            {
+              "name": "invoice_id",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "name": "order_id",
+              "value": "={{ $json.order_id ?? $json.id }}"
+            },
+            {
+              "name": "amount",
+              "value": "={{ $json.amount / 100 }}"
+            },
+            {
+              "name": "currency",
+              "value": "={{ $json.currency ?? \"INR\" }}"
+            },
+            {
+              "name": "customer_name",
+              "value": "={{ $json.customer_details.name ?? \"\" }}"
+            },
+            {
+              "name": "customer_email",
+              "value": "={{ $json.customer_details.email ?? \"\" }}"
+            },
+            {
+              "name": "customer_phone",
+              "value": "={{ $json.customer_details.contact ?? \"\" }}"
+            },
+            {
+              "name": "days_overdue",
+              "value": "={{ Math.max(0, Math.floor(($now.toMillis() - ($json.due_date * 1000)) / 86400000)) }}"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{ $now.toISO() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f64f2e84-014e-427b-b264-93764002864a",
+      "name": "Send to Recovery Router",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        944,
+        304
+      ],
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "TkgvTZ9edZi61vBG",
+          "name": "Ahref_Bearer_Auth"
+        },
+        "httpBasicAuth": {
+          "id": "frkgneFwFDPU9g7U",
+          "name": "Razor router"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Every 6 Hours": {
+      "main": [
+        [
+          {
+            "node": "Fetch Razorpay Invoices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Razorpay Invoices": {
+      "main": [
+        [
+          {
+            "node": "Split Invoice Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Invoice Items": {
+      "main": [
+        [
+          {
+            "node": "Send to Recovery Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "74db9ba6-ffb3-40bf-9a7f-55f40a1d1482",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "0b685d6b3c7df1863014d0ff8372fb99bbd8c6a0a7a4fdbf85ac576190555150"
+  },
+  "nodeGroups": [],
+  "id": "iCqvY2FsG4qwnrH5",
+  "tags": []
+}
