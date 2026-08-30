@@ -337,8 +337,8 @@ async def create_live_checkout(req: LiveCheckoutRequest):
     if not check_rate_limit("api:live-checkout", max_requests=5, window_seconds=60):
         raise HTTPException(status_code=429, detail="Rate limit exceeded")
 
-    if req.amount < 1 or req.amount > 50000:
-        raise HTTPException(status_code=400, detail="Amount must be between ₹1 and ₹50,000")
+    if req.amount < 1 or req.amount > 500000:
+        raise HTTPException(status_code=400, detail="Amount must be between ₹1 and ₹5,00,000")
 
     import httpx
     amount_paise = int(req.amount * 100)
@@ -396,37 +396,43 @@ async def control_event(event_id: int, req: EventControlRequest):
     if req.action == "pause":
         if current_status != "pending":
             raise HTTPException(status_code=400, detail=f"Can only pause pending events (current: {current_status})")
-        sb.table("recovery_events").update({
+        upd = sb.table("recovery_events").update({
             "status": "paused",
             "current_strategy": "merchant_paused",
             "next_action_at": None,
             "updated_at": datetime.now(timezone.utc).isoformat(),
-        }).eq("id", event_id).execute()
+        }).eq("id", event_id).eq("status", "pending").execute()
+        if not upd.data:
+            raise HTTPException(status_code=409, detail="Event status changed concurrently, please retry")
         return {"status": "paused", "message": f"Event #{event_id} recovery paused"}
 
     elif req.action == "resume":
         if current_status != "paused":
             raise HTTPException(status_code=400, detail=f"Can only resume paused events (current: {current_status})")
-        sb.table("recovery_events").update({
+        upd = sb.table("recovery_events").update({
             "status": "pending",
             "current_strategy": "resumed",
             "next_action_at": datetime.now(timezone.utc).isoformat(),
             "updated_at": datetime.now(timezone.utc).isoformat(),
-        }).eq("id", event_id).execute()
+        }).eq("id", event_id).eq("status", "paused").execute()
+        if not upd.data:
+            raise HTTPException(status_code=409, detail="Event status changed concurrently, please retry")
         return {"status": "resumed", "message": f"Event #{event_id} recovery resumed"}
 
     elif req.action == "cancel":
         terminal = ("recovered", "organic_recovery", "cancelled")
         if current_status in terminal:
             raise HTTPException(status_code=400, detail=f"Cannot cancel event in terminal status '{current_status}'")
-        sb.table("recovery_events").update({
+        upd = sb.table("recovery_events").update({
             "status": "cancelled",
             "current_strategy": "merchant_cancelled",
             "skip_reason": "Cancelled by merchant",
             "next_action_at": None,
             "recovery_window_ends": None,
             "updated_at": datetime.now(timezone.utc).isoformat(),
-        }).eq("id", event_id).execute()
+        }).eq("id", event_id).in_("status", ["pending", "paused", "exhausted"]).execute()
+        if not upd.data:
+            raise HTTPException(status_code=409, detail="Event status changed concurrently, please retry")
         return {"status": "cancelled", "message": f"Event #{event_id} recovery cancelled"}
 
     else:
@@ -530,7 +536,7 @@ async def fix_premature_exhaustion():
                 "current_strategy": "first_contact_sent",
                 "skip_reason": None,
                 "updated_at": now.isoformat(),
-            }).eq("id", event["id"]).execute()
+            }).eq("id", event["id"]).eq("status", "exhausted").execute()
         else:
             sb.table("recovery_events").update({
                 "status": "pending",
@@ -539,7 +545,7 @@ async def fix_premature_exhaustion():
                 "skip_reason": None,
                 "next_action_at": (now + timedelta(minutes=15)).isoformat(),
                 "updated_at": now.isoformat(),
-            }).eq("id", event["id"]).execute()
+            }).eq("id", event["id"]).eq("status", "exhausted").execute()
         fixed_events += 1
 
     return {"status": "done", "fixed_events": fixed_events, "fixed_attempts": fixed_attempts}

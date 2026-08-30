@@ -170,7 +170,7 @@ def run_escalation(events: list[dict]) -> list[dict]:
                     "next_action_at": wake_at.isoformat(),
                     "current_strategy": "quiet_hours_rescheduled",
                     "updated_at": datetime.now(timezone.utc).isoformat(),
-                }).eq("id", event["id"]).execute()
+                }).eq("id", event["id"]).eq("status", "pending").execute()
                 logger.info(
                     "Event %d: quiet hours — rescheduled to %s",
                     event["id"], wake_at.isoformat(),
@@ -199,7 +199,7 @@ def run_escalation(events: list[dict]) -> list[dict]:
                 sb.table("recovery_events").update({
                     "next_action_at": (now + timedelta(minutes=15)).isoformat(),
                     "updated_at": now.isoformat(),
-                }).eq("id", event["id"]).execute()
+                }).eq("id", event["id"]).eq("status", "pending").execute()
                 results.append({"event_id": event["id"], "action": "link_failed"})
                 continue
 
@@ -226,7 +226,7 @@ def run_escalation(events: list[dict]) -> list[dict]:
                 sb.table("recovery_events").update({
                     "next_action_at": (now + timedelta(minutes=15)).isoformat(),
                     "updated_at": now.isoformat(),
-                }).eq("id", event["id"]).execute()
+                }).eq("id", event["id"]).eq("status", "pending").execute()
 
             results.append({
                 "event_id": event["id"],
@@ -446,6 +446,22 @@ def _update_event_state(sb, event, decision):
     delay_hours = RETRY_DELAY_HOURS.get(category, 4)
     new_attempt_count = event.get("attempt_count", 0) + 1
     new_level = event.get("escalation_level", 0) + 1
+    max_attempts = event.get("max_attempts") if event.get("max_attempts") is not None else 5
+
+    if new_attempt_count >= max_attempts:
+        sb.table("recovery_events").update({
+            "status": "exhausted",
+            "attempt_count": new_attempt_count,
+            "last_attempt_at": now.isoformat(),
+            "escalation_level": new_level,
+            "current_strategy": "max_attempts_reached",
+            "skip_reason": f"All {max_attempts} recovery attempts used",
+            "next_action_at": None,
+            "recovery_window_ends": None,
+            "updated_at": now.isoformat(),
+        }).eq("id", event["id"]).eq("status", "pending").execute()
+        logger.info("Event %d: exhausted after %d/%d attempts", event["id"], new_attempt_count, max_attempts)
+        return
 
     stage_map = {1: "first_contact_sent", 2: "follow_up_sent", 3: "escalated"}
     strategy = stage_map.get(new_level, f"escalation_level_{new_level}")
@@ -457,18 +473,21 @@ def _update_event_state(sb, event, decision):
         "current_strategy": strategy,
         "next_action_at": (now + timedelta(hours=delay_hours)).isoformat(),
         "updated_at": now.isoformat(),
-    }).eq("id", event["id"]).execute()
+    }).eq("id", event["id"]).eq("status", "pending").execute()
 
 
 def _mark_exhausted(sb, event, reason: str = ""):
     max_att = event.get("max_attempts") if event.get("max_attempts") is not None else 5
     exhausted_reason = reason or f"All {max_att} recovery attempts used"
-    sb.table("recovery_events").update({
+    res = sb.table("recovery_events").update({
         "status": "exhausted",
         "current_strategy": "exhausted",
         "skip_reason": exhausted_reason,
         "next_action_at": None,
         "recovery_window_ends": None,
         "updated_at": datetime.now(timezone.utc).isoformat(),
-    }).eq("id", event["id"]).execute()
-    logger.info("Event %d marked as exhausted: %s", event["id"], exhausted_reason)
+    }).eq("id", event["id"]).eq("status", "pending").execute()
+    if res.data:
+        logger.info("Event %d marked as exhausted: %s", event["id"], exhausted_reason)
+    else:
+        logger.warning("Event %d: exhaustion skipped — status already changed", event["id"])

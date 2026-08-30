@@ -249,14 +249,27 @@ def process_recovery_event(self, event_data: dict) -> dict:
         delay_hours = RETRY_DELAY_HOURS.get(classification.failure_category, 4)
 
         if send_succeeded:
-            update_data = {
-                "attempt_count": 1,
-                "last_attempt_at": now.isoformat(),
-                "escalation_level": 1,
-                "current_strategy": "first_contact_sent",
-                "next_action_at": (now + timedelta(hours=delay_hours)).isoformat(),
-                "updated_at": now.isoformat(),
-            }
+            if 1 >= max_attempts:
+                update_data = {
+                    "status": "exhausted",
+                    "attempt_count": 1,
+                    "last_attempt_at": now.isoformat(),
+                    "escalation_level": 1,
+                    "current_strategy": "max_attempts_reached",
+                    "skip_reason": f"All {max_attempts} recovery attempts used",
+                    "next_action_at": None,
+                    "recovery_window_ends": None,
+                    "updated_at": now.isoformat(),
+                }
+            else:
+                update_data = {
+                    "attempt_count": 1,
+                    "last_attempt_at": now.isoformat(),
+                    "escalation_level": 1,
+                    "current_strategy": "first_contact_sent",
+                    "next_action_at": (now + timedelta(hours=delay_hours)).isoformat(),
+                    "updated_at": now.isoformat(),
+                }
         else:
             retry_minutes = 15
             update_data = {
@@ -265,7 +278,7 @@ def process_recovery_event(self, event_data: dict) -> dict:
                 "updated_at": now.isoformat(),
             }
 
-        sb.table("recovery_events").update(update_data).eq("id", event_id).execute()
+        sb.table("recovery_events").update(update_data).eq("id", event_id).eq("status", "pending").execute()
 
         return {
             "status": "sent" if send_succeeded else "send_failed",
@@ -362,7 +375,7 @@ def handle_recovery_retry_failure(self, data: dict) -> dict:
             sb.table("recovery_events").update({
                 "last_attempt_at": now.isoformat(),
                 "updated_at": now.isoformat(),
-            }).eq("id", parent_id).execute()
+            }).eq("id", parent_id).in_("status", ["pending", "paused", "exhausted"]).execute()
 
             logger.info(
                 "Retry failure logged on event %s: cancellation=%s",
@@ -392,127 +405,155 @@ def _send_delayed(self, event_id: int, channel: str, event_data: dict):
     try:
         event = RecoveryEventInput(**event_data)
         sb = get_supabase()
+        r = get_redis()
         now = datetime.now(timezone.utc)
 
-        ev_res = sb.table("recovery_events").select("*").eq("id", event_id).limit(1).execute()
-        if not ev_res.data:
-            logger.warning("Delayed send: event %s not found", event_id)
-            return {"status": "not_found", "event_id": event_id}
+        lock_key = f"lock:event:{event_id}"
+        if not r.set(lock_key, "delayed", nx=True, ex=300):
+            logger.info("Delayed send: event %d locked by another process, skipping", event_id)
+            return {"status": "skipped_locked", "event_id": event_id}
 
-        ev = ev_res.data[0]
-        if ev.get("status") != "pending":
-            logger.info("Delayed send: event %s status=%s, skipping", event_id, ev['status'])
-            return {"status": "skipped", "event_id": event_id}
+        try:
+            ev_res = sb.table("recovery_events").select("*").eq("id", event_id).limit(1).execute()
+            if not ev_res.data:
+                logger.warning("Delayed send: event %s not found", event_id)
+                return {"status": "not_found", "event_id": event_id}
 
-        if _is_quiet_hours():
-            wake_at = _next_permitted_time()
-            sb.table("recovery_events").update({
-                "next_action_at": wake_at.isoformat(),
-                "current_strategy": "quiet_hours_rescheduled",
-                "updated_at": now.isoformat(),
-            }).eq("id", event_id).execute()
-            logger.info("Delayed send event %d: quiet hours — rescheduled to %s", event_id, wake_at.isoformat())
-            return {"status": "rescheduled_quiet_hours", "event_id": event_id}
+            ev = ev_res.data[0]
+            if ev.get("status") != "pending":
+                logger.info("Delayed send: event %s status=%s, skipping", event_id, ev['status'])
+                return {"status": "skipped", "event_id": event_id}
 
-        recovery_window_ends = None
-        if ev.get("recovery_window_ends"):
-            try:
-                recovery_window_ends = datetime.fromisoformat(ev["recovery_window_ends"])
-            except (ValueError, TypeError):
-                pass
+            if (ev.get("attempt_count", 0) or 0) > 0:
+                logger.info("Delayed send: event %d already has %d attempts (escalation handled it), skipping",
+                            event_id, ev["attempt_count"])
+                return {"status": "skipped_already_sent", "event_id": event_id}
 
-        link = generate_payment_link(
-            amount=event.amount,
-            currency=event.currency,
-            customer_name=event.customer_name or "Customer",
-            customer_email=event.customer_email,
-            customer_phone=event.customer_phone,
-            order_id=event.order_id,
-            event_type=event.event_type,
-            failure_category=ev.get("failure_category", "unknown"),
-            event_id=event_id,
-            recovery_window_ends=recovery_window_ends,
-        )
+            if _is_quiet_hours():
+                wake_at = _next_permitted_time()
+                sb.table("recovery_events").update({
+                    "next_action_at": wake_at.isoformat(),
+                    "current_strategy": "quiet_hours_rescheduled",
+                    "updated_at": now.isoformat(),
+                }).eq("id", event_id).eq("status", "pending").execute()
+                logger.info("Delayed send event %d: quiet hours — rescheduled to %s", event_id, wake_at.isoformat())
+                return {"status": "rescheduled_quiet_hours", "event_id": event_id}
 
-        if not link.get("short_url"):
-            logger.error("Delayed send event %d: payment link creation failed, rescheduling", event_id)
-            sb.table("recovery_events").update({
-                "current_strategy": "link_creation_failed",
-                "next_action_at": (now + timedelta(minutes=15)).isoformat(),
-                "updated_at": now.isoformat(),
-            }).eq("id", event_id).execute()
-            return {"status": "link_failed", "event_id": event_id}
+            recovery_window_ends = None
+            if ev.get("recovery_window_ends"):
+                try:
+                    recovery_window_ends = datetime.fromisoformat(ev["recovery_window_ends"])
+                except (ValueError, TypeError):
+                    pass
 
-        send_result = send_message(
-            channel=channel,
-            customer_name=event.customer_name or "Customer",
-            customer_email=event.customer_email,
-            customer_phone=event.customer_phone,
-            amount=event.amount,
-            currency=event.currency,
-            failure_category=ev.get("failure_category", "unknown"),
-            payment_link_url=link.get("short_url", ""),
-            reasoning=ev.get("reasoning", ""),
-            personalization_hint=ev.get("personalization_hint"),
-        )
+            link = generate_payment_link(
+                amount=event.amount,
+                currency=event.currency,
+                customer_name=event.customer_name or "Customer",
+                customer_email=event.customer_email,
+                customer_phone=event.customer_phone,
+                order_id=event.order_id,
+                event_type=event.event_type,
+                failure_category=ev.get("failure_category", "unknown"),
+                event_id=event_id,
+                recovery_window_ends=recovery_window_ends,
+            )
 
-        channel_used = send_result.get("channel_used") or channel
+            if not link.get("short_url"):
+                logger.error("Delayed send event %d: payment link creation failed, rescheduling", event_id)
+                sb.table("recovery_events").update({
+                    "current_strategy": "link_creation_failed",
+                    "next_action_at": (now + timedelta(minutes=15)).isoformat(),
+                    "updated_at": now.isoformat(),
+                }).eq("id", event_id).eq("status", "pending").execute()
+                return {"status": "link_failed", "event_id": event_id}
 
-        max_res = (
-            sb.table("recovery_attempts")
-            .select("attempt_number")
-            .eq("recovery_event_id", event_id)
-            .order("attempt_number", desc=True)
-            .limit(1)
-            .execute()
-        )
-        next_number = (max_res.data[0]["attempt_number"] + 1) if max_res.data else 1
+            send_result = send_message(
+                channel=channel,
+                customer_name=event.customer_name or "Customer",
+                customer_email=event.customer_email,
+                customer_phone=event.customer_phone,
+                amount=event.amount,
+                currency=event.currency,
+                failure_category=ev.get("failure_category", "unknown"),
+                payment_link_url=link.get("short_url", ""),
+                reasoning=ev.get("reasoning", ""),
+                personalization_hint=ev.get("personalization_hint"),
+            )
 
-        sb.table("recovery_attempts").insert({
-            "recovery_event_id": event_id,
-            "attempt_number": next_number,
-            "channel_used": channel_used,
-            "action_taken": f"delayed_send via {channel_used}",
-            "message_id": send_result.get("message_id", ""),
-            "outcome": "sent" if send_result.get("success") else (
-                "blocked" if send_result.get("error") == "Cooldown active" else "failed"
-            ),
-            "notes": f"Delayed send (originally scheduled for {channel})",
-            "metadata": {
-                "payment_link_id": link.get("id"),
-                "payment_link_url": link.get("short_url"),
-                "send_error": send_result.get("error"),
-                "degraded_from": send_result.get("degraded_from"),
-                "degradation_path": send_result.get("degradation_path", []),
-                "ai_personalized": True,
-            },
-        }).execute()
+            channel_used = send_result.get("channel_used") or channel
 
-        send_succeeded = send_result.get("success", False)
-        delay_hours = RETRY_DELAY_HOURS.get(ev.get("failure_category", ""), 4)
+            max_res = (
+                sb.table("recovery_attempts")
+                .select("attempt_number")
+                .eq("recovery_event_id", event_id)
+                .order("attempt_number", desc=True)
+                .limit(1)
+                .execute()
+            )
+            next_number = (max_res.data[0]["attempt_number"] + 1) if max_res.data else 1
 
-        if send_succeeded:
-            sb.table("recovery_events").update({
-                "attempt_count": 1,
-                "last_attempt_at": now.isoformat(),
-                "escalation_level": 1,
-                "current_strategy": "first_contact_sent",
-                "next_action_at": (now + timedelta(hours=delay_hours)).isoformat(),
-                "updated_at": now.isoformat(),
-            }).eq("id", event_id).execute()
-        else:
-            sb.table("recovery_events").update({
-                "current_strategy": "first_contact_failed",
-                "next_action_at": (now + timedelta(minutes=15)).isoformat(),
-                "updated_at": now.isoformat(),
-            }).eq("id", event_id).execute()
+            sb.table("recovery_attempts").insert({
+                "recovery_event_id": event_id,
+                "attempt_number": next_number,
+                "channel_used": channel_used,
+                "action_taken": f"delayed_send via {channel_used}",
+                "message_id": send_result.get("message_id", ""),
+                "outcome": "sent" if send_result.get("success") else (
+                    "blocked" if send_result.get("error") == "Cooldown active" else "failed"
+                ),
+                "notes": f"Delayed send (originally scheduled for {channel})",
+                "metadata": {
+                    "payment_link_id": link.get("id"),
+                    "payment_link_url": link.get("short_url"),
+                    "send_error": send_result.get("error"),
+                    "degraded_from": send_result.get("degraded_from"),
+                    "degradation_path": send_result.get("degradation_path", []),
+                    "ai_personalized": True,
+                },
+            }).execute()
 
-        return {
-            "status": "sent" if send_succeeded else "send_failed",
-            "event_id": event_id,
-            "channel": channel_used,
-            "success": send_succeeded,
-        }
+            send_succeeded = send_result.get("success", False)
+            delay_hours = RETRY_DELAY_HOURS.get(ev.get("failure_category", ""), 4)
+
+            if send_succeeded:
+                max_att = ev.get("max_attempts") if ev.get("max_attempts") is not None else 5
+                if 1 >= max_att:
+                    sb.table("recovery_events").update({
+                        "status": "exhausted",
+                        "attempt_count": 1,
+                        "last_attempt_at": now.isoformat(),
+                        "escalation_level": 1,
+                        "current_strategy": "max_attempts_reached",
+                        "skip_reason": f"All {max_att} recovery attempts used",
+                        "next_action_at": None,
+                        "recovery_window_ends": None,
+                        "updated_at": now.isoformat(),
+                    }).eq("id", event_id).eq("status", "pending").execute()
+                else:
+                    sb.table("recovery_events").update({
+                        "attempt_count": 1,
+                        "last_attempt_at": now.isoformat(),
+                        "escalation_level": 1,
+                        "current_strategy": "first_contact_sent",
+                        "next_action_at": (now + timedelta(hours=delay_hours)).isoformat(),
+                        "updated_at": now.isoformat(),
+                    }).eq("id", event_id).eq("status", "pending").execute()
+            else:
+                sb.table("recovery_events").update({
+                    "current_strategy": "first_contact_failed",
+                    "next_action_at": (now + timedelta(minutes=15)).isoformat(),
+                    "updated_at": now.isoformat(),
+                }).eq("id", event_id).eq("status", "pending").execute()
+
+            return {
+                "status": "sent" if send_succeeded else "send_failed",
+                "event_id": event_id,
+                "channel": channel_used,
+                "success": send_succeeded,
+            }
+        finally:
+            r.delete(lock_key)
 
     except TRANSIENT_ERRORS as exc:
         logger.warning("_send_delayed transient error for event %d: %s", event_id, exc)

@@ -85,19 +85,22 @@ def _mark_window_expired(sb, event):
             "recovery_window_ends": (now + timedelta(hours=24)).isoformat(),
             "next_action_at": now.isoformat(),
             "updated_at": now.isoformat(),
-        }).eq("id", event["id"]).execute()
+        }).eq("id", event["id"]).eq("status", "pending").execute()
         logger.info("Event %d: window expired but 0 attempts sent — extending window by 24h", event["id"])
         return
 
-    sb.table("recovery_events").update({
+    res = sb.table("recovery_events").update({
         "status": "exhausted",
         "current_strategy": "window_expired",
         "skip_reason": "Recovery window expired without payment" if attempt_count > 0 else "No outreach attempts succeeded within recovery window",
         "next_action_at": None,
         "recovery_window_ends": None,
         "updated_at": datetime.now(timezone.utc).isoformat(),
-    }).eq("id", event["id"]).execute()
-    logger.info("Event %d: recovery window expired (attempts=%d)", event["id"], attempt_count)
+    }).eq("id", event["id"]).eq("status", "pending").execute()
+    if res.data:
+        logger.info("Event %d: recovery window expired (attempts=%d)", event["id"], attempt_count)
+    else:
+        logger.warning("Event %d: window expiry skipped — status already changed", event["id"])
 
 
 def _mark_attempts_exhausted(sb, event):
@@ -108,12 +111,15 @@ def _mark_attempts_exhausted(sb, event):
         logger.info("Event %d: max_attempts=%d but attempt_count=0 — skipping exhaustion", event["id"], max_att)
         return
 
-    sb.table("recovery_events").update({
+    res = sb.table("recovery_events").update({
         "status": "exhausted",
         "current_strategy": "max_attempts_reached",
         "skip_reason": f"Reached maximum {max_att} recovery attempts",
         "next_action_at": None,
         "recovery_window_ends": None,
         "updated_at": datetime.now(timezone.utc).isoformat(),
-    }).eq("id", event["id"]).execute()
-    logger.info("Event %d: max attempts (%d) exhausted", event["id"], max_att)
+    }).eq("id", event["id"]).eq("status", "pending").execute()
+    if res.data:
+        logger.info("Event %d: max attempts (%d) exhausted", event["id"], max_att)
+    else:
+        logger.warning("Event %d: exhaustion skipped — status already changed", event["id"])
