@@ -78,7 +78,7 @@ Your job: analyze what happened in previous attempts and decide the BEST next mo
 }"""
 
 ESCALATION_SCHEMA = {
-    "action": {"type": "str", "allowed": ["send", "give_up"], "default": "give_up"},
+    "action": {"type": "str", "allowed": ["send", "give_up"], "default": "send"},
     "channel": {"type": "str", "allowed": ["whatsapp", "email", "sms"], "default": "email"},
     "tone": {"type": "str", "allowed": ["friendly", "firm", "urgent", "final"], "default": "firm"},
 }
@@ -134,13 +134,33 @@ def run_escalation(events: list[dict]) -> list[dict]:
             )
 
             if decision.get("action") == "give_up":
-                logger.warning(
-                    "Event %d: EXHAUSTING via give_up (attempt_count=%d/%d)",
-                    event["id"], event.get("attempt_count", 0), event.get("max_attempts", 5),
-                )
-                _mark_exhausted(sb, event, decision.get("reasoning", ""))
-                results.append({"event_id": event["id"], "action": "exhausted"})
-                continue
+                attempt_count = event.get("attempt_count", 0)
+                max_attempts = event.get("max_attempts") if event.get("max_attempts") is not None else 5
+                if attempt_count < max_attempts:
+                    logger.warning(
+                        "Event %d: give_up blocked — attempt_count=%d < max_attempts=%d, forcing send",
+                        event["id"], attempt_count, max_attempts,
+                    )
+                    blocked_chs = {
+                        a.get("channel_used") for a in attempts
+                        if a.get("channel_used") != "payment_link"
+                        and a.get("outcome") in ("blocked", "failed")
+                    }
+                    last_ch = attempts[-1].get("channel_used") if attempts else None
+                    decision = {
+                        "action": "send",
+                        "channel": _pick_next_channel(last_ch, event, avoid=blocked_chs),
+                        "tone": "firm" if attempt_count <= 2 else "urgent",
+                        "reasoning": f"Safety override: give_up blocked because {max_attempts - attempt_count} attempts remain.",
+                    }
+                else:
+                    logger.warning(
+                        "Event %d: EXHAUSTING via give_up (attempt_count=%d/%d)",
+                        event["id"], attempt_count, max_attempts,
+                    )
+                    _mark_exhausted(sb, event, decision.get("reasoning", ""))
+                    results.append({"event_id": event["id"], "action": "exhausted"})
+                    continue
 
             channel = decision.get("channel", "email")
 
@@ -283,13 +303,28 @@ def _get_escalation_decision(event: dict, attempts: list[dict]) -> dict:
                 if a.get("channel_used") != "payment_link"
                 and a.get("outcome") != "blocked"
             ]
-            all_failed = outreach_attempts and all(
-                a.get("outcome") == "failed" for a in outreach_attempts
+            failed_channels = {
+                a.get("channel_used") for a in outreach_attempts
+                if a.get("outcome") == "failed"
+            }
+            all_channels = {"whatsapp", "email", "sms"}
+            available = all_channels - failed_channels
+            has_contact = set()
+            if event.get("customer_phone"):
+                has_contact |= {"whatsapp", "sms"}
+            if event.get("customer_email"):
+                has_contact.add("email")
+            untried_channels = available & has_contact
+
+            all_truly_exhausted = (
+                outreach_attempts
+                and all(a.get("outcome") == "failed" for a in outreach_attempts)
+                and not untried_channels
             )
-            if not all_failed or attempt_count == 0:
+            if not all_truly_exhausted or attempt_count == 0:
                 logger.info(
-                    "Event %d: AI said give_up at attempt %d/%d but budget remains — overriding to send",
-                    event["id"], attempt_count, max_attempts,
+                    "Event %d: AI said give_up at attempt %d/%d but budget remains — overriding to send (untried: %s)",
+                    event["id"], attempt_count, max_attempts, untried_channels or "none, retrying",
                 )
                 blocked_chs = {
                     a.get("channel_used") for a in attempts
