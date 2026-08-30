@@ -17,7 +17,6 @@ from app.services.message_generator import generate_personalized_messages, rende
 logger = logging.getLogger(__name__)
 
 TWILIO_WHATSAPP_CONTENT_SID = "HXfe5ab5f00277942d4d4200328b4d403c"
-VERIFIED_PHONE = "+919042824369"
 
 
 def send_message(

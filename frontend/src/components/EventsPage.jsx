@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { fetchEvents, fetchEventTrace } from '../lib/api'
-import { supabase } from '../lib/supabase'
-import { TypeBadge, StatusBadge, timeAgo } from './OverviewPage'
+import { fetchEvents, fetchEventTrace, fetchEventCounts, controlEvent } from '../lib/api'
+import { TypeBadge, StatusBadge, timeAgo, formatCategory, formatEscalation, formatStrategy } from './OverviewPage'
 import { getDateParams } from './DateRangePicker'
 
 const fmt = (n) => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(n)
@@ -9,10 +8,12 @@ const PAGE_SIZE = 25
 
 const TABS = [
   { id: null, label: 'All Events' },
-  { id: 'pending', label: 'Pending' },
-  { id: 'recovered', label: 'Recovered' },
-  { id: 'exhausted', label: 'Exhausted' },
-  { id: 'no_action_needed', label: 'No Action' },
+  { id: 'pending', label: 'In Progress' },
+  { id: 'paused', label: 'On Hold' },
+  { id: 'recovered', label: 'Paid' },
+  { id: 'exhausted', label: 'Gave Up' },
+  { id: 'cancelled', label: 'Cancelled' },
+  { id: 'no_action_needed', label: 'Skipped' },
 ]
 
 function timeUntil(dateStr) {
@@ -56,19 +57,15 @@ export default function EventsPage({ selectedEventId, dateRange }) {
 
   const loadCounts = useCallback(async () => {
     try {
-      const [all, pending, recovered, exhausted, noAction] = await Promise.all([
-        fetchEvents({ limit: 1, ...dp }),
-        fetchEvents({ limit: 1, status: 'pending', ...dp }),
-        fetchEvents({ limit: 1, status: 'recovered', ...dp }),
-        fetchEvents({ limit: 1, status: 'exhausted', ...dp }),
-        fetchEvents({ limit: 1, status: 'no_action_needed', ...dp }),
-      ])
+      const counts = await fetchEventCounts(dp)
       setTabCounts({
-        all: all.total || 0,
-        pending: pending.total || 0,
-        recovered: recovered.total || 0,
-        exhausted: exhausted.total || 0,
-        no_action_needed: noAction.total || 0,
+        all: counts.all || 0,
+        pending: counts.pending || 0,
+        paused: counts.paused || 0,
+        recovered: counts.recovered || 0,
+        exhausted: counts.exhausted || 0,
+        cancelled: counts.cancelled || 0,
+        no_action_needed: counts.no_action_needed || 0,
       })
     } catch (e) {
       console.error('Failed to load counts:', e)
@@ -80,35 +77,7 @@ export default function EventsPage({ selectedEventId, dateRange }) {
   useEffect(() => { loadCounts() }, [loadCounts])
 
   useEffect(() => {
-    const channel = supabase
-      .channel('events-page-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'recovery_events' }, (payload) => {
-        if (payload.eventType === 'INSERT') {
-          setEvents(prev => {
-            if (page !== 0) return prev
-            if (activeTab && payload.new.status !== activeTab) return prev
-            return [payload.new, ...prev].slice(0, PAGE_SIZE)
-          })
-          setTotal(prev => prev + 1)
-          setTabCounts(prev => {
-            const s = payload.new.status
-            const key = s === 'no_action_needed' ? 'no_action_needed' : s
-            return { ...prev, all: (prev.all || 0) + 1, [key]: (prev[key] || 0) + 1 }
-          })
-        } else if (payload.eventType === 'UPDATE') {
-          setEvents(prev => prev.map(e => e.id === payload.new.id ? { ...e, ...payload.new } : e))
-          if (payload.old?.status !== payload.new?.status) {
-            loadCounts()
-          }
-        }
-      })
-      .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
-  }, [page, activeTab, loadCounts])
-
-  useEffect(() => {
-    const interval = setInterval(() => { load(true); loadCounts() }, 60000)
+    const interval = setInterval(() => { load(true); loadCounts() }, 30000)
     return () => clearInterval(interval)
   }, [load, loadCounts])
 
@@ -175,7 +144,7 @@ export default function EventsPage({ selectedEventId, dateRange }) {
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 780 }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid #E8EAED' }}>
-                  {['ID', 'Type', 'Amount', 'Category', 'Channel', 'Attempts', 'Status', 'Next / Created'].map(h => (
+                  {['ID', 'Type', 'Amount', 'Category', 'Channel', 'Messages', 'Status', 'Next / Created'].map(h => (
                     <th key={h} style={{
                       padding: '12px 16px', fontSize: 12, fontWeight: 600,
                       color: '#6B7280', textAlign: 'left',
@@ -214,9 +183,9 @@ export default function EventsPage({ selectedEventId, dateRange }) {
                       <td style={{ padding: '12px 16px', fontSize: 13, color: '#6B7280', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>#{e.id}</td>
                       <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}><TypeBadge type={e.event_type} /></td>
                       <td style={{ padding: '12px 16px', fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap' }}>₹{fmt(e.amount)}</td>
-                      <td style={{ padding: '12px 16px', fontSize: 14, color: '#5F6B7A', whiteSpace: 'nowrap' }}>{(e.failure_category || '—').replace(/_/g, ' ')}</td>
+                      <td style={{ padding: '12px 16px', fontSize: 14, color: '#5F6B7A', whiteSpace: 'nowrap' }}>{formatCategory(e.failure_category)}</td>
                       <td style={{ padding: '12px 16px', fontSize: 14, color: '#5F6B7A', textTransform: 'capitalize', whiteSpace: 'nowrap' }}>{e.recommended_channel || '—'}</td>
-                      <td style={{ padding: '12px 16px', fontSize: 14, color: '#5F6B7A', whiteSpace: 'nowrap' }}>{e.attempt_count || 0}/{e.max_attempts || 5}</td>
+                      <td style={{ padding: '12px 16px', fontSize: 14, color: '#5F6B7A', whiteSpace: 'nowrap' }}>{e.attempt_count || 0}/{e.max_attempts ?? 5}</td>
                       <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}><StatusBadge status={e.status} /></td>
                       <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
                         {e.status === 'pending' && e.next_action_at ? (
@@ -265,7 +234,7 @@ export default function EventsPage({ selectedEventId, dateRange }) {
         </div>
       </div>
 
-      {detail && <EventDetailPanel event={detail} onClose={() => setDetailId(null)} />}
+      {detail && <EventDetailPanel event={detail} onClose={() => setDetailId(null)} onUpdate={() => { load(); loadCounts() }} />}
     </div>
   )
 }
@@ -289,10 +258,11 @@ function PaginationBtn({ onClick, disabled, active, children }) {
   )
 }
 
-function EventDetailPanel({ event, onClose }) {
+function EventDetailPanel({ event, onClose, onUpdate }) {
   const e = event
   const [attempts, setAttempts] = useState([])
   const [loadingTrace, setLoadingTrace] = useState(false)
+  const [controlling, setControlling] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -306,6 +276,18 @@ function EventDetailPanel({ event, onClose }) {
   }, [e.id])
 
   const nextAction = e.status === 'pending' ? timeUntil(e.next_action_at) : null
+
+  const handleControl = async (action) => {
+    setControlling(true)
+    try {
+      await controlEvent(e.id, action)
+      onUpdate?.()
+    } catch (err) {
+      console.error('Control failed:', err)
+    } finally {
+      setControlling(false)
+    }
+  }
 
   return (
     <div style={{
@@ -321,9 +303,53 @@ function EventDetailPanel({ event, onClose }) {
           <span style={{ fontSize: 16, fontWeight: 600, color: '#1A1A1A' }}>Event #{e.id}</span>
           <StatusBadge status={e.status} />
         </div>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#6B7280' }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {e.status === 'pending' && (
+            <button
+              onClick={() => handleControl('pause')}
+              disabled={controlling}
+              style={{
+                padding: '5px 12px', fontSize: 12, fontWeight: 500,
+                color: '#B54708', background: '#FFFAEB', border: '1px solid #FEC84B',
+                borderRadius: 6, cursor: controlling ? 'not-allowed' : 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              {controlling ? '...' : 'Pause'}
+            </button>
+          )}
+          {e.status === 'paused' && (
+            <button
+              onClick={() => handleControl('resume')}
+              disabled={controlling}
+              style={{
+                padding: '5px 12px', fontSize: 12, fontWeight: 500,
+                color: '#027A48', background: '#ECFDF3', border: '1px solid #6CE9A6',
+                borderRadius: 6, cursor: controlling ? 'not-allowed' : 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              {controlling ? '...' : 'Resume'}
+            </button>
+          )}
+          {(e.status === 'pending' || e.status === 'paused' || e.status === 'exhausted') && (
+            <button
+              onClick={() => { if (window.confirm('Cancel recovery for this event? This cannot be undone.')) handleControl('cancel') }}
+              disabled={controlling}
+              style={{
+                padding: '5px 12px', fontSize: 12, fontWeight: 500,
+                color: '#B42318', background: '#FEF3F2', border: '1px solid #FECDCA',
+                borderRadius: 6, cursor: controlling ? 'not-allowed' : 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              {controlling ? '...' : 'Cancel'}
+            </button>
+          )}
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#6B7280' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
       </div>
 
       <div style={{ padding: '20px 24px' }}>
@@ -344,62 +370,127 @@ function EventDetailPanel({ event, onClose }) {
           </div>
         )}
 
-        {e.status === 'exhausted' && e.skip_reason && (
+        {e.status === 'paused' && (
+          <div style={{
+            padding: '10px 14px', background: '#F0F4FF', borderRadius: 8,
+            fontSize: 13, color: '#3538CD', lineHeight: 1.5, marginBottom: 16,
+          }}>
+            <strong>On Hold:</strong> Recovery is paused. Click Resume to continue.
+          </div>
+        )}
+
+        {e.status === 'exhausted' && (
           <div style={{
             padding: '10px 14px', background: '#FEF3F2', borderRadius: 8,
             fontSize: 13, color: '#B42318', lineHeight: 1.5, marginBottom: 16,
           }}>
-            <strong>Exhausted:</strong> {e.skip_reason}
+            <strong>Recovery Stopped:</strong> {e.skip_reason || 'All recovery attempts completed without successful payment'}
           </div>
         )}
 
-        <div style={{ marginBottom: 20, marginTop: nextAction || (e.status === 'exhausted' && e.skip_reason) ? 0 : 16 }}>
+        {e.status === 'cancelled' && (
+          <div style={{
+            padding: '10px 14px', background: '#F9FAFB', borderRadius: 8,
+            fontSize: 13, color: '#344054', lineHeight: 1.5, marginBottom: 16,
+          }}>
+            <strong>Cancelled:</strong> {e.skip_reason || 'Recovery was cancelled'}
+          </div>
+        )}
+
+        {e.fallback_classification && (
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '4px 10px', background: '#FFFAEB', borderRadius: 6,
+            fontSize: 12, color: '#B54708', fontWeight: 500, marginBottom: 12,
+          }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            Auto-classified (rules)
+          </div>
+        )}
+
+        <div style={{ marginBottom: 20, marginTop: nextAction || e.status === 'exhausted' ? 0 : 16 }}>
           <SectionLabel>Recovery Pipeline</SectionLabel>
-          <PipelineStage number={1} label="Classified" done detail={`${(e.failure_category || '').replace(/_/g, ' ')} · ${Math.round((e.recovery_probability || 0) * 100)}% probability`} />
-          <PipelineStage number={2} label="Routed" done={!!e.recommended_channel} detail={e.recommended_channel ? `${e.recommended_channel} · ${e.recommended_timing || 'immediate'}` : 'pending'} />
-          <PipelineStage number={3} label="Action Sent" done={e.attempt_count > 0} detail={e.attempt_count > 0 ? `${e.attempt_count}/${e.max_attempts || 5} attempts` : 'awaiting'} />
-          <PipelineStage number={4} label="Outcome" done={e.status === 'recovered' || e.status === 'exhausted'} detail={e.status === 'recovered' ? `Recovered ₹${fmt(e.recovered_amount || e.amount)}` : e.status?.replace(/_/g, ' ')} last />
+          <PipelineStage number={1} label="Classified" done detail={`${formatCategory(e.failure_category)} · ${Math.round((e.recovery_probability || 0) * 100)}% chance`} />
+          <PipelineStage number={2} label="Routed" done={!!e.recommended_channel} detail={
+            e.status === 'no_action_needed' ? 'no recovery needed — skipped' :
+            e.recommended_channel === 'none' ? 'no channel — skipped' :
+            e.recommended_channel ? `${e.recommended_channel} · ${e.recommended_timing === 'immediate' ? 'send now' : (e.recommended_timing || 'immediate').replace(/_/g, ' ')}` :
+            'waiting'
+          } />
+          <PipelineStage number={3} label="Message Sent" done={e.attempt_count > 0 || e.status === 'no_action_needed' || e.status === 'cancelled'} detail={
+            e.status === 'no_action_needed' ? 'skipped — not worth pursuing' :
+            e.status === 'cancelled' ? 'cancelled before completion' :
+            e.attempt_count > 0 ? `${e.attempt_count}/${e.max_attempts ?? 5} messages sent` :
+            e.next_action_at && new Date(e.next_action_at) > new Date() ? `scheduled ${timeUntil(e.next_action_at)}` :
+            'waiting'
+          } />
+          <PipelineStage number={4} label="Result" done={e.status === 'recovered' || e.status === 'exhausted' || e.status === 'no_action_needed' || e.status === 'cancelled'} detail={
+            e.status === 'recovered' ? `Paid ₹${fmt(e.recovered_amount || e.amount)}` :
+            e.status === 'exhausted' ? 'Gave up' :
+            e.status === 'no_action_needed' ? 'Skipped' :
+            e.status === 'cancelled' ? 'Cancelled' :
+            'waiting for payment'
+          } last />
         </div>
 
         {attempts.length > 0 && (
           <>
             <SectionLabel>Attempt History</SectionLabel>
+            <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 8, marginTop: -4 }}>
+              Only successfully sent messages count toward the {e.max_attempts ?? 5}-message limit. Blocked, failed, and customer payment attempts do not.
+            </div>
             <div style={{ marginBottom: 16 }}>
-              {attempts.map((a, i) => (
-                <div key={a.id || i} style={{
-                  padding: '10px 12px', marginBottom: 6,
-                  background: '#F9FAFB', borderRadius: 8, border: '1px solid #E8EAED',
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A' }}>
-                      #{a.attempt_number} · {a.channel_used}
-                    </span>
-                    <span style={{
-                      fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 10,
-                      background: a.outcome === 'sent' ? '#ECFDF3' : '#FEF3F2',
-                      color: a.outcome === 'sent' ? '#027A48' : '#B42318',
-                    }}>
-                      {a.outcome}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 12, color: '#6B7280' }}>
-                    {a.action_taken}
-                  </div>
-                  {a.metadata?.degraded_from && (
-                    <div style={{ fontSize: 12, color: '#B54708', marginTop: 2 }}>
-                      Degraded from {a.metadata.degraded_from}
+              {attempts.map((a, i) => {
+                const isCustomerAttempt = a.channel_used === 'payment_link'
+                const isBlocked = a.outcome === 'blocked'
+                return (
+                  <div key={a.id || i} style={{
+                    padding: '10px 12px', marginBottom: 6,
+                    background: isCustomerAttempt ? '#F0F9FF' : '#F9FAFB',
+                    borderRadius: 8,
+                    border: `1px solid ${isCustomerAttempt ? '#BAE6FD' : '#E8EAED'}`,
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A' }}>
+                        {isCustomerAttempt ? (
+                          <>
+                            <span style={{ fontSize: 11, fontWeight: 500, color: '#0369A1', background: '#E0F2FE', padding: '1px 6px', borderRadius: 4, marginRight: 6 }}>Customer</span>
+                            {a.metadata?.method || 'payment'}
+                          </>
+                        ) : (
+                          <>#{a.attempt_number} · {a.channel_used}</>
+                        )}
+                      </span>
+                      <span style={{
+                        fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 10,
+                        background: a.outcome === 'sent' ? '#ECFDF3' : isBlocked ? '#FFFAEB' : '#FEF3F2',
+                        color: a.outcome === 'sent' ? '#027A48' : isBlocked ? '#B54708' : '#B42318',
+                      }}>
+                        {isBlocked ? 'cooldown' : a.outcome}
+                      </span>
                     </div>
-                  )}
-                  {a.metadata?.payment_link_url && (
-                    <div style={{ fontSize: 12, color: '#528FF0', marginTop: 2, wordBreak: 'break-all' }}>
-                      Link: {a.metadata.payment_link_url}
+                    <div style={{ fontSize: 12, color: '#6B7280' }}>
+                      {a.action_taken}
                     </div>
-                  )}
-                  <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>
-                    {a.created_at ? new Date(a.created_at).toLocaleString() : ''}
+                    {a.metadata?.degraded_from && (
+                      <div style={{ fontSize: 12, color: '#B54708', marginTop: 2 }}>
+                        Degraded from {a.metadata.degraded_from}
+                      </div>
+                    )}
+                    {!isCustomerAttempt && a.metadata?.payment_link_url && (
+                      <div style={{ fontSize: 12, color: '#528FF0', marginTop: 2, wordBreak: 'break-all' }}>
+                        Link: {a.metadata.payment_link_url}
+                      </div>
+                    )}
+                    <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>
+                      {a.created_at ? new Date(a.created_at).toLocaleString() : ''}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </>
         )}
@@ -423,37 +514,49 @@ function EventDetailPanel({ event, onClose }) {
 
         <div style={{ height: 14 }} />
         <SectionLabel>AI Classification</SectionLabel>
-        <DetailRow label="Category">{(e.failure_category || '—').replace(/_/g, ' ')}</DetailRow>
-        <DetailRow label="Probability">{Math.round((e.recovery_probability || 0) * 100)}%</DetailRow>
-        <DetailRow label="Channel">{e.recommended_channel || '—'}</DetailRow>
-        <DetailRow label="Max Attempts">{e.max_attempts || 5}</DetailRow>
-        <DetailRow label="Action">{e.recommended_action || '—'}</DetailRow>
+        <DetailRow label="Category">{formatCategory(e.failure_category)}</DetailRow>
+        <DetailRow label="Recovery Chance">{Math.round((e.recovery_probability || 0) * 100)}%</DetailRow>
+        <DetailRow label="Channel">{e.status === 'no_action_needed' ? 'None (skipped)' : e.recommended_channel === 'none' ? 'None (skipped)' : (e.recommended_channel || '—')}</DetailRow>
+        <DetailRow label="Messages Sent / Limit">{e.attempt_count || 0} / {e.max_attempts ?? 5}</DetailRow>
+        <DetailRow label="Recommended Action">{e.recommended_action || '—'}</DetailRow>
         {e.reasoning && (
           <div style={{ margin: '8px 0', padding: 14, background: '#F7F8FA', borderRadius: 8, fontSize: 13, color: '#5F6B7A', lineHeight: 1.6 }}>
-            <strong style={{ color: '#1A1A1A' }}>AI Reasoning:</strong> {e.reasoning}
+            <strong style={{ color: '#1A1A1A' }}>Why:</strong> {e.reasoning}
+          </div>
+        )}
+        {e.alternative_action && e.status !== 'no_action_needed' && (
+          <div style={{ margin: '8px 0', padding: 14, background: '#F0F9FF', borderRadius: 8, fontSize: 13, color: '#0369A1', lineHeight: 1.6 }}>
+            <strong style={{ color: '#0C4A6E' }}>Backup Plan:</strong> {e.alternative_action}
           </div>
         )}
         {e.status !== 'exhausted' && e.skip_reason && (
           <div style={{ margin: '8px 0', padding: 14, background: '#FFFAEB', borderRadius: 8, fontSize: 13, color: '#B54708' }}>
-            Skip reason: {e.skip_reason}
+            <strong>Reason skipped:</strong> {e.skip_reason}
           </div>
         )}
 
         <div style={{ height: 14 }} />
         <SectionLabel>Timeline</SectionLabel>
         <DetailRow label="Created">{e.created_at ? new Date(e.created_at).toLocaleString() : '—'}</DetailRow>
-        <DetailRow label="Last Attempt">{e.last_attempt_at ? new Date(e.last_attempt_at).toLocaleString() : '—'}</DetailRow>
+        <DetailRow label="Last Message">{e.last_attempt_at ? new Date(e.last_attempt_at).toLocaleString() : '—'}</DetailRow>
         {e.status === 'pending' && e.next_action_at && (
-          <DetailRow label="Next Attempt">
+          <DetailRow label="Next Message">
             <span style={{ color: '#1D4ED8', fontWeight: 500 }}>
               {new Date(e.next_action_at).toLocaleString()} ({timeUntil(e.next_action_at)})
             </span>
           </DetailRow>
         )}
-        <DetailRow label="Recovery Window">{e.recovery_window_ends ? new Date(e.recovery_window_ends).toLocaleString() : '—'}</DetailRow>
-        {e.recovered_at && <DetailRow label="Recovered At">{new Date(e.recovered_at).toLocaleString()}</DetailRow>}
-        <DetailRow label="Source">{e.source || '—'}</DetailRow>
-        <DetailRow label="Escalation Level">{e.escalation_level || 0}</DetailRow>
+        <DetailRow label="Stop Trying After">{e.status === 'no_action_needed' ? '—' : e.recovery_window_ends ? new Date(e.recovery_window_ends).toLocaleString() : '—'}</DetailRow>
+        {e.recovered_at && <DetailRow label="Paid At">{new Date(e.recovered_at).toLocaleString()}</DetailRow>}
+        <DetailRow label="Source">{e.source === 'simulator' ? 'Simulator' : e.source === 'api' ? 'API' : e.source === 'razorpay_webhook' ? 'Razorpay Webhook' : e.source || '—'}</DetailRow>
+        <DetailRow label="Follow-Up Round">{
+          e.status === 'no_action_needed' || e.status === 'cancelled' ? '—' :
+          formatEscalation(e.escalation_level || 0)
+        }</DetailRow>
+        <DetailRow label="Current Approach">{
+          e.status === 'no_action_needed' ? 'No action taken' :
+          formatStrategy(e.current_strategy)
+        }</DetailRow>
       </div>
     </div>
   )

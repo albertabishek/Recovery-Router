@@ -17,9 +17,9 @@ def compute_max_attempts(
 ) -> int:
     """Dynamic max attempts based on amount, probability, and failure reason."""
     if failure_category == "unrecoverable_decline":
-        return 1
+        return 0
     if failure_category == "browse_only_abandonment":
-        return 1
+        return 0
     if failure_category == "user_cancelled":
         return 2
     if recovery_probability <= 0.1:
@@ -41,6 +41,16 @@ def route_action(classification: ClassificationResult) -> ActionPlan:
         return ActionPlan(
             action="no_action",
             skip_reason=classification.skip_reason or "No recovery action recommended",
+        )
+
+    no_action_categories = {
+        "unrecoverable_decline": "Unrecoverable decline — no recovery action taken",
+        "browse_only_abandonment": "Low-value browse-only cart — below action threshold",
+    }
+    if classification.failure_category in no_action_categories:
+        return ActionPlan(
+            action="no_action",
+            skip_reason=classification.skip_reason or no_action_categories[classification.failure_category],
         )
 
     delay = TIMING_MAP.get(classification.recommended_timing, timedelta(seconds=0))

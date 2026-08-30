@@ -12,7 +12,7 @@ def get_redis() -> redis.Redis:
         with _lock:
             if _pool is None:
                 _pool = redis.ConnectionPool.from_url(
-                    settings.UPSTASH_REDIS_URL,
+                    settings.REDIS_URL,
                     decode_responses=True,
                 )
     return redis.Redis(connection_pool=_pool)

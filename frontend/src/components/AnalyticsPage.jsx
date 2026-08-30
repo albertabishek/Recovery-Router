@@ -1,3 +1,5 @@
+import { formatCategory } from './OverviewPage'
+
 const fmt = (n) => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(n)
 
 export default function AnalyticsPage({ analytics }) {
@@ -22,7 +24,7 @@ export default function AnalyticsPage({ analytics }) {
         <KpiCard label="Recovery Rate" value={`${s.recovery_rate_percent || 0}%`} highlight />
         <KpiCard label="Avg Attempts" value={s.avg_attempts_to_recover || 0} />
         <KpiCard label="Avg Recovery Time" value={`${s.avg_recovery_time_hours || 0}h`} />
-        <KpiCard label="AI Lift" value={`${ai.lift_multiplier || 0}x`} highlight />
+        <KpiCard label="Assisted Recovery" value={`${ai.lift_multiplier || 0}x`} highlight />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 28 }}>
@@ -97,8 +99,8 @@ export default function AnalyticsPage({ analytics }) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14, padding: '8px 0' }}>
           {Object.entries(byCategory).map(([cat, d]) => (
             <div key={cat} style={{ padding: '14px 18px', border: '1px solid #E8EAED', borderRadius: 8 }}>
-              <div style={{ fontSize: 14, fontWeight: 500, color: '#1A1A1A', marginBottom: 10, textTransform: 'capitalize' }}>
-                {cat.replace(/_/g, ' ')}
+              <div style={{ fontSize: 14, fontWeight: 500, color: '#1A1A1A', marginBottom: 10 }}>
+                {formatCategory(cat)}
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#6B7280' }}>
                 <span>{d.total} events</span>

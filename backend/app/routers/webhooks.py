@@ -14,11 +14,14 @@ from app.database import get_supabase
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/webhook", tags=["webhooks"])
 
+MAX_WEBHOOK_BODY_SIZE = 1024 * 256
+
 
 def _verify_razorpay_signature(raw_body: bytes, signature: str) -> bool:
     secret = settings.RAZORPAY_WEBHOOK_SECRET
     if not secret:
-        return True
+        logger.warning("RAZORPAY_WEBHOOK_SECRET not configured — rejecting webhook")
+        return False
     expected = hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected, signature)
 
@@ -30,6 +33,8 @@ async def recovery_router_webhook(request: Request):
         raise HTTPException(status_code=429, detail="Rate limit exceeded")
 
     raw_body = await request.body()
+    if len(raw_body) > MAX_WEBHOOK_BODY_SIZE:
+        raise HTTPException(status_code=413, detail="Request body too large")
     sig = request.headers.get("X-Razorpay-Signature", "")
     if not _verify_razorpay_signature(raw_body, sig):
         raise HTTPException(status_code=401, detail="Invalid webhook signature")
@@ -43,7 +48,7 @@ async def recovery_router_webhook(request: Request):
     try:
         event = normalize_webhook(body)
     except Exception as e:
-        logger.error(f"Payload normalization failed: {e}")
+        logger.error("Payload normalization failed: %s", e)
         raise HTTPException(status_code=400, detail="Invalid payload format")
 
     event_data = event.model_dump()
@@ -67,14 +72,14 @@ async def recovery_router_webhook(request: Request):
                     "customer_phone": entity.get("contact"),
                 })
             except Exception as e:
-                logger.error(f"Failed to dispatch retry failure task: {e}")
+                logger.error("Failed to dispatch retry failure task: %s", e)
                 raise HTTPException(status_code=503, detail="Service temporarily unavailable")
             return WebhookResponse(status="accepted", message="Recovery retry failure logged on parent event")
 
     try:
         process_recovery_event.delay(event_data)
     except Exception as e:
-        logger.error(f"Failed to dispatch Celery task: {e}")
+        logger.error("Failed to dispatch Celery task: %s", e)
         raise HTTPException(status_code=503, detail="Service temporarily unavailable")
 
     return WebhookResponse(status="accepted", message="Event queued for processing")
@@ -87,6 +92,8 @@ async def recovery_tracker_webhook(request: Request):
         raise HTTPException(status_code=429, detail="Rate limit exceeded")
 
     raw_body = await request.body()
+    if len(raw_body) > MAX_WEBHOOK_BODY_SIZE:
+        raise HTTPException(status_code=413, detail="Request body too large")
     sig = request.headers.get("X-Razorpay-Signature", "")
     if not _verify_razorpay_signature(raw_body, sig):
         raise HTTPException(status_code=401, detail="Invalid webhook signature")
@@ -119,7 +126,7 @@ def _find_parent_recovery_event(body: dict) -> int | None:
     order_id = entity.get("order_id")
 
     if notes.get("source") == "recovery_router" and order_id:
-        logger.info(f"Webhook has recovery_router notes, order={order_id}")
+        logger.info("Webhook has recovery_router notes, order=%s", order_id)
 
     if not order_id:
         return None
@@ -131,9 +138,9 @@ def _find_parent_recovery_event(body: dict) -> int | None:
         ).limit(1).execute()
         if res.data:
             parent_id = res.data[0]["recovery_event_id"]
-            logger.info(f"Webhook order {order_id} belongs to recovery event {parent_id}")
+            logger.info("Webhook order %s belongs to recovery event %s", order_id, parent_id)
             return parent_id
     except Exception as e:
-        logger.warning(f"Failed to check for parent recovery event: {e}")
+        logger.warning("Failed to check for parent recovery event: %s", e)
 
     return None

@@ -33,7 +33,7 @@ Your job: analyze a failed payment, abandoned cart, or overdue invoice and deter
    - WhatsApp: urgent, time-sensitive, high-recovery scenarios. The customer is likely still at their device.
    - Email: formal, non-urgent, detailed. Good for expired cards (needs card update), invoices, follow-ups.
    - SMS: brief reminder. Good for insufficient funds (check balance later) or as a secondary nudge.
-   - None: fraud, stolen cards, permanently blocked accounts, or very low-value browse-only carts.
+   - None: fraud, stolen cards, permanently blocked accounts, very low-value browse-only carts. ALWAYS use "none" when failure_category is "unrecoverable_decline" or "browse_only_abandonment".
 
 4. DETECT user-initiated cancellations:
    - If the error_description mentions "cancelled", "canceled", "user aborted" or similar, this is NOT a gateway error.
@@ -177,6 +177,70 @@ def _ai_classify(event: RecoveryEventInput) -> ClassificationResult | None:
     return ClassificationResult(**raw, fallback_used=False)
 
 
+FALLBACK_ACTIONS = {
+    "upi_timeout": {
+        "action": "Send a retry link via WhatsApp while the customer is still at their device",
+        "reasoning": "UPI timeout is a temporary network issue — the customer was actively trying to pay",
+        "alternative": "Send SMS with retry link if WhatsApp is unavailable",
+    },
+    "bank_downtime": {
+        "action": "Wait for bank to come back online, then send WhatsApp with retry link",
+        "reasoning": "Bank server is temporarily down — this is not a customer issue, retry after bank recovers",
+        "alternative": "Send email with retry link if WhatsApp delivery fails",
+    },
+    "card_expired": {
+        "action": "Send email asking customer to update their card details with a payment link",
+        "reasoning": "Customer's card has expired — they need to use a new card to complete payment",
+        "alternative": "Follow up with WhatsApp if email gets no response within 24 hours",
+    },
+    "insufficient_funds": {
+        "action": "Send a gentle SMS reminder with retry link after giving time to add funds",
+        "reasoning": "Customer has payment intent but insufficient balance — allow time to transfer funds",
+        "alternative": "Send WhatsApp follow-up if SMS gets no response within 24 hours",
+    },
+    "gateway_error": {
+        "action": "Send immediate WhatsApp with retry link — gateway error is temporary",
+        "reasoning": "Payment gateway had a technical error — customer's payment method is fine, retry should work",
+        "alternative": "Send SMS with retry link if WhatsApp is unavailable",
+    },
+    "user_cancelled": {
+        "action": "Send a follow-up email after a delay — customer cancelled deliberately",
+        "reasoning": "Customer chose to cancel — wait before re-engaging to avoid being pushy",
+        "alternative": "Send a single WhatsApp reminder after 24 hours if email gets no response",
+    },
+    "unrecoverable_decline": {
+        "action": "No recovery action — payment was permanently declined by the bank",
+        "reasoning": "Bank flagged this payment (fraud/stolen card) — recovery attempts would fail and erode trust",
+        "skip": "Payment permanently declined by bank — customer must contact their bank directly",
+    },
+    "high_intent_abandonment": {
+        "action": "Send personalized WhatsApp highlighting cart items with a checkout link",
+        "reasoning": "High-value cart with multiple items shows genuine shopping intent — worth following up",
+        "alternative": "Send email with product details and a small discount if WhatsApp gets no response",
+    },
+    "browse_only_abandonment": {
+        "action": "No recovery action — low-value browsing cart not worth pursuing",
+        "reasoning": "Very low cart value with no payment attempt — customer was just browsing",
+        "skip": "Low-value browsing session — recovery cost exceeds expected value",
+    },
+    "recently_overdue": {
+        "action": "Send a friendly WhatsApp payment reminder with invoice details and pay link",
+        "reasoning": "Invoice is only a few days late — a gentle reminder usually gets the payment",
+        "alternative": "Follow up with email containing full invoice details if WhatsApp gets no response",
+    },
+    "moderately_overdue": {
+        "action": "Send a formal email reminder with payment deadline and pay link",
+        "reasoning": "Invoice is 2-4 weeks overdue — a more formal approach is needed",
+        "alternative": "Escalate to phone call if email gets no response within 3 days",
+    },
+    "long_overdue": {
+        "action": "Send formal email with payment deadline and escalation notice",
+        "reasoning": "Invoice is severely overdue — formal communication needed with clear deadline",
+        "alternative": "Escalate to phone call or collections process if no response within 7 days",
+    },
+}
+
+
 def _fallback_classify(event: RecoveryEventInput) -> ClassificationResult:
     """Rule-based fallback when all AI models are unavailable."""
     error_code = (event.error_code or "").upper()
@@ -213,15 +277,17 @@ def _fallback_classify(event: RecoveryEventInput) -> ClassificationResult:
                     category, prob, channel, timing = rule
                     break
 
+    fb = FALLBACK_ACTIONS.get(category, {})
+
     return ClassificationResult(
         leak_type=event.event_type,
         failure_category=category,
         recovery_probability=prob,
-        recommended_action=f"fallback_{channel}_recovery",
+        recommended_action=fb.get("action", f"Automated recovery via {channel}"),
         recommended_channel=channel,
         recommended_timing=timing,
-        reasoning=f"Rule-based fallback (AI unavailable). Matched error_code={event.error_code}",
-        alternative_action=None,
-        skip_reason="Unrecoverable decline" if channel == "none" else None,
+        reasoning=fb.get("reasoning", f"Rule-based classification for {event.event_type}"),
+        alternative_action=fb.get("alternative"),
+        skip_reason=fb.get("skip") if channel == "none" else None,
         fallback_used=True,
     )

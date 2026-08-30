@@ -8,6 +8,7 @@ import json
 import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from app.config import settings
 from app.database import get_supabase
 from app.redis_client import get_redis
@@ -17,17 +18,39 @@ from app.services.messenger import send_message
 
 logger = logging.getLogger(__name__)
 
+IST = ZoneInfo("Asia/Kolkata")
+QUIET_START_HOUR = 21  # 9 PM IST
+QUIET_END_HOUR = 9     # 9 AM IST
+
+
+def _is_quiet_hours(now_utc: datetime | None = None) -> bool:
+    now = (now_utc or datetime.now(timezone.utc)).astimezone(IST)
+    return now.hour >= QUIET_START_HOUR or now.hour < QUIET_END_HOUR
+
+
+def _next_permitted_time() -> datetime:
+    now_ist = datetime.now(timezone.utc).astimezone(IST)
+    if now_ist.hour >= QUIET_START_HOUR:
+        next_day = now_ist + timedelta(days=1)
+        wake = next_day.replace(hour=QUIET_END_HOUR, minute=0, second=0, microsecond=0)
+    else:
+        wake = now_ist.replace(hour=QUIET_END_HOUR, minute=0, second=0, microsecond=0)
+    return wake.astimezone(timezone.utc)
+
 ESCALATION_PROMPT = """You are the escalation decision agent for a payment recovery system. A customer hasn't completed their payment despite previous recovery attempts.
 
 Your job: analyze what happened in previous attempts and decide the BEST next move. You will be given the event's max_attempts — the system already computed how many attempts this event deserves based on amount, probability, and failure type. Respect that budget.
 
 ## Decision framework
 
-1. LOOK at previous attempts:
+1. LOOK at previous attempts AND blocked/failed channels:
    - What channel was used? Did it succeed in delivering?
    - If WhatsApp was sent but customer didn't act → try email with more detail or SMS.
    - If email was sent but not opened → try WhatsApp or SMS for immediacy.
-   - If delivery failed (provider error) → try the same channel again or switch.
+   - If delivery failed (provider error) → SWITCH to a different channel, don't retry the same one.
+   - Check "blocked_channels" — these hit a cooldown/rate limit. ALWAYS pick a different channel.
+   - Check "failed_channels" — delivery failed on these. Prefer a different channel.
+   - If a "backup_plan" is provided, follow it when the primary channel didn't work.
 
 2. CONSIDER the event context:
    - High amount (>5000) + multiple attempts → the customer is hesitating, not forgetting. Address their concern.
@@ -61,7 +84,7 @@ ESCALATION_SCHEMA = {
 }
 
 
-def _acquire_event_lock(event_id: int, ttl: int = 120) -> bool:
+def _acquire_event_lock(event_id: int, ttl: int = 300) -> bool:
     r = get_redis()
     return bool(r.set(f"lock:event:{event_id}", "1", nx=True, ex=ttl))
 
@@ -85,15 +108,56 @@ def run_escalation(events: list[dict]) -> list[dict]:
             continue
 
         try:
+            fresh = sb.table("recovery_events").select(
+                "status,attempt_count,max_attempts,escalation_level"
+            ).eq("id", event["id"]).limit(1).execute()
+            if not fresh.data or fresh.data[0].get("status") != "pending":
+                logger.warning(
+                    "Event %d: skipped (status=%s after lock)",
+                    event["id"], fresh.data[0].get("status") if fresh.data else "NOT_FOUND",
+                )
+                results.append({"event_id": event["id"], "action": "skipped_not_pending"})
+                continue
+            event.update(fresh.data[0])
+
             attempts = _get_attempt_history(sb, event["id"])
+            logger.info(
+                "Event %d: attempt_count=%d/%d, %d attempts in history",
+                event["id"], event.get("attempt_count", 0),
+                event.get("max_attempts", 5), len(attempts),
+            )
             decision = _get_escalation_decision(event, attempts)
+            logger.info(
+                "Event %d: AI decision=%s channel=%s reasoning=%s",
+                event["id"], decision.get("action"), decision.get("channel"),
+                (decision.get("reasoning") or "")[:120],
+            )
 
             if decision.get("action") == "give_up":
+                logger.warning(
+                    "Event %d: EXHAUSTING via give_up (attempt_count=%d/%d)",
+                    event["id"], event.get("attempt_count", 0), event.get("max_attempts", 5),
+                )
                 _mark_exhausted(sb, event, decision.get("reasoning", ""))
                 results.append({"event_id": event["id"], "action": "exhausted"})
                 continue
 
             channel = decision.get("channel", "email")
+
+            if _is_quiet_hours():
+                wake_at = _next_permitted_time()
+                sb.table("recovery_events").update({
+                    "next_action_at": wake_at.isoformat(),
+                    "current_strategy": "quiet_hours_rescheduled",
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                }).eq("id", event["id"]).execute()
+                logger.info(
+                    "Event %d: quiet hours — rescheduled to %s",
+                    event["id"], wake_at.isoformat(),
+                )
+                results.append({"event_id": event["id"], "action": "rescheduled_quiet_hours"})
+                continue
+
             recovery_window_ends = _parse_datetime(event.get("recovery_window_ends"))
 
             link = generate_payment_link(
@@ -124,11 +188,19 @@ def run_escalation(events: list[dict]) -> list[dict]:
             )
 
             _log_attempt(sb, event, channel, decision, send_result, link)
-            _update_event_state(sb, event, decision)
+
+            if send_result.get("success", False):
+                _update_event_state(sb, event, decision)
+            else:
+                now = datetime.now(timezone.utc)
+                sb.table("recovery_events").update({
+                    "next_action_at": (now + timedelta(minutes=15)).isoformat(),
+                    "updated_at": now.isoformat(),
+                }).eq("id", event["id"]).execute()
 
             results.append({
                 "event_id": event["id"],
-                "action": "sent",
+                "action": "sent" if send_result.get("success", False) else "send_failed",
                 "channel": channel,
                 "success": send_result.get("success", False),
             })
@@ -154,14 +226,23 @@ def _get_attempt_history(sb, event_id: int) -> list[dict]:
 def _get_escalation_decision(event: dict, attempts: list[dict]) -> dict:
     """Get AI escalation decision based on event + attempt history."""
     attempt_count = event.get("attempt_count", 0)
-    max_attempts = event.get("max_attempts", 5) or 5
+    max_attempts = event.get("max_attempts") if event.get("max_attempts") is not None else 5
 
     if attempt_count >= max_attempts:
         return {"action": "give_up", "channel": "none", "tone": "final",
                 "reasoning": f"Maximum attempts reached ({max_attempts}). Budget exhausted for this event."}
 
     attempt_summary = []
+    blocked_channels = set()
+    failed_channels = set()
     for a in attempts:
+        if a.get("channel_used") == "payment_link":
+            continue
+        if a.get("outcome") == "blocked":
+            blocked_channels.add(a.get("channel_used"))
+            continue
+        if a.get("outcome") == "failed":
+            failed_channels.add(a.get("channel_used"))
         attempt_summary.append({
             "number": a.get("attempt_number"),
             "channel": a.get("channel_used"),
@@ -179,7 +260,10 @@ def _get_escalation_decision(event: dict, attempts: list[dict]) -> dict:
         "max_attempts": max_attempts,
         "attempts_remaining": max_attempts - attempt_count,
         "previous_attempts": attempt_summary,
+        "blocked_channels": list(blocked_channels),
+        "failed_channels": list(failed_channels),
         "recommended_channel": event.get("recommended_channel"),
+        "backup_plan": event.get("alternative_action"),
         "has_email": bool(event.get("customer_email")),
         "has_phone": bool(event.get("customer_phone")),
     })
@@ -194,16 +278,26 @@ def _get_escalation_decision(event: dict, attempts: list[dict]) -> dict:
 
     if result:
         if result.get("action") == "give_up" and attempt_count < max_attempts:
-            all_failed = attempts and all(
-                a.get("outcome") == "failed" for a in attempts
+            outreach_attempts = [
+                a for a in attempts
+                if a.get("channel_used") != "payment_link"
+                and a.get("outcome") != "blocked"
+            ]
+            all_failed = outreach_attempts and all(
+                a.get("outcome") == "failed" for a in outreach_attempts
             )
-            if not all_failed:
+            if not all_failed or attempt_count == 0:
                 logger.info(
                     "Event %d: AI said give_up at attempt %d/%d but budget remains — overriding to send",
                     event["id"], attempt_count, max_attempts,
                 )
+                blocked_chs = {
+                    a.get("channel_used") for a in attempts
+                    if a.get("channel_used") != "payment_link"
+                    and a.get("outcome") in ("blocked", "failed")
+                }
                 last_channel = attempts[-1].get("channel_used") if attempts else None
-                next_channel = _pick_next_channel(last_channel, event)
+                next_channel = _pick_next_channel(last_channel, event, avoid=blocked_chs)
                 result = {
                     "action": "send",
                     "channel": next_channel,
@@ -221,16 +315,28 @@ def _get_escalation_decision(event: dict, attempts: list[dict]) -> dict:
     }
 
 
-def _pick_next_channel(last_channel: str | None, event: dict) -> str:
-    """Pick a different channel from the last one used."""
+def _pick_next_channel(last_channel: str | None, event: dict, avoid: set | None = None) -> str:
+    """Pick a different channel from the last one used, avoiding blocked/failed channels."""
     has_phone = bool(event.get("customer_phone"))
     has_email = bool(event.get("customer_email"))
-    rotation = {
-        "whatsapp": "email" if has_email else "sms",
-        "email": "whatsapp" if has_phone else "sms",
-        "sms": "email" if has_email else "whatsapp",
-    }
-    return rotation.get(last_channel, "email" if has_email else "whatsapp")
+    avoid = avoid or set()
+
+    preferred = []
+    if has_phone and "whatsapp" not in avoid:
+        preferred.append("whatsapp")
+    if has_email and "email" not in avoid:
+        preferred.append("email")
+    if has_phone and "sms" not in avoid:
+        preferred.append("sms")
+
+    for ch in preferred:
+        if ch != last_channel:
+            return ch
+
+    if preferred:
+        return preferred[0]
+
+    return "email" if has_email else "whatsapp"
 
 
 def _parse_datetime(value) -> datetime | None:
@@ -244,13 +350,24 @@ def _parse_datetime(value) -> datetime | None:
 
 def _log_attempt(sb, event, channel, decision, send_result, link):
     channel_used = send_result.get("channel_used") or channel
+    max_res = (
+        sb.table("recovery_attempts")
+        .select("attempt_number")
+        .eq("recovery_event_id", event["id"])
+        .order("attempt_number", desc=True)
+        .limit(1)
+        .execute()
+    )
+    next_number = (max_res.data[0]["attempt_number"] + 1) if max_res.data else 1
     sb.table("recovery_attempts").insert({
         "recovery_event_id": event["id"],
-        "attempt_number": event.get("attempt_count", 0) + 1,
+        "attempt_number": next_number,
         "channel_used": channel_used,
         "action_taken": f"{decision.get('tone', 'firm')} escalation via {channel_used}",
         "message_id": send_result.get("message_id", ""),
-        "outcome": "sent" if send_result.get("success") else "failed",
+        "outcome": "sent" if send_result.get("success") else (
+            "blocked" if send_result.get("error") == "Cooldown active" else "failed"
+        ),
         "notes": decision.get("reasoning", ""),
         "metadata": {
             "payment_link_id": link.get("id"),
@@ -264,24 +381,49 @@ def _log_attempt(sb, event, channel, decision, send_result, link):
     }).execute()
 
 
+RETRY_DELAY_HOURS = {
+    "upi_timeout": 1,
+    "gateway_error": 1,
+    "bank_downtime": 2,
+    "card_expired": 6,
+    "insufficient_funds": 8,
+    "user_cancelled": 12,
+    "recently_overdue": 24,
+    "moderately_overdue": 48,
+    "long_overdue": 48,
+    "high_intent_abandonment": 2,
+}
+
+
 def _update_event_state(sb, event, decision):
     now = datetime.now(timezone.utc)
+    category = event.get("failure_category", "")
+    delay_hours = RETRY_DELAY_HOURS.get(category, 4)
+    new_attempt_count = event.get("attempt_count", 0) + 1
+    new_level = event.get("escalation_level", 0) + 1
+
+    stage_map = {1: "first_contact_sent", 2: "follow_up_sent", 3: "escalated"}
+    strategy = stage_map.get(new_level, f"escalation_level_{new_level}")
+
     sb.table("recovery_events").update({
-        "attempt_count": event.get("attempt_count", 0) + 1,
+        "attempt_count": new_attempt_count,
         "last_attempt_at": now.isoformat(),
-        "escalation_level": event.get("escalation_level", 0) + 1,
-        "current_strategy": decision.get("tone", "firm"),
-        "next_action_at": (now + timedelta(hours=4)).isoformat(),
+        "escalation_level": new_level,
+        "current_strategy": strategy,
+        "next_action_at": (now + timedelta(hours=delay_hours)).isoformat(),
         "updated_at": now.isoformat(),
     }).eq("id", event["id"]).execute()
 
 
 def _mark_exhausted(sb, event, reason: str = ""):
-    exhausted_reason = reason or f"All {event.get('max_attempts', 5)} attempts used"
+    max_att = event.get("max_attempts") if event.get("max_attempts") is not None else 5
+    exhausted_reason = reason or f"All {max_att} recovery attempts used"
     sb.table("recovery_events").update({
         "status": "exhausted",
         "current_strategy": "exhausted",
         "skip_reason": exhausted_reason,
+        "next_action_at": None,
+        "recovery_window_ends": None,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }).eq("id", event["id"]).execute()
     logger.info("Event %d marked as exhausted: %s", event["id"], exhausted_reason)

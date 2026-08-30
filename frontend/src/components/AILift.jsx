@@ -4,7 +4,7 @@ export default function AILift({ aiLift }) {
   return (
     <div className="rounded-xl p-6 border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
       <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-        AI Lift vs Baseline
+        Assisted Recovery vs Baseline
       </h3>
       <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>
         {aiLift.baseline_source || 'Razorpay blog: 15-20% recovery via simple retries'}
@@ -52,7 +52,7 @@ export default function AILift({ aiLift }) {
           </span>
         </div>
         <div className="flex justify-between text-sm mt-1">
-          <span style={{ color: 'var(--text-secondary)' }}>Additional Revenue</span>
+          <span style={{ color: 'var(--text-secondary)' }}>Assisted Recovery Amount</span>
           <span className="font-semibold" style={{ color: 'var(--success)' }}>
             ₹{fmt(aiLift.additional_revenue_recovered)}
           </span>

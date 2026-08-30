@@ -30,9 +30,10 @@ class Settings:
     SUPABASE_SERVICE_KEY: str = os.getenv("SUPABASE_SERVICE_KEY", "")
     SUPABASE_ANON_KEY: str = os.getenv("SUPABASE_ANON_KEY", "")
 
-    UPSTASH_REDIS_URL: str = os.getenv("UPSTASH_REDIS_URL", "")
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
     RAZORPAY_WEBHOOK_SECRET: str = os.getenv("RAZORPAY_WEBHOOK_SECRET", "")
+    APP_PASSWORD: str = os.getenv("APP_PASSWORD", "")
 
     TEST_CUSTOMER_EMAIL: str = os.getenv("TEST_CUSTOMER_EMAIL", "test@example.com")
     TEST_CUSTOMER_PHONE: str = os.getenv("TEST_CUSTOMER_PHONE", "+919999999999")

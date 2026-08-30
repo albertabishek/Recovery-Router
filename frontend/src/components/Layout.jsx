@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import DateRangePicker from './DateRangePicker'
 
-export default function Layout({ activePage, onNavigate, dateRange, onDateChange, children }) {
+export default function Layout({ activePage, onNavigate, dateRange, onDateChange, onLogout, children }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
@@ -29,12 +29,19 @@ export default function Layout({ activePage, onNavigate, dateRange, onDateChange
           <DateRangePicker value={dateRange} onChange={onDateChange} />
         )}
         <div style={{ marginLeft: 12 }} />
-        <div style={{
-          width: 32, height: 32, borderRadius: '50%',
-          background: '#528FF0', display: 'flex',
-          alignItems: 'center', justifyContent: 'center',
-          color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-        }}>AA</div>
+        {onLogout && (
+          <button
+            onClick={onLogout}
+            style={{
+              padding: '6px 14px', fontSize: 12, fontWeight: 500,
+              color: '#fff', background: 'rgba(255,255,255,0.15)',
+              border: '1px solid rgba(255,255,255,0.25)', borderRadius: 6,
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            Logout
+          </button>
+        )}
       </nav>
 
       {mobileMenuOpen && (

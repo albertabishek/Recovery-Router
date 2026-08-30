@@ -78,7 +78,7 @@ class AILift(BaseModel):
     improvement_points: float = 0.0
     lift_multiplier: float = 0.0
     additional_revenue_recovered: float = 0.0
-    baseline_source: str = "Razorpay blog: 15-20% recovery via simple retries"
+    baseline_source: str = "Razorpay blog: 15-20% organic recovery via simple retries (observed, not causal)"
 
 
 class AnalyticsResponse(BaseModel):

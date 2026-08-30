@@ -1,6 +1,6 @@
-import { useState } from 'react'
-import { simulateEvent } from '../lib/api'
-import { StatusBadge, TypeBadge, timeAgo } from './OverviewPage'
+import { useState, useEffect, useRef } from 'react'
+import { simulateEvent, createLiveCheckout } from '../lib/api'
+import { StatusBadge, TypeBadge, timeAgo, formatCategory } from './OverviewPage'
 
 const fmt = (n) => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(n)
 
@@ -200,6 +200,11 @@ export default function SimulatorPage({ events, onSimulated }) {
         ))}
       </div>
 
+      <LivePaymentSection customer={customer} onResult={(r) => {
+        setResults(prev => [r, ...prev].slice(0, 20))
+        onSimulated?.()
+      }} />
+
       {results.length > 0 && (
         <div style={{ background: '#fff', border: '1px solid #E8EAED', borderRadius: 8, overflow: 'hidden' }}>
           <div style={{ padding: '16px 24px', borderBottom: '1px solid #E8EAED', fontSize: 14, fontWeight: 600, color: '#1A1A1A' }}>
@@ -255,7 +260,7 @@ export default function SimulatorPage({ events, onSimulated }) {
                     <td style={{ padding: '10px 16px', fontSize: 13, fontFamily: 'monospace', color: '#6B7280', whiteSpace: 'nowrap' }}>#{e.id}</td>
                     <td style={{ padding: '10px 16px', whiteSpace: 'nowrap' }}><TypeBadge type={e.event_type} /></td>
                     <td style={{ padding: '10px 16px', fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap' }}>₹{fmt(e.amount)}</td>
-                    <td style={{ padding: '10px 16px', fontSize: 14, color: '#5F6B7A', textTransform: 'capitalize', whiteSpace: 'nowrap' }}>{(e.failure_category || '—').replace(/_/g, ' ')}</td>
+                    <td style={{ padding: '10px 16px', fontSize: 14, color: '#5F6B7A', whiteSpace: 'nowrap' }}>{formatCategory(e.failure_category)}</td>
                     <td style={{ padding: '10px 16px', fontSize: 14, color: '#5F6B7A', textTransform: 'capitalize', whiteSpace: 'nowrap' }}>{e.recommended_channel || '—'}</td>
                     <td style={{ padding: '10px 16px', fontSize: 14, color: '#528FF0', fontWeight: 600, whiteSpace: 'nowrap' }}>{Math.round((e.recovery_probability || 0) * 100)}%</td>
                     <td style={{ padding: '10px 16px', whiteSpace: 'nowrap' }}><StatusBadge status={e.status} /></td>
@@ -269,4 +274,209 @@ export default function SimulatorPage({ events, onSimulated }) {
       )}
     </div>
   )
+}
+
+
+function LivePaymentSection({ customer, onResult }) {
+  const [amount, setAmount] = useState(499)
+  const [liveCustomer, setLiveCustomer] = useState({ name: '', email: '', phone: '' })
+  const [loading, setLoading] = useState(false)
+  const [scriptLoaded, setScriptLoaded] = useState(false)
+  const scriptRef = useRef(false)
+
+  useEffect(() => {
+    if (scriptRef.current) return
+    scriptRef.current = true
+    if (window.Razorpay) { setScriptLoaded(true); return }
+    const s = document.createElement('script')
+    s.src = 'https://checkout.razorpay.com/v1/checkout.js'
+    s.onload = () => setScriptLoaded(true)
+    document.head.appendChild(s)
+  }, [])
+
+  useEffect(() => {
+    if (customer.name || customer.email || customer.phone) {
+      setLiveCustomer(c => ({
+        name: c.name || customer.name,
+        email: c.email || customer.email,
+        phone: c.phone || customer.phone,
+      }))
+    }
+  }, [customer.name, customer.email, customer.phone])
+
+  const openCheckout = async () => {
+    if (!scriptLoaded || !window.Razorpay) return
+    if (!liveCustomer.email && !liveCustomer.phone) return
+
+    setLoading(true)
+    try {
+      const order = await createLiveCheckout({
+        amount,
+        customer_name: liveCustomer.name || 'Test Customer',
+        customer_email: liveCustomer.email,
+        customer_phone: liveCustomer.phone,
+      })
+
+      const rzp = new window.Razorpay({
+        key: order.razorpay_key,
+        order_id: order.order_id,
+        amount: order.amount,
+        currency: order.currency,
+        name: 'Recovery Router',
+        description: `Test payment - ₹${amount}`,
+        notes: { source: 'recovery_router_simulator' },
+        prefill: {
+          name: liveCustomer.name || 'Test Customer',
+          email: liveCustomer.email || undefined,
+          contact: liveCustomer.phone || undefined,
+        },
+        theme: { color: '#528FF0' },
+        handler: function (response) {
+          onResult({
+            id: Date.now(),
+            scenario: `Live Payment ₹${amount}`,
+            group: 'Live Payment',
+            status: 'queued',
+            message: `Payment succeeded: ${response.razorpay_payment_id} — webhook will mark as recovered`,
+            time: new Date(),
+          })
+        },
+        modal: {
+          ondismiss: function () {
+            setLoading(false)
+          },
+        },
+      })
+
+      rzp.on('payment.failed', function (response) {
+        onResult({
+          id: Date.now(),
+          scenario: `Live Payment ₹${amount}`,
+          group: 'Live Payment',
+          status: 'queued',
+          message: `Payment failed: ${response.error.description} — recovery pipeline will trigger`,
+          time: new Date(),
+        })
+        setLoading(false)
+      })
+
+      rzp.open()
+    } catch (err) {
+      onResult({
+        id: Date.now(),
+        scenario: `Live Payment ₹${amount}`,
+        group: 'Live Payment',
+        status: 'error',
+        message: err.message,
+        time: new Date(),
+      })
+      setLoading(false)
+    }
+  }
+
+  const canOpen = scriptLoaded && (liveCustomer.email || liveCustomer.phone) && amount >= 1
+
+  return (
+    <div style={{
+      background: '#fff', border: '2px solid #528FF0', borderRadius: 8,
+      marginBottom: 24, overflow: 'hidden',
+    }}>
+      <div style={{
+        padding: '18px 24px', borderBottom: '1px solid #E8EAED',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 15, fontWeight: 600, color: '#1A1A1A' }}>
+              Try Live Payment
+            </span>
+            <span style={{
+              fontSize: 11, fontWeight: 500, color: '#528FF0', background: '#F0F4FF',
+              padding: '2px 8px', borderRadius: 10,
+            }}>
+              Razorpay Test Mode
+            </span>
+          </div>
+          <p style={{ fontSize: 13, color: '#6B7280', margin: '4px 0 0' }}>
+            Opens real Razorpay checkout. Choose succeed or fail — the webhook flows through our pipeline live.
+          </p>
+        </div>
+      </div>
+
+      <div style={{ padding: '20px 24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
+          <div>
+            <label style={labelStyle}>Amount (₹)</label>
+            <input
+              type="number"
+              min="1"
+              max="50000"
+              value={amount}
+              onChange={e => setAmount(Math.max(1, parseInt(e.target.value) || 1))}
+              style={inputStyle}
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>Name</label>
+            <input
+              type="text"
+              placeholder="e.g. Rahul Sharma"
+              value={liveCustomer.name}
+              onChange={e => setLiveCustomer(c => ({ ...c, name: e.target.value }))}
+              style={inputStyle}
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>
+              Email <span style={{ color: '#F04438' }}>*</span>
+            </label>
+            <input
+              type="email"
+              placeholder="e.g. rahul@example.com"
+              value={liveCustomer.email}
+              onChange={e => setLiveCustomer(c => ({ ...c, email: e.target.value }))}
+              style={inputStyle}
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>Phone</label>
+            <input
+              type="tel"
+              placeholder="e.g. +919876543210"
+              value={liveCustomer.phone}
+              onChange={e => setLiveCustomer(c => ({ ...c, phone: e.target.value }))}
+              style={inputStyle}
+            />
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <button
+            onClick={openCheckout}
+            disabled={!canOpen || loading}
+            style={{
+              padding: '10px 24px', fontSize: 14, fontWeight: 600,
+              color: '#fff', background: canOpen && !loading ? '#528FF0' : '#D0D5DD',
+              border: 'none', borderRadius: 8,
+              cursor: canOpen && !loading ? 'pointer' : 'not-allowed',
+              fontFamily: 'inherit',
+              transition: 'background 0.15s',
+            }}
+          >
+            {loading ? 'Checkout Open...' : 'Open Razorpay Checkout'}
+          </button>
+
+          <div style={{ fontSize: 12, color: '#6B7280', lineHeight: 1.5 }}>
+            <strong>Test cards:</strong> Use any card number like <code style={{ background: '#F2F4F7', padding: '1px 4px', borderRadius: 3 }}>4111 1111 1111 1111</code> with any future expiry and CVV.
+            In test mode, Razorpay lets you choose to succeed or fail the payment.
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const labelStyle = {
+  display: 'block', fontSize: 11, fontWeight: 600, color: '#6B7280',
+  marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em',
 }

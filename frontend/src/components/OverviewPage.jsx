@@ -51,18 +51,18 @@ export default function OverviewPage({ analytics, events, onNavigate, dateRange 
         />
         <SummaryCard
           icon={<CrossCircle />}
-          label="Exhausted"
+          label="Stopped"
           value={s.exhausted_count || 0}
-          sub={`${s.no_action_count || 0} no-action`}
+          sub={`${s.no_action_count || 0} skipped`}
           onClick={() => onNavigate('events')}
         />
       </div>
 
-      {/* AI Lift + Channel Performance */}
+      {/* Assisted Recovery + Channel Performance */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 28 }}>
         <div style={{ ...CARD, padding: '24px 28px' }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: '#1A1A1A', marginBottom: 20 }}>
-            AI Lift vs Baseline
+            Assisted Recovery vs Baseline
           </div>
           <div style={{ display: 'flex', gap: 36, marginBottom: 20 }}>
             <div>
@@ -82,7 +82,7 @@ export default function OverviewPage({ analytics, events, onNavigate, dateRange 
             <span>Improvement: <strong style={{ color: (ai.improvement_points || 0) >= 0 ? '#12B76A' : '#F04438' }}>
               {(ai.improvement_points || 0) >= 0 ? '+' : ''}{ai.improvement_points || 0} pts
             </strong></span>
-            <span>Extra: <strong style={{ color: '#12B76A' }}>₹{fmt(ai.additional_revenue_recovered || 0)}</strong></span>
+            <span>Assisted: <strong style={{ color: '#12B76A' }}>₹{fmt(ai.additional_revenue_recovered || 0)}</strong></span>
           </div>
         </div>
 
@@ -184,7 +184,7 @@ export default function OverviewPage({ analytics, events, onNavigate, dateRange 
                 >
                   <td style={{ padding: '12px 20px', whiteSpace: 'nowrap' }}><TypeBadge type={e.event_type} /></td>
                   <td style={{ padding: '12px 20px', fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap' }}>₹{fmt(e.amount)}</td>
-                  <td style={{ padding: '12px 20px', fontSize: 14, color: '#5F6B7A', whiteSpace: 'nowrap' }}>{(e.failure_category || '—').replace(/_/g, ' ')}</td>
+                  <td style={{ padding: '12px 20px', fontSize: 14, color: '#5F6B7A', whiteSpace: 'nowrap' }}>{formatCategory(e.failure_category)}</td>
                   <td style={{ padding: '12px 20px', fontSize: 14, color: '#5F6B7A', textTransform: 'capitalize', whiteSpace: 'nowrap' }}>{e.recommended_channel || '—'}</td>
                   <td style={{ padding: '12px 20px', whiteSpace: 'nowrap' }}><StatusBadge status={e.status} /></td>
                   <td style={{ padding: '12px 20px', fontSize: 13, color: '#6B7280', whiteSpace: 'nowrap' }}>{timeAgo(e.created_at)}</td>
@@ -222,17 +222,75 @@ export function TypeBadge({ type }) {
 
 export function StatusBadge({ status }) {
   const map = {
-    pending: { label: 'Pending', bg: '#FFFAEB', color: '#B54708' },
-    recovered: { label: 'Recovered', bg: '#ECFDF3', color: '#027A48' },
-    exhausted: { label: 'Exhausted', bg: '#FEF3F2', color: '#B42318' },
-    no_action_needed: { label: 'No Action', bg: '#F2F4F7', color: '#5F6B7A' },
-    organic_recovery: { label: 'Organic', bg: '#ECFDF3', color: '#027A48' },
+    pending: { label: 'In Progress', bg: '#FFFAEB', color: '#B54708' },
+    paused: { label: 'On Hold', bg: '#F0F4FF', color: '#3538CD' },
+    recovered: { label: 'Paid', bg: '#ECFDF3', color: '#027A48' },
+    exhausted: { label: 'Gave Up', bg: '#FEF3F2', color: '#B42318' },
+    no_action_needed: { label: 'Skipped', bg: '#F2F4F7', color: '#5F6B7A' },
+    organic_recovery: { label: 'Paid (Self)', bg: '#ECFDF3', color: '#027A48' },
+    cancelled: { label: 'Cancelled', bg: '#FEF3F2', color: '#B42318' },
   }
   const m = map[status] || { label: status || '—', bg: '#F2F4F7', color: '#5F6B7A' }
   return <span style={{
     display: 'inline-block', padding: '3px 10px', borderRadius: 4,
     fontSize: 12, fontWeight: 500, background: m.bg, color: m.color,
   }}>{m.label}</span>
+}
+
+const CATEGORY_LABELS = {
+  upi_timeout: 'Payment Timed Out',
+  bank_downtime: 'Bank Offline',
+  card_expired: 'Card Expired',
+  insufficient_funds: 'Low Balance',
+  gateway_error: 'System Error',
+  user_cancelled: 'Customer Cancelled',
+  unrecoverable_decline: 'Permanently Declined',
+  high_intent_abandonment: 'Cart Left Behind',
+  browse_only_abandonment: 'Just Browsing',
+  recently_overdue: 'Recently Late',
+  moderately_overdue: 'Moderately Late',
+  long_overdue: 'Very Late',
+}
+
+export function formatCategory(cat) {
+  if (!cat) return '—'
+  return CATEGORY_LABELS[cat] || cat.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+
+const ESCALATION_LABELS = {
+  0: 'Not Started',
+  1: 'First Contact',
+  2: 'Follow-Up',
+  3: 'Escalated',
+  4: 'Final Attempt',
+  5: 'Max Escalation',
+}
+
+export function formatEscalation(level) {
+  return ESCALATION_LABELS[level] || `Round ${level}`
+}
+
+const STRATEGY_LABELS = {
+  initial: 'Scheduled',
+  first_contact_sent: 'First Message Sent',
+  first_contact_failed: 'First Message Failed',
+  follow_up_sent: 'Follow-Up Sent',
+  friendly: 'Friendly Follow-Up',
+  firm: 'Firm Follow-Up',
+  urgent: 'Urgent Follow-Up',
+  final: 'Final Attempt',
+  exhausted: 'Gave Up',
+  window_expired: 'Time Ran Out',
+  max_attempts_reached: 'All Attempts Used',
+  merchant_paused: 'Paused by You',
+  merchant_cancelled: 'Cancelled by You',
+  quiet_hours_rescheduled: 'Rescheduled (Quiet Hours)',
+  resumed: 'Resumed',
+}
+
+export function formatStrategy(strategy) {
+  if (!strategy) return '—'
+  return STRATEGY_LABELS[strategy] || strategy.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
 export function timeAgo(ts) {

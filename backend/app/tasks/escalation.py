@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from app.celery_app import celery_app
 from app.database import get_supabase
 from app.redis_client import get_redis
@@ -51,7 +51,8 @@ def run_escalation_cycle() -> dict:
                         continue
                 except (ValueError, TypeError):
                     pass
-            if (e.get("attempt_count", 0) or 0) >= (e.get("max_attempts", 5) or 5):
+            if (e.get("attempt_count", 0) or 0) >= (e.get("max_attempts") if e.get("max_attempts") is not None else 5):
+                _mark_attempts_exhausted(sb, e)
                 continue
             if e.get("failure_category") == "unrecoverable_decline":
                 continue
@@ -64,7 +65,7 @@ def run_escalation_cycle() -> dict:
 
         results = run_escalation(actionable)
 
-        logger.info(f"Escalation cycle: {len(actionable)} events processed")
+        logger.info("Escalation cycle: %d events processed", len(actionable))
         return {"status": "done", "processed": len(results), "results": results}
 
     finally:
@@ -72,9 +73,47 @@ def run_escalation_cycle() -> dict:
 
 
 def _mark_window_expired(sb, event):
+    attempt_count = event.get("attempt_count", 0) or 0
+    max_attempts = event.get("max_attempts") if event.get("max_attempts") is not None else 5
+
+    if attempt_count == 0 and max_attempts > 0:
+        now = datetime.now(timezone.utc)
+        sb.table("recovery_events").update({
+            "status": "pending",
+            "current_strategy": "retry_after_window",
+            "skip_reason": None,
+            "recovery_window_ends": (now + timedelta(hours=24)).isoformat(),
+            "next_action_at": now.isoformat(),
+            "updated_at": now.isoformat(),
+        }).eq("id", event["id"]).execute()
+        logger.info("Event %d: window expired but 0 attempts sent — extending window by 24h", event["id"])
+        return
+
     sb.table("recovery_events").update({
         "status": "exhausted",
         "current_strategy": "window_expired",
-        "skip_reason": "72-hour recovery window expired without payment",
+        "skip_reason": "Recovery window expired without payment" if attempt_count > 0 else "No outreach attempts succeeded within recovery window",
+        "next_action_at": None,
+        "recovery_window_ends": None,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }).eq("id", event["id"]).execute()
+    logger.info("Event %d: recovery window expired (attempts=%d)", event["id"], attempt_count)
+
+
+def _mark_attempts_exhausted(sb, event):
+    max_att = event.get("max_attempts") if event.get("max_attempts") is not None else 5
+    attempt_count = event.get("attempt_count", 0) or 0
+
+    if attempt_count == 0 and max_att > 0:
+        logger.info("Event %d: max_attempts=%d but attempt_count=0 — skipping exhaustion", event["id"], max_att)
+        return
+
+    sb.table("recovery_events").update({
+        "status": "exhausted",
+        "current_strategy": "max_attempts_reached",
+        "skip_reason": f"Reached maximum {max_att} recovery attempts",
+        "next_action_at": None,
+        "recovery_window_ends": None,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }).eq("id", event["id"]).execute()
+    logger.info("Event %d: max attempts (%d) exhausted", event["id"], max_att)

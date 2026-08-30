@@ -43,7 +43,18 @@ async def health_check():
     except Exception as e:
         services["celery"] = f"error: {e}"
 
-    services["supabase"] = "configured"
-    overall = "ok" if services.get("redis") == "ok" else "degraded"
+    try:
+        from app.database import get_supabase
+        sb = get_supabase()
+        test = await loop.run_in_executor(
+            _pool,
+            lambda: sb.table("recovery_events").select("id", count="exact").limit(0).execute(),
+        )
+        services["supabase"] = f"ok ({test.count} events)"
+    except Exception as e:
+        services["supabase"] = f"error: {e}"
+
+    all_ok = services.get("redis") == "ok" and services.get("supabase", "").startswith("ok")
+    overall = "ok" if all_ok else "degraded"
 
     return HealthResponse(status=overall, services=services)

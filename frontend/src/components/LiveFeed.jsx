@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
 
 const STATUS_COLORS = {
   pending: 'var(--warning)',
@@ -22,23 +21,6 @@ export default function LiveFeed({ events: initialEvents }) {
     setEvents(initialEvents || [])
   }, [initialEvents])
 
-  useEffect(() => {
-    const channel = supabase
-      .channel('recovery-events-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'recovery_events' }, (payload) => {
-        if (payload.eventType === 'INSERT') {
-          setEvents((prev) => [payload.new, ...prev].slice(0, 50))
-        } else if (payload.eventType === 'UPDATE') {
-          setEvents((prev) =>
-            prev.map((e) => (e.id === payload.new.id ? payload.new : e))
-          )
-        }
-      })
-      .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
-  }, [])
-
   const fmt = (n) => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(n)
   const timeAgo = (ts) => {
     if (!ts) return ''
@@ -57,7 +39,7 @@ export default function LiveFeed({ events: initialEvents }) {
         <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Live Event Feed</h3>
         <span className="flex items-center gap-2 text-xs" style={{ color: 'var(--success)' }}>
           <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--success)' }} />
-          Realtime
+          Auto-refresh
         </span>
       </div>
       <div className="max-h-96 overflow-y-auto">

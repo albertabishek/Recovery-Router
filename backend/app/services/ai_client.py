@@ -6,6 +6,7 @@ Handles rate limits, timeouts, invalid responses, and retries.
 
 import json
 import logging
+import threading
 import time
 import httpx
 from app.config import settings
@@ -36,20 +37,23 @@ MODEL_CHAIN = [
 ]
 
 _http_client = None
+_client_lock = threading.Lock()
 
 
 def _get_client() -> httpx.Client:
     global _http_client
     if _http_client is None:
-        _http_client = httpx.Client(
-            timeout=15,
-            headers={
-                "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
-                "Content-Type": "application/json",
-                "HTTP-Referer": settings.API_BASE_URL,
-                "X-Title": "Recovery Router",
-            },
-        )
+        with _client_lock:
+            if _http_client is None:
+                _http_client = httpx.Client(
+                    timeout=15,
+                    headers={
+                        "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
+                        "Content-Type": "application/json",
+                        "HTTP-Referer": settings.API_BASE_URL,
+                        "X-Title": "Recovery Router",
+                    },
+                )
     return _http_client
 
 
@@ -105,7 +109,7 @@ def _call_single(
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_message},
         ],
-        "temperature": temperature + (0.05 * attempt),
+        "temperature": temperature,
         "max_tokens": max_tokens,
         "response_format": {"type": "json_object"},
     }

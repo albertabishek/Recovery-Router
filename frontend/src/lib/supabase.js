@@ -4,10 +4,9 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.warn('[supabase] VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY missing — realtime feed disabled')
+  console.error('[supabase] VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY missing — realtime feed will not work')
 }
 
-export const supabase = createClient(
-  SUPABASE_URL || 'https://placeholder.supabase.co',
-  SUPABASE_ANON_KEY || 'placeholder',
-)
+export const supabase = SUPABASE_URL && SUPABASE_ANON_KEY
+  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null

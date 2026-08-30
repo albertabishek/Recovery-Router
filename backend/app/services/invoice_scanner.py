@@ -11,18 +11,24 @@ logger = logging.getLogger(__name__)
 def fetch_overdue_invoices() -> list[dict]:
     """Fetch issued invoices from Razorpay and convert to recovery event format."""
     try:
-        resp = httpx.get(
-            "https://api.razorpay.com/v1/invoices",
-            params={"type": "invoice", "status": "issued", "count": 100},
-            auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET),
-            timeout=15,
-        )
-
-        if resp.status_code != 200:
-            logger.error(f"Razorpay invoice API error: {resp.status_code}")
-            return []
-
-        items = resp.json().get("items", [])
+        items = []
+        skip = 0
+        page_size = 100
+        while True:
+            resp = httpx.get(
+                "https://api.razorpay.com/v1/invoices",
+                params={"type": "invoice", "status": "issued", "count": page_size, "skip": skip},
+                auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET),
+                timeout=15,
+            )
+            if resp.status_code != 200:
+                logger.error("Razorpay invoice API error: %d", resp.status_code)
+                break
+            batch = resp.json().get("items", [])
+            items.extend(batch)
+            if len(batch) < page_size:
+                break
+            skip += page_size
         events = []
 
         all_ids = [inv.get("id") for inv in items if inv.get("id")]
@@ -35,11 +41,13 @@ def fetch_overdue_invoices() -> list[dict]:
 
             due_date = inv.get("due_date") or inv.get("date")
             if due_date:
-                days_overdue = max(0, math.floor(
+                days_overdue = math.floor(
                     (datetime.now(timezone.utc).timestamp() - due_date) / 86400
-                ))
+                )
+                if days_overdue < 1:
+                    continue
             else:
-                days_overdue = 0
+                continue
 
             customer = inv.get("customer_details", {})
             events.append({
@@ -54,11 +62,11 @@ def fetch_overdue_invoices() -> list[dict]:
                 "days_overdue": days_overdue,
             })
 
-        logger.info(f"Found {len(events)} new overdue invoices")
+        logger.info("Found %d new overdue invoices", len(events))
         return events
 
     except Exception as e:
-        logger.error(f"Invoice scan failed: {e}")
+        logger.error("Invoice scan failed: %s", e)
         return []
 
 

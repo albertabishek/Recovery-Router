@@ -16,5 +16,5 @@ def scan_overdue_invoices() -> dict:
         process_recovery_event.delay(inv)
         dispatched += 1
 
-    logger.info(f"Invoice scan: found {len(invoices)}, dispatched {dispatched}")
+    logger.info("Invoice scan: found %d, dispatched %d", len(invoices), dispatched)
     return {"scanned": len(invoices), "dispatched": dispatched}

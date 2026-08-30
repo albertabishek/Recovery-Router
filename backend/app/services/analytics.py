@@ -24,17 +24,25 @@ def compute_analytics(from_date: str | None = None, to_date: str | None = None) 
         return AnalyticsResponse(**json.loads(cached))
 
     sb = get_supabase()
-    query = sb.table("recovery_events").select(
-        "id,event_type,status,amount,recovered_amount,attempt_count,"
-        "recommended_channel,failure_category,created_at,recovered_at"
-    )
-    if from_date:
-        query = query.gte("created_at", f"{from_date}T00:00:00")
-    if to_date:
-        query = query.lte("created_at", f"{to_date}T23:59:59")
-
-    res = query.execute()
-    events = res.data or []
+    events = []
+    page_size = 1000
+    offset = 0
+    while True:
+        query = sb.table("recovery_events").select(
+            "id,event_type,status,amount,recovered_amount,attempt_count,"
+            "recommended_channel,failure_category,created_at,recovered_at"
+        )
+        if from_date:
+            query = query.gte("created_at", f"{from_date}T00:00:00")
+        if to_date:
+            query = query.lte("created_at", f"{to_date}T23:59:59")
+        query = query.order("id").range(offset, offset + page_size - 1)
+        res = query.execute()
+        batch = res.data or []
+        events.extend(batch)
+        if len(batch) < page_size:
+            break
+        offset += page_size
 
     if not events:
         return AnalyticsResponse(

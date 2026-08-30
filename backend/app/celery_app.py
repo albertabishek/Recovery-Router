@@ -1,17 +1,15 @@
-import ssl
 from celery import Celery
 from app.config import settings
 
 celery_app = Celery(
     "recovery_router",
-    broker=settings.UPSTASH_REDIS_URL,
-    backend=settings.UPSTASH_REDIS_URL,
+    broker=settings.REDIS_URL,
+    backend=settings.REDIS_URL,
 )
 
 celery_app.conf.update(
-    broker_use_ssl={"ssl_cert_reqs": ssl.CERT_REQUIRED},
-    redis_backend_use_ssl={"ssl_cert_reqs": ssl.CERT_REQUIRED},
     broker_transport_options={"visibility_timeout": 3600},
+    broker_connection_retry_on_startup=True,
     task_serializer="json",
     result_serializer="json",
     accept_content=["json"],

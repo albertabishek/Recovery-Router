@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from app.auth import require_auth
 from app.models import AnalyticsResponse
 from app.services.analytics import compute_analytics
 from app.utils.rate_limiter import check_rate_limit
 
-router = APIRouter(prefix="/api", tags=["analytics"])
+router = APIRouter(prefix="/api", tags=["analytics"], dependencies=[Depends(require_auth)])
 
 
 @router.get("/analytics", response_model=AnalyticsResponse)

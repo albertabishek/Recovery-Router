@@ -4,6 +4,7 @@ import httpx
 from fastapi import APIRouter, Query, HTTPException
 from fastapi.responses import HTMLResponse
 from app.config import settings
+from app.services.payment_links import get_checkout_context
 
 logger = logging.getLogger(__name__)
 
@@ -15,12 +16,21 @@ ORDER_ID_PATTERN = re.compile(r"^order_[A-Za-z0-9]{8,30}$")
 @router.get("/pay/{order_id}", response_class=HTMLResponse)
 async def checkout_page(
     order_id: str,
-    name: str = Query("Customer"),
-    email: str = Query(""),
-    phone: str = Query(""),
+    t: str = Query(""),
 ):
     if not ORDER_ID_PATTERN.match(order_id):
         raise HTTPException(status_code=400, detail="Invalid order ID format")
+
+    name = "Customer"
+    email = ""
+    phone = ""
+    if t:
+        ctx = get_checkout_context(t)
+        if ctx:
+            name = ctx.get("name", "Customer")
+            email = ctx.get("email", "")
+            phone = ctx.get("phone", "")
+
     """Hosted checkout page that opens Razorpay Standard Checkout for the given order."""
     return f"""<!DOCTYPE html>
 <html lang="en">

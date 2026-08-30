@@ -1,16 +1,43 @@
+import json
+import secrets
 import logging
 import httpx
 from datetime import datetime
 from app.config import settings
+from app.redis_client import get_redis
 
 logger = logging.getLogger(__name__)
 
-FALLBACK_URL = "https://rzp.io/i/recovery"
+FALLBACK_URL = f"{settings.FRONTEND_URL or 'http://localhost:5173'}"
 RZP_BASE = "https://api.razorpay.com/v1"
+CHECKOUT_TOKEN_TTL = 86400
 
 
 def _rzp_auth():
     return (settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET)
+
+
+def _store_checkout_context(order_id: str, customer_name: str, customer_email: str | None, customer_phone: str | None) -> str:
+    """Store customer details in Redis and return a lookup token."""
+    r = get_redis()
+    token = secrets.token_urlsafe(24)
+    data = json.dumps({
+        "order_id": order_id,
+        "name": customer_name or "Customer",
+        "email": customer_email or "",
+        "phone": customer_phone or "",
+    })
+    r.set(f"checkout:{token}", data, ex=CHECKOUT_TOKEN_TTL)
+    return token
+
+
+def get_checkout_context(token: str) -> dict | None:
+    """Retrieve customer details from Redis by checkout token."""
+    r = get_redis()
+    data = r.get(f"checkout:{token}")
+    if not data:
+        return None
+    return json.loads(data)
 
 
 def generate_payment_link(
@@ -29,9 +56,10 @@ def generate_payment_link(
 
     Uses the Orders API (no test-mode limit) + our hosted checkout page
     instead of Payment Links API (30-link test-mode limit).
+    Customer PII is stored server-side in Redis, referenced by token.
     """
     if amount <= 0:
-        logger.warning(f"Skipping payment link: amount={amount}")
+        logger.warning("Skipping payment link: amount=%s", amount)
         return {"id": None, "short_url": FALLBACK_URL, "status": "skipped"}
 
     amount_paise = int(amount * 100)
@@ -59,27 +87,20 @@ def generate_payment_link(
         if resp.status_code in (200, 201):
             data = resp.json()
             rzp_order_id = data["id"]
-            checkout_url = (
-                f"{settings.API_BASE_URL}/pay/{rzp_order_id}"
-                f"?name={_url_encode(customer_name or 'Customer')}"
-                f"&email={_url_encode(customer_email or '')}"
-                f"&phone={_url_encode(customer_phone or '')}"
+            token = _store_checkout_context(
+                rzp_order_id, customer_name, customer_email, customer_phone,
             )
-            logger.info(f"Order created: {rzp_order_id} -> {checkout_url}")
+            checkout_url = f"{settings.API_BASE_URL}/pay/{rzp_order_id}?t={token}"
+            logger.info("Order created: %s", rzp_order_id)
             return {
                 "id": rzp_order_id,
                 "short_url": checkout_url,
                 "status": "created",
             }
 
-        logger.error(f"Razorpay Orders API error: {resp.status_code} {resp.text[:200]}")
+        logger.error("Razorpay Orders API error: %d %s", resp.status_code, resp.text[:200])
         return {"id": None, "short_url": FALLBACK_URL, "status": "api_error"}
 
     except Exception as e:
-        logger.error(f"Payment link generation failed: {e}")
+        logger.error("Payment link generation failed: %s", e)
         return {"id": None, "short_url": FALLBACK_URL, "status": "error"}
-
-
-def _url_encode(s: str) -> str:
-    from urllib.parse import quote
-    return quote(str(s), safe="")
