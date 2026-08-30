@@ -62,11 +62,11 @@ export default function OverviewPage({ analytics, events, onNavigate, dateRange 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 28 }}>
         <div style={{ ...CARD, padding: '24px 28px' }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: '#1A1A1A', marginBottom: 20 }}>
-            Assisted Recovery vs Baseline
+            Observed Recovery vs Industry Baseline
           </div>
           <div style={{ display: 'flex', gap: 36, marginBottom: 20 }}>
             <div>
-              <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Razorpay Baseline</div>
+              <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Industry Baseline</div>
               <div style={{ fontSize: 28, fontWeight: 700, color: '#6B7280' }}>{ai.baseline_rate_percent || 17.5}%</div>
             </div>
             <div>
@@ -82,7 +82,7 @@ export default function OverviewPage({ analytics, events, onNavigate, dateRange 
             <span>Improvement: <strong style={{ color: (ai.improvement_points || 0) >= 0 ? '#12B76A' : '#F04438' }}>
               {(ai.improvement_points || 0) >= 0 ? '+' : ''}{ai.improvement_points || 0} pts
             </strong></span>
-            <span>Assisted: <strong style={{ color: '#12B76A' }}>₹{fmt(ai.additional_revenue_recovered || 0)}</strong></span>
+            <span>Observed: <strong style={{ color: '#12B76A' }}>₹{fmt(ai.additional_revenue_recovered || 0)}</strong></span>
           </div>
         </div>
 

@@ -193,6 +193,16 @@ def run_escalation(events: list[dict]) -> list[dict]:
                 recovery_window_ends=recovery_window_ends,
             )
 
+            if not link.get("short_url"):
+                logger.error("Event %d: payment link creation failed, rescheduling in 15m", event["id"])
+                now = datetime.now(timezone.utc)
+                sb.table("recovery_events").update({
+                    "next_action_at": (now + timedelta(minutes=15)).isoformat(),
+                    "updated_at": now.isoformat(),
+                }).eq("id", event["id"]).execute()
+                results.append({"event_id": event["id"], "action": "link_failed"})
+                continue
+
             send_result = send_message(
                 channel=channel,
                 customer_name=event.get("customer_name", "Customer"),

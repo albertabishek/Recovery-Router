@@ -58,10 +58,18 @@ def process_payment_captured(body: dict) -> dict:
     sb = get_supabase()
 
     if payment_id:
-        already = sb.table("recovery_events").select("id").eq(
-            "payment_id", payment_id
-        ).in_("status", ["recovered", "organic_recovery"]).limit(1).execute()
-        if already.data:
+        already = None
+        try:
+            already = sb.table("recovery_events").select("id").eq(
+                "recovered_payment_id", payment_id
+            ).limit(1).execute()
+        except Exception:
+            pass
+        if not already or not already.data:
+            already = sb.table("recovery_events").select("id").eq(
+                "payment_id", payment_id
+            ).in_("status", ["recovered", "organic_recovery"]).limit(1).execute()
+        if already and already.data:
             logger.warning(
                 "Double-attribution blocked: payment_id=%s already attributed to event %d",
                 payment_id, already.data[0]["id"],
@@ -142,13 +150,16 @@ def process_payment_captured(body: dict) -> dict:
     is_organic = actual_attempt_count == 0 and not has_successful_outreach
 
     if is_organic:
-        upd = sb.table("recovery_events").update({
+        update_data = {
             "status": "organic_recovery",
             "recovered_at": now.isoformat(),
             "recovered_amount": amount,
             "next_action_at": None,
             "updated_at": now.isoformat(),
-        }).eq("id", event["id"]).in_("status", recoverable_statuses).execute()
+        }
+        if payment_id:
+            update_data["recovered_payment_id"] = payment_id
+        upd = sb.table("recovery_events").update(update_data).eq("id", event["id"]).in_("status", recoverable_statuses).execute()
 
         if not upd.data:
             logger.warning("Event %d already processed (race avoided)", event["id"])
@@ -157,13 +168,16 @@ def process_payment_captured(body: dict) -> dict:
         logger.info("Organic recovery: event %d (0 successful outreach, matched via %s)", event["id"], match_method)
         return {"status": "organic_recovery", "event_id": event["id"]}
 
-    upd = sb.table("recovery_events").update({
+    update_data = {
         "status": "recovered",
         "recovered_at": now.isoformat(),
         "recovered_amount": amount,
         "next_action_at": None,
         "updated_at": now.isoformat(),
-    }).eq("id", event["id"]).in_("status", recoverable_statuses).execute()
+    }
+    if payment_id:
+        update_data["recovered_payment_id"] = payment_id
+    upd = sb.table("recovery_events").update(update_data).eq("id", event["id"]).in_("status", recoverable_statuses).execute()
 
     if not upd.data:
         logger.warning("Event %d already processed (race avoided)", event["id"])

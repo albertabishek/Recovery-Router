@@ -8,7 +8,6 @@ from app.redis_client import get_redis
 
 logger = logging.getLogger(__name__)
 
-FALLBACK_URL = f"{settings.FRONTEND_URL or 'http://localhost:5173'}"
 RZP_BASE = "https://api.razorpay.com/v1"
 CHECKOUT_TOKEN_TTL = 86400
 
@@ -60,7 +59,7 @@ def generate_payment_link(
     """
     if amount <= 0:
         logger.warning("Skipping payment link: amount=%s", amount)
-        return {"id": None, "short_url": FALLBACK_URL, "status": "skipped"}
+        return {"id": None, "short_url": None, "status": "skipped"}
 
     amount_paise = int(amount * 100)
 
@@ -99,8 +98,8 @@ def generate_payment_link(
             }
 
         logger.error("Razorpay Orders API error: %d %s", resp.status_code, resp.text[:200])
-        return {"id": None, "short_url": FALLBACK_URL, "status": "api_error"}
+        return {"id": None, "short_url": None, "status": "api_error"}
 
     except Exception as e:
         logger.error("Payment link generation failed: %s", e)
-        return {"id": None, "short_url": FALLBACK_URL, "status": "error"}
+        return {"id": None, "short_url": None, "status": "error"}

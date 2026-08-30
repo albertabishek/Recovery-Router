@@ -4,10 +4,10 @@ export default function AILift({ aiLift }) {
   return (
     <div className="rounded-xl p-6 border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
       <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-        Assisted Recovery vs Baseline
+        Observed Recovery vs Industry Baseline
       </h3>
       <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>
-        {aiLift.baseline_source || 'Razorpay blog: 15-20% recovery via simple retries'}
+        {aiLift.baseline_source || 'Industry baseline: 15-20% recovery via simple retries (Razorpay blog)'}
       </p>
       <div className="grid grid-cols-2 gap-6">
         <div>
@@ -43,7 +43,7 @@ export default function AILift({ aiLift }) {
       </div>
       <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
         <div className="flex justify-between text-sm">
-          <span style={{ color: 'var(--text-secondary)' }}>Improvement</span>
+          <span style={{ color: 'var(--text-secondary)' }}>Observed Improvement</span>
           <span
             className="font-semibold"
             style={{ color: aiLift.improvement_points >= 0 ? 'var(--success)' : 'var(--text-secondary)' }}
@@ -52,7 +52,7 @@ export default function AILift({ aiLift }) {
           </span>
         </div>
         <div className="flex justify-between text-sm mt-1">
-          <span style={{ color: 'var(--text-secondary)' }}>Assisted Recovery Amount</span>
+          <span style={{ color: 'var(--text-secondary)' }}>Observed Recovery Amount</span>
           <span className="font-semibold" style={{ color: 'var(--success)' }}>
             ₹{fmt(aiLift.additional_revenue_recovered)}
           </span>

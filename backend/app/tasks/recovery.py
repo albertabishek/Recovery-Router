@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 import httpx
 from celery.exceptions import Retry
 from app.celery_app import celery_app
@@ -10,6 +11,25 @@ from app.services.classifier import classify_event
 from app.services.router import route_action, compute_max_attempts
 from app.services.payment_links import generate_payment_link
 from app.services.messenger import send_message
+
+IST = ZoneInfo("Asia/Kolkata")
+QUIET_START_HOUR = 21
+QUIET_END_HOUR = 9
+
+
+def _is_quiet_hours() -> bool:
+    now = datetime.now(timezone.utc).astimezone(IST)
+    return now.hour >= QUIET_START_HOUR or now.hour < QUIET_END_HOUR
+
+
+def _next_permitted_time() -> datetime:
+    now_ist = datetime.now(timezone.utc).astimezone(IST)
+    if now_ist.hour >= QUIET_START_HOUR:
+        next_day = now_ist + timedelta(days=1)
+        wake = next_day.replace(hour=QUIET_END_HOUR, minute=0, second=0, microsecond=0)
+    else:
+        wake = now_ist.replace(hour=QUIET_END_HOUR, minute=0, second=0, microsecond=0)
+    return wake.astimezone(timezone.utc)
 
 TRANSIENT_ERRORS = (
     ConnectionError, TimeoutError, OSError,
@@ -157,6 +177,16 @@ def process_recovery_event(self, event_data: dict) -> dict:
                 "delay_seconds": action.delay_seconds,
             }
 
+        if _is_quiet_hours():
+            wake_at = _next_permitted_time()
+            sb.table("recovery_events").update({
+                "next_action_at": wake_at.isoformat(),
+                "current_strategy": "quiet_hours_rescheduled",
+                "updated_at": now.isoformat(),
+            }).eq("id", event_id).execute()
+            logger.info("Event %d: quiet hours — rescheduled initial send to %s", event_id, wake_at.isoformat())
+            return {"status": "rescheduled_quiet_hours", "event_id": event_id, "wake_at": wake_at.isoformat()}
+
         link_amount = event.cart_value if (event.cart_value and event.amount <= 0) else event.amount
         link = generate_payment_link(
             amount=link_amount,
@@ -170,6 +200,15 @@ def process_recovery_event(self, event_data: dict) -> dict:
             event_id=event_id,
             recovery_window_ends=recovery_window_ends,
         )
+
+        if not link.get("short_url"):
+            logger.error("Event %d: payment link creation failed, skipping outreach", event_id)
+            sb.table("recovery_events").update({
+                "current_strategy": "link_creation_failed",
+                "next_action_at": (now + timedelta(minutes=15)).isoformat(),
+                "updated_at": now.isoformat(),
+            }).eq("id", event_id).execute()
+            return {"status": "link_failed", "event_id": event_id}
 
         send_result = send_message(
             channel=action.channel,
@@ -365,6 +404,16 @@ def _send_delayed(self, event_id: int, channel: str, event_data: dict):
             logger.info("Delayed send: event %s status=%s, skipping", event_id, ev['status'])
             return {"status": "skipped", "event_id": event_id}
 
+        if _is_quiet_hours():
+            wake_at = _next_permitted_time()
+            sb.table("recovery_events").update({
+                "next_action_at": wake_at.isoformat(),
+                "current_strategy": "quiet_hours_rescheduled",
+                "updated_at": now.isoformat(),
+            }).eq("id", event_id).execute()
+            logger.info("Delayed send event %d: quiet hours — rescheduled to %s", event_id, wake_at.isoformat())
+            return {"status": "rescheduled_quiet_hours", "event_id": event_id}
+
         recovery_window_ends = None
         if ev.get("recovery_window_ends"):
             try:
@@ -384,6 +433,15 @@ def _send_delayed(self, event_id: int, channel: str, event_data: dict):
             event_id=event_id,
             recovery_window_ends=recovery_window_ends,
         )
+
+        if not link.get("short_url"):
+            logger.error("Delayed send event %d: payment link creation failed, rescheduling", event_id)
+            sb.table("recovery_events").update({
+                "current_strategy": "link_creation_failed",
+                "next_action_at": (now + timedelta(minutes=15)).isoformat(),
+                "updated_at": now.isoformat(),
+            }).eq("id", event_id).execute()
+            return {"status": "link_failed", "event_id": event_id}
 
         send_result = send_message(
             channel=channel,
