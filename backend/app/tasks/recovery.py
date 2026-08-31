@@ -235,6 +235,7 @@ def process_recovery_event(self, event_data: dict) -> dict:
                 "blocked" if send_result.get("error") == "Cooldown active" else "failed"
             ),
             "notes": classification.reasoning,
+            "idempotency_key": f"{event_id}:initial:1",
             "metadata": {
                 "payment_link_id": link.get("id"),
                 "payment_link_url": link.get("short_url"),

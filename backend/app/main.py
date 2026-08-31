@@ -29,7 +29,7 @@ app.add_middleware(
         "https://api.albertabishek.com",
         "https://razorpay.albertabishek.com",
     ],
-    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_origin_regex=r"https://recovery-router[a-z0-9-]*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],

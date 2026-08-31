@@ -18,19 +18,17 @@ async def health_check():
     try:
         from app.redis_client import get_redis
         r = get_redis()
-        pong = await loop.run_in_executor(_pool, r.ping)
-        depth = await loop.run_in_executor(_pool, r.llen, "celery")
+        await loop.run_in_executor(_pool, r.ping)
         services["redis"] = "ok"
-        services["queue_depth"] = depth or 0
-    except Exception as e:
-        services["redis"] = f"error: {e}"
+    except Exception:
+        services["redis"] = "error"
 
     def _celery_ping():
         from app.celery_app import celery_app
         insp = celery_app.control.inspect(timeout=2.0)
         ping = insp.ping()
         if ping:
-            return f"ok ({len(ping)} workers)"
+            return "ok"
         return "no workers"
 
     try:
@@ -40,19 +38,19 @@ async def health_check():
         services["celery"] = result
     except asyncio.TimeoutError:
         services["celery"] = "timeout"
-    except Exception as e:
-        services["celery"] = f"error: {e}"
+    except Exception:
+        services["celery"] = "error"
 
     try:
         from app.database import get_supabase
         sb = get_supabase()
-        test = await loop.run_in_executor(
+        await loop.run_in_executor(
             _pool,
             lambda: sb.table("recovery_events").select("id", count="exact").limit(0).execute(),
         )
-        services["supabase"] = f"ok ({test.count} events)"
-    except Exception as e:
-        services["supabase"] = f"error: {e}"
+        services["supabase"] = "ok"
+    except Exception:
+        services["supabase"] = "error"
 
     all_ok = services.get("redis") == "ok" and services.get("supabase", "").startswith("ok")
     overall = "ok" if all_ok else "degraded"

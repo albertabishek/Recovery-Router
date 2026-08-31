@@ -414,6 +414,7 @@ def _log_attempt(sb, event, channel, decision, send_result, link):
             "blocked" if send_result.get("error") == "Cooldown active" else "failed"
         ),
         "notes": decision.get("reasoning", ""),
+        "idempotency_key": f"{event['id']}:escalation:{next_number}",
         "metadata": {
             "payment_link_id": link.get("id"),
             "payment_link_url": link.get("short_url"),

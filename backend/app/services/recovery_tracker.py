@@ -45,15 +45,19 @@ def process_payment_captured(body: dict) -> dict:
         entity_status, method,
     )
 
-    if entity_status and entity_status != "captured":
+    if not entity_status or entity_status != "captured":
         logger.warning(
             "Reconciliation rejected: entity status is '%s', expected 'captured' "
-            "(payment_id=%s)", entity_status, payment_id,
+            "(payment_id=%s)", entity_status or "(missing)", payment_id,
         )
-        return {"status": "rejected", "reason": f"Payment status is '{entity_status}', not 'captured'"}
+        return {"status": "rejected", "reason": f"Payment status is '{entity_status or '(missing)'}', not 'captured'"}
 
-    if not order_id and not payment_id and not recovery_event_id and not reference_id:
-        return {"status": "ignored", "reason": "No identifiers found"}
+    if not payment_id:
+        logger.warning("Reconciliation rejected: no payment_id in captured webhook")
+        return {"status": "rejected", "reason": "Missing payment_id"}
+
+    if not order_id and not recovery_event_id and not reference_id:
+        return {"status": "ignored", "reason": "No identifiers found besides payment_id"}
 
     sb = get_supabase()
 
@@ -120,7 +124,7 @@ def process_payment_captured(body: dict) -> dict:
 
     event_amount = float(event.get("amount", 0) or 0)
     if event_amount > 0 and amount > 0:
-        tolerance = max(event_amount * 0.01, 1.0)
+        tolerance = 0.01
         if abs(amount - event_amount) > tolerance:
             logger.warning(
                 "Reconciliation rejected: amount mismatch — captured %.2f vs event %.2f "

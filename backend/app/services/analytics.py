@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 CACHE_KEY = "cache:analytics"
 CACHE_TTL = 120
-BASELINE_RATE = 17.5
+BASELINE_RATE = 15.0
 
 
 def compute_analytics(from_date: str | None = None, to_date: str | None = None) -> AnalyticsResponse:
@@ -106,6 +106,7 @@ def compute_analytics(from_date: str | None = None, to_date: str | None = None) 
 
     ai_lift = AILift(
         baseline_rate_percent=BASELINE_RATE,
+        baseline_source="Industry reference: ~15% organic recovery via simple retries (Razorpay blog, observational — not a controlled baseline)",
         ai_recovery_rate_percent=round(recovery_rate, 1),
         improvement_points=round(improvement, 1),
         lift_multiplier=round(lift_mult, 2),

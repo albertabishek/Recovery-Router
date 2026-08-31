@@ -67,7 +67,7 @@ export default function OverviewPage({ analytics, events, onNavigate, dateRange 
           <div style={{ display: 'flex', gap: 36, marginBottom: 20 }}>
             <div>
               <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Industry Baseline</div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: '#6B7280' }}>{ai.baseline_rate_percent || 17.5}%</div>
+              <div style={{ fontSize: 28, fontWeight: 700, color: '#6B7280' }}>{ai.baseline_rate_percent || 15.0}%</div>
             </div>
             <div>
               <div style={{ fontSize: 11, color: '#528FF0', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Recovery Router</div>
@@ -75,7 +75,7 @@ export default function OverviewPage({ analytics, events, onNavigate, dateRange 
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-            <Bar value={ai.baseline_rate_percent || 17.5} color="#D1D5DB" />
+            <Bar value={ai.baseline_rate_percent || 15.0} color="#D1D5DB" />
             <Bar value={ai.ai_recovery_rate_percent || 0} color="#528FF0" />
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#6B7280' }}>

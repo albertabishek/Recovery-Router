@@ -16,7 +16,7 @@ const EMPTY_ANALYTICS = {
     avg_recovery_time_hours: 0,
   },
   ai_lift: {
-    baseline_rate_percent: 17.5, ai_recovery_rate_percent: 0,
+    baseline_rate_percent: 15.0, ai_recovery_rate_percent: 0,
     improvement_points: 0, lift_multiplier: 0, additional_revenue_recovered: 0,
   },
   by_event_type: {},
