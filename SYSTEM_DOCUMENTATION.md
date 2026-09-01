@@ -521,7 +521,7 @@ When a customer pays via the recovery link, Razorpay sends `payment.captured` or
 1. **Home (Overview)**
    - Revenue Recovered hero card (total ₹ amount)
    - At Risk / Pending / Exhausted summary cards
-   - AI Lift vs Baseline comparison (17.5% industry baseline)
+   - AI Lift vs Baseline comparison (15.0% industry baseline)
    - Channel Performance ranked bars
    - Recovery by Type grid
    - Recent Events table with live updates
@@ -620,8 +620,8 @@ Frontend env: `frontend/.env` (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_A
 
 **AI Lift Formula:**
 ```
-lift_multiplier = ai_recovery_rate / baseline_rate (17.5%)
-additional_revenue = recovered_amount - (total_amount × 17.5%)
+lift_multiplier = ai_recovery_rate / baseline_rate (15.0%)
+additional_revenue = recovered_amount - (total_amount × 15.0%)
 ```
 
 ---

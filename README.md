@@ -16,11 +16,11 @@ Indian merchants on Razorpay lose revenue from three separate holes:
 
 | Leak | Scale | Current Fix |
 |------|-------|-------------|
-| Payment Failures | 20-25% of all payments fail on Indian gateways | Same payment link sent to everyone, regardless of failure reason |
-| Cart Abandonment | 70% of customers never return | No automated recovery |
-| Overdue Invoices | Unpaid invoices pile up | Manual follow-up |
+| Payment Failures | D2C success rates average 68-74% ([Razorpay, May 2026](https://razorpay.com/blog/payment-success-rate-optimization-india/)) — roughly 1 in 4 payments fails | Same payment link sent to everyone, regardless of failure reason |
+| Cart Abandonment | 70% of cart abandonment in India is caused by payment failures ([Razorpay, May 2026](https://razorpay.com/blog/payment-success-rate-optimization-india/)) | No automated recovery |
+| Overdue Invoices | Unpaid invoices pile up, 40% of customers whose card is declined won't return | Manual follow-up |
 
-**80% of recoverable revenue is left on the table** because current approaches are unintelligent — no classification, no channel optimization, no timing intelligence.
+Current recovery tools handle these three leaks separately with no shared intelligence about why the payment failed.
 
 ## The Solution
 
@@ -427,16 +427,21 @@ python tests/process_queue.py
 |------|-------------|
 | **Overview** | Revenue recovered hero stat, at-risk/pending/recovery rate cards, live event feed, channel ranking, recovery by type breakdown |
 | **Recovery Events** | Filterable event list with status tabs (All / Pending / Recovered / Exhausted / No Action), event trace drill-down with full timeline, pause/resume/cancel controls |
-| **Reports** | Analytics breakdown by event type, channel effectiveness ranking, failure category distribution, AI lift vs 17.5% industry baseline |
+| **Reports** | Analytics breakdown by event type, channel effectiveness ranking, failure category distribution, AI lift vs 15.0% industry baseline |
 | **Simulator** | 10 built-in test scenarios across 3 event types, custom customer details, live Razorpay checkout testing (test mode) |
 | **Audit Logs** | Full recovery attempt history with AI reasoning, provider degradation paths, delivery status |
 
 ### Frontend Features
+- **Try Live Payment** — real Razorpay checkout popup in the Simulator page (test-mode). Payment fails through Razorpay's gateway, webhook fires, recovery pipeline starts. Not a mock.
+- **Event pause / resume / cancel** — manual override controls with optimistic concurrency (version check prevents stale writes)
+- **Full event trace** — drill-down panel showing pipeline stages, every attempt with provider chain, degradation paths, and timeline
+- **Health monitoring** — live status of Redis, Celery workers, and Supabase with color-coded badges (polls every 30s)
 - **Global date range filtering** — presets (Today, Yesterday, Last 7 Days, Last 30 Days, All Time) and custom range
 - **Global loading bar** — animated progress bar during API calls, reference-counted for concurrent fetches
 - **Supabase Realtime** — live event updates via WebSocket subscription
-- **Auto-refresh** — dashboard data refreshes every 30 seconds
-- **Responsive tables** — horizontal scroll on all data tables
+- **Auto-refresh** — dashboard data refreshes every 30 seconds, audit logs every 15 seconds
+- **Mobile responsive** — hamburger menu, responsive layout for phones and tablets
+- **Recovery retry failure tracking** — when a customer's retry payment also fails, the system catches the `payment.failed` webhook and logs it on the parent recovery event
 
 ---
 

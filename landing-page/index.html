@@ -1,0 +1,1594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recovery Router — Razorpay AI Buildathon 2026</title>
+<meta name="description" content="AI-powered revenue recovery engine. Classifies every revenue leak, routes to the optimal recovery action, executes through the right channel at the right time.">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-deep: #0a0a0f;
+    --bg-card: #12121a;
+    --bg-card-hover: #1a1a26;
+    --accent-primary: #7c3aed;
+    --accent-secondary: #06b6d4;
+    --accent-warm: #f59e0b;
+    --accent-green: #10b981;
+    --accent-red: #ef4444;
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --border: rgba(148, 163, 184, 0.1);
+    --glow-purple: rgba(124, 58, 237, 0.3);
+    --glow-cyan: rgba(6, 182, 212, 0.3);
+    --gradient-hero: linear-gradient(135deg, #7c3aed 0%, #06b6d4 50%, #10b981 100%);
+    --gradient-text: linear-gradient(135deg, #c084fc 0%, #22d3ee 50%, #34d399 100%);
+    --gradient-card: linear-gradient(145deg, rgba(124,58,237,0.08) 0%, rgba(6,182,212,0.08) 100%);
+  }
+
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* ── ANIMATED BACKGROUND ── */
+  .bg-grid {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background-image:
+      linear-gradient(rgba(124,58,237,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(124,58,237,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse at 50% 0%, black 0%, transparent 70%);
+  }
+
+  .bg-orbs {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+  }
+  .orb {
+    position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.15;
+    animation: float-orb 20s ease-in-out infinite;
+  }
+  .orb-1 { width: 600px; height: 600px; background: var(--accent-primary); top: -200px; left: -100px; animation-delay: 0s; }
+  .orb-2 { width: 500px; height: 500px; background: var(--accent-secondary); top: 40%; right: -150px; animation-delay: -7s; }
+  .orb-3 { width: 400px; height: 400px; background: var(--accent-green); bottom: -100px; left: 30%; animation-delay: -14s; }
+
+  @keyframes float-orb {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(30px, -40px) scale(1.05); }
+    66% { transform: translate(-20px, 20px) scale(0.95); }
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: rgba(10, 10, 15, 0.8);
+    backdrop-filter: blur(20px) saturate(1.8);
+    border-bottom: 1px solid var(--border);
+    transition: background 0.3s;
+  }
+  .nav-inner {
+    max-width: 1200px; margin: 0 auto;
+    padding: 0 24px; height: 64px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .nav-logo {
+    font-weight: 800; font-size: 18px; color: var(--text-primary);
+    display: flex; align-items: center; gap: 10px; text-decoration: none;
+  }
+  .nav-logo .logo-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: var(--gradient-hero);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; color: white; font-weight: 900;
+  }
+  .nav-links { display: flex; gap: 32px; align-items: center; }
+  .nav-links a {
+    color: var(--text-secondary); text-decoration: none; font-size: 14px; font-weight: 500;
+    transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--text-primary); }
+  .nav-cta {
+    background: var(--accent-primary) !important; color: white !important;
+    padding: 8px 20px; border-radius: 8px; font-weight: 600;
+    transition: transform 0.2s, box-shadow 0.2s !important;
+  }
+  .nav-cta:hover { transform: translateY(-1px); box-shadow: 0 4px 20px var(--glow-purple); }
+
+  @media (max-width: 768px) {
+    .nav-links { gap: 16px; }
+    .nav-links a:not(.nav-cta) { display: none; }
+  }
+
+  /* ── SECTION BASE ── */
+  section { position: relative; z-index: 1; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+  /* ── REVEAL ANIMATIONS ── */
+  .reveal {
+    opacity: 0; transform: translateY(40px);
+    transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+  .reveal-left { opacity: 0; transform: translateX(-60px); transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+  .reveal-left.visible { opacity: 1; transform: translateX(0); }
+  .reveal-right { opacity: 0; transform: translateX(60px); transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+  .reveal-right.visible { opacity: 1; transform: translateX(0); }
+  .reveal-scale { opacity: 0; transform: scale(0.9); transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+  .reveal-scale.visible { opacity: 1; transform: scale(1); }
+
+  .stagger-1 { transition-delay: 0.1s; }
+  .stagger-2 { transition-delay: 0.2s; }
+  .stagger-3 { transition-delay: 0.3s; }
+  .stagger-4 { transition-delay: 0.4s; }
+  .stagger-5 { transition-delay: 0.5s; }
+  .stagger-6 { transition-delay: 0.6s; }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 100vh; display: flex; align-items: center;
+    padding: 120px 0 80px;
+    position: relative; overflow: hidden;
+  }
+  .hero::before {
+    content: ''; position: absolute; top: 50%; left: 50%;
+    width: 800px; height: 800px;
+    background: radial-gradient(circle, var(--glow-purple) 0%, transparent 60%);
+    transform: translate(-50%, -50%); pointer-events: none;
+    animation: pulse-glow 4s ease-in-out infinite;
+  }
+  @keyframes pulse-glow {
+    0%, 100% { opacity: 0.4; transform: translate(-50%, -50%) scale(1); }
+    50% { opacity: 0.7; transform: translate(-50%, -50%) scale(1.15); }
+  }
+
+  .hero-content { position: relative; z-index: 2; text-align: center; max-width: 900px; margin: 0 auto; }
+
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 16px; border-radius: 50px;
+    background: rgba(124, 58, 237, 0.15); border: 1px solid rgba(124, 58, 237, 0.3);
+    font-size: 13px; font-weight: 600; color: #c084fc;
+    margin-bottom: 32px;
+    animation: badge-glow 3s ease-in-out infinite;
+  }
+  @keyframes badge-glow {
+    0%, 100% { box-shadow: 0 0 0 rgba(124, 58, 237, 0); }
+    50% { box-shadow: 0 0 20px rgba(124, 58, 237, 0.2); }
+  }
+  .badge-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: #10b981;
+    animation: dot-pulse 2s ease-in-out infinite;
+  }
+  @keyframes dot-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .hero-title {
+    font-size: clamp(36px, 6vw, 72px); font-weight: 900;
+    line-height: 1.1; letter-spacing: -0.03em;
+    margin-bottom: 8px;
+  }
+  .hero-title .line-gradient {
+    background: var(--gradient-text); -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent; background-clip: text;
+  }
+
+  .hero-ticker {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px; color: var(--accent-secondary); opacity: 0.8;
+    margin-bottom: 24px; min-height: 24px;
+    overflow: hidden; white-space: nowrap;
+    border-right: 2px solid var(--accent-secondary);
+    display: inline-block; max-width: fit-content;
+    animation: blink-caret 0.75s step-end infinite;
+  }
+  @keyframes blink-caret { 50% { border-color: transparent; } }
+
+  .hero-tagline {
+    font-size: clamp(18px, 2.5vw, 22px); color: var(--text-secondary);
+    max-width: 700px; margin: 0 auto 12px; font-weight: 400;
+  }
+  .hero-tagline em {
+    color: var(--accent-warm); font-style: normal; font-weight: 600;
+  }
+
+  .hero-oneliner {
+    font-size: 16px; color: var(--text-muted); max-width: 680px; margin: 0 auto 40px;
+    line-height: 1.7;
+  }
+
+  .hero-actions { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 14px 28px; border-radius: 12px;
+    font-size: 15px; font-weight: 600; text-decoration: none;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    border: none; cursor: pointer;
+  }
+  .btn-primary {
+    background: var(--gradient-hero); color: white;
+    box-shadow: 0 4px 30px var(--glow-purple);
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 40px var(--glow-purple); }
+  .btn-secondary {
+    background: rgba(255,255,255,0.05); color: var(--text-primary);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { background: rgba(255,255,255,0.1); transform: translateY(-2px); }
+  .btn-ghost {
+    background: transparent; color: var(--text-secondary);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { color: var(--text-primary); border-color: var(--text-muted); }
+
+  /* ── SECTION HEADERS ── */
+  .section-header {
+    text-align: center; margin-bottom: 64px;
+  }
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 3px; color: var(--accent-primary);
+    margin-bottom: 16px; display: block;
+  }
+  .section-title {
+    font-size: clamp(28px, 4vw, 44px); font-weight: 800;
+    line-height: 1.15; letter-spacing: -0.02em;
+    margin-bottom: 16px;
+  }
+  .section-subtitle {
+    font-size: 17px; color: var(--text-secondary);
+    max-width: 600px; margin: 0 auto;
+  }
+
+  /* ── PROBLEM SECTION ── */
+  .problem-section { padding: 120px 0; }
+
+  .stat-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px; margin-bottom: 64px;
+  }
+  .stat-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 28px 24px; text-align: center;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative; overflow: hidden;
+  }
+  .stat-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: var(--gradient-hero); opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .stat-card:hover { transform: translateY(-4px); border-color: rgba(124,58,237,0.3); }
+  .stat-card:hover::before { opacity: 1; }
+  .stat-number {
+    font-size: 40px; font-weight: 900; letter-spacing: -0.02em;
+    background: var(--gradient-text); -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent; background-clip: text;
+    margin-bottom: 8px;
+  }
+  .stat-label { font-size: 14px; color: var(--text-secondary); line-height: 1.5; }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 32px;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .card:hover { border-color: rgba(124,58,237,0.3); transform: translateY(-2px); }
+
+  /* ── COMPETITOR SECTION ── */
+  .competitor-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px; margin-top: 48px;
+  }
+  .competitor-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 28px;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .competitor-card:hover { border-color: rgba(6,182,212,0.3); transform: translateY(-3px); }
+  .competitor-name {
+    font-weight: 700; font-size: 18px; margin-bottom: 8px; color: var(--text-primary);
+  }
+  .competitor-approach {
+    font-size: 13px; color: var(--accent-secondary); font-weight: 600;
+    margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px;
+  }
+  .competitor-desc { font-size: 14px; color: var(--text-secondary); margin-bottom: 12px; }
+  .competitor-limit {
+    font-size: 13px; color: var(--accent-warm);
+    padding: 8px 12px; background: rgba(245,158,11,0.08);
+    border-radius: 8px; border-left: 3px solid var(--accent-warm);
+  }
+
+  /* ── JOURNEY SECTION ── */
+  .journey-section { padding: 120px 0; }
+
+  .timeline {
+    position: relative; max-width: 800px; margin: 0 auto;
+    padding-left: 40px;
+  }
+  .timeline::before {
+    content: ''; position: absolute; left: 15px; top: 0; bottom: 0;
+    width: 2px; background: linear-gradient(to bottom, var(--accent-primary), var(--accent-secondary), var(--accent-green));
+  }
+  .timeline-item {
+    position: relative; margin-bottom: 48px;
+    padding-left: 24px;
+  }
+  .timeline-item::before {
+    content: ''; position: absolute; left: -31px; top: 6px;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--accent-primary); border: 3px solid var(--bg-deep);
+    box-shadow: 0 0 0 3px var(--accent-primary);
+    transition: all 0.3s;
+  }
+  .timeline-item:hover::before { transform: scale(1.4); box-shadow: 0 0 20px var(--glow-purple); }
+  .timeline-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+  .timeline-desc { font-size: 15px; color: var(--text-secondary); }
+
+  /* ── SOLUTION PIPELINE ── */
+  .solution-section { padding: 120px 0; }
+
+  .pipeline-container {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 2px; margin: 48px 0 64px;
+    background: var(--border); border-radius: 16px; overflow: hidden;
+  }
+  @media (max-width: 900px) { .pipeline-container { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 560px) { .pipeline-container { grid-template-columns: 1fr; } }
+
+  .pipeline-step {
+    background: var(--bg-card); padding: 32px 24px;
+    position: relative; text-align: center;
+    transition: background 0.3s;
+  }
+  .pipeline-step:hover { background: var(--bg-card-hover); }
+  .pipeline-num {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: var(--gradient-hero);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 800; color: white;
+    margin: 0 auto 16px;
+  }
+  .pipeline-label { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+  .pipeline-detail { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+
+  /* ── LEAK TYPES TABLE ── */
+  .leak-table {
+    width: 100%; border-collapse: separate; border-spacing: 0;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 16px; overflow: hidden; margin: 48px 0;
+  }
+  .leak-table thead { background: rgba(124,58,237,0.1); }
+  .leak-table th {
+    padding: 16px 20px; text-align: left;
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1.5px; color: var(--accent-primary);
+    border-bottom: 1px solid var(--border);
+  }
+  .leak-table td {
+    padding: 16px 20px; font-size: 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-secondary);
+  }
+  .leak-table tr:last-child td { border-bottom: none; }
+  .leak-table tr:hover td { background: rgba(124,58,237,0.03); }
+  .leak-table td:first-child { color: var(--text-primary); font-weight: 600; }
+
+  @media (max-width: 768px) {
+    .leak-table { display: block; overflow-x: auto; }
+  }
+
+  /* ── ARCHITECTURE SECTION ── */
+  .arch-section { padding: 120px 0; }
+
+  .arch-diagram {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 40px; margin: 48px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; line-height: 1.6; color: var(--accent-secondary);
+    overflow-x: auto; white-space: pre;
+  }
+
+  .tech-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px; margin-top: 48px;
+  }
+  .tech-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px;
+    display: flex; gap: 16px; align-items: flex-start;
+    transition: all 0.3s;
+  }
+  .tech-card:hover { border-color: rgba(6,182,212,0.3); }
+  .tech-icon {
+    width: 36px; height: 36px; min-width: 36px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 800; color: white;
+  }
+  .tech-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .tech-why { font-size: 13px; color: var(--text-muted); }
+
+  /* ── WAR STORIES ── */
+  .war-section { padding: 120px 0; }
+
+  .bug-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 20px;
+  }
+  .bug-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 28px; position: relative;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .bug-card:hover { border-color: rgba(239,68,68,0.3); transform: translateY(-3px); }
+  .bug-card.star-story { border-color: rgba(245,158,11,0.3); }
+  .bug-card.star-story:hover { border-color: rgba(245,158,11,0.5); }
+  .bug-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; font-weight: 600; color: var(--accent-red);
+    text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px;
+  }
+  .bug-card.star-story .bug-num { color: var(--accent-warm); }
+  .bug-title { font-size: 17px; font-weight: 700; margin-bottom: 12px; }
+  .bug-what, .bug-cause, .bug-fix {
+    font-size: 14px; color: var(--text-secondary); margin-bottom: 12px;
+  }
+  .bug-what strong, .bug-cause strong, .bug-fix strong {
+    color: var(--text-primary); font-weight: 600;
+  }
+  .bug-lesson {
+    font-size: 13px; color: var(--accent-secondary);
+    padding: 10px 14px; background: rgba(6,182,212,0.06);
+    border-radius: 8px; border-left: 3px solid var(--accent-secondary);
+    margin-top: 16px;
+  }
+
+  /* ── PROMPTS SECTION ── */
+  .prompts-section { padding: 120px 0; }
+
+  .prompt-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 32px; margin-bottom: 24px;
+    transition: all 0.3s;
+  }
+  .prompt-card:hover { border-color: rgba(124,58,237,0.3); }
+  .prompt-name {
+    font-size: 18px; font-weight: 700; margin-bottom: 4px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .prompt-file {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; color: var(--text-muted); margin-bottom: 16px;
+  }
+  .prompt-purpose { font-size: 15px; color: var(--text-secondary); margin-bottom: 16px; }
+  .prompt-why {
+    font-size: 14px; color: var(--accent-warm); margin-bottom: 16px;
+    padding: 12px 16px; background: rgba(245,158,11,0.06);
+    border-radius: 8px; border-left: 3px solid var(--accent-warm);
+  }
+  .prompt-snippet {
+    background: #0d1117; border: 1px solid rgba(148,163,184,0.1);
+    border-radius: 10px; padding: 20px; overflow-x: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; line-height: 1.7; color: #c9d1d9;
+    max-height: 300px; overflow-y: auto;
+  }
+
+  /* ── IMPACT ── */
+  .impact-section { padding: 120px 0; }
+
+  .impact-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px; margin-top: 48px;
+  }
+  .impact-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 28px; text-align: center;
+    transition: all 0.4s;
+  }
+  .impact-card:hover { transform: translateY(-4px); border-color: rgba(16,185,129,0.3); }
+  .impact-value {
+    font-size: 32px; font-weight: 900; margin-bottom: 8px;
+    color: var(--accent-green);
+  }
+  .impact-label { font-size: 14px; color: var(--text-secondary); }
+
+  /* ── PRINCIPLES ── */
+  .principles-section { padding: 120px 0; }
+
+  .principles-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+  }
+  .principle-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 28px;
+    transition: all 0.4s;
+  }
+  .principle-card:hover { border-color: rgba(124,58,237,0.3); transform: translateY(-3px); }
+  .principle-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 48px; font-weight: 900;
+    background: var(--gradient-text); -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent; background-clip: text;
+    line-height: 1; margin-bottom: 16px;
+  }
+  .principle-title { font-size: 17px; font-weight: 700; margin-bottom: 10px; }
+  .principle-desc { font-size: 14px; color: var(--text-secondary); }
+
+  /* ── SECURITY ── */
+  .security-section { padding: 120px 0; }
+  .security-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px; margin-top: 48px;
+  }
+  .security-item {
+    display: flex; gap: 14px; align-items: flex-start;
+    padding: 20px; background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; transition: all 0.3s;
+  }
+  .security-item:hover { border-color: rgba(16,185,129,0.3); }
+  .security-icon {
+    width: 36px; height: 36px; min-width: 36px; border-radius: 8px;
+    background: rgba(16,185,129,0.1); color: var(--accent-green);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .security-name { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .security-desc { font-size: 13px; color: var(--text-muted); }
+
+  /* ── ECOSYSTEM ── */
+  .ecosystem-section { padding: 120px 0; }
+  .ecosystem-flow {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 40px; margin: 48px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px; line-height: 2; color: var(--text-secondary);
+    text-align: center;
+  }
+  .ecosystem-flow .highlight { color: var(--accent-primary); font-weight: 700; }
+  .ecosystem-flow .highlight-cyan { color: var(--accent-secondary); font-weight: 700; }
+  .ecosystem-flow .highlight-green { color: var(--accent-green); font-weight: 700; }
+
+  /* ── FAQ ── */
+  .faq-section { padding: 120px 0; }
+  .faq-item {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; margin-bottom: 12px;
+    overflow: hidden; transition: all 0.3s;
+  }
+  .faq-item:hover { border-color: rgba(124,58,237,0.2); }
+  .faq-question {
+    padding: 20px 24px; font-size: 15px; font-weight: 600;
+    cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+    color: var(--text-primary); user-select: none;
+  }
+  .faq-question::after {
+    content: '+'; font-size: 22px; font-weight: 300;
+    color: var(--text-muted); transition: transform 0.3s;
+  }
+  .faq-item.open .faq-question::after { transform: rotate(45deg); color: var(--accent-primary); }
+  .faq-answer {
+    max-height: 0; overflow: hidden; transition: max-height 0.4s ease-out;
+    padding: 0 24px;
+  }
+  .faq-item.open .faq-answer { max-height: 300px; padding: 0 24px 20px; }
+  .faq-answer p { font-size: 14px; color: var(--text-secondary); line-height: 1.7; }
+
+  /* ── CTA SECTION ── */
+  .cta-section {
+    padding: 120px 0; text-align: center;
+    position: relative;
+  }
+  .cta-section::before {
+    content: ''; position: absolute; top: 50%; left: 50%;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, var(--glow-cyan) 0%, transparent 60%);
+    transform: translate(-50%, -50%); pointer-events: none;
+  }
+  .cta-title {
+    font-size: clamp(28px, 4vw, 48px); font-weight: 900;
+    margin-bottom: 20px; position: relative; z-index: 2;
+  }
+  .cta-subtitle {
+    font-size: 17px; color: var(--text-secondary); margin-bottom: 40px;
+    position: relative; z-index: 2;
+  }
+  .cta-links {
+    display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;
+    position: relative; z-index: 2;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    padding: 40px 0; border-top: 1px solid var(--border);
+    text-align: center; position: relative; z-index: 1;
+  }
+  footer p { font-size: 13px; color: var(--text-muted); }
+  footer a { color: var(--accent-primary); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: var(--bg-deep); }
+  ::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.3); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(124,58,237,0.5); }
+
+  /* ── FLOATING PARTICLES ── */
+  .particles {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    overflow: hidden;
+  }
+  .particle {
+    position: absolute; width: 2px; height: 2px;
+    background: var(--accent-primary); border-radius: 50%;
+    animation: particle-float linear infinite;
+    opacity: 0;
+  }
+  @keyframes particle-float {
+    0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+    10% { opacity: 0.6; }
+    90% { opacity: 0.6; }
+    100% { transform: translateY(-10vh) rotate(720deg); opacity: 0; }
+  }
+
+  /* ── COUNTER ANIMATION ── */
+  .counter { display: inline-block; }
+
+  /* ── QUOTE ── */
+  .insight-quote {
+    background: var(--gradient-card);
+    border: 1px solid rgba(124,58,237,0.2);
+    border-radius: 16px; padding: 40px;
+    text-align: center; margin: 48px 0; font-size: 20px;
+    font-weight: 600; color: var(--text-primary);
+    line-height: 1.6; position: relative;
+  }
+  .insight-quote::before {
+    content: '"'; position: absolute; top: -10px; left: 30px;
+    font-size: 80px; color: var(--accent-primary); opacity: 0.2;
+    font-family: Georgia, serif; line-height: 1;
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 768px) {
+    .hero { padding: 100px 0 60px; }
+    .stat-grid { grid-template-columns: 1fr 1fr; }
+    .competitor-grid { grid-template-columns: 1fr; }
+    .bug-grid { grid-template-columns: 1fr; }
+    .principles-grid { grid-template-columns: 1fr; }
+    .tech-grid { grid-template-columns: 1fr; }
+    .security-grid { grid-template-columns: 1fr; }
+    .impact-grid { grid-template-columns: 1fr 1fr; }
+    .pipeline-container { grid-template-columns: 1fr 1fr; }
+    .timeline { padding-left: 30px; }
+    .timeline-item { padding-left: 16px; }
+    .timeline-item::before { left: -21px; }
+  }
+  @media (max-width: 480px) {
+    .stat-grid { grid-template-columns: 1fr; }
+    .impact-grid { grid-template-columns: 1fr; }
+    .pipeline-container { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Background effects -->
+<div class="bg-grid"></div>
+<div class="bg-orbs">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+</div>
+<div class="particles" id="particles"></div>
+
+<!-- ════════ NAV ════════ -->
+<nav>
+  <div class="nav-inner">
+    <a href="#" class="nav-logo">
+      <div class="logo-icon">RR</div>
+      Recovery Router
+    </a>
+    <div class="nav-links">
+      <a href="#problem">Problem</a>
+      <a href="#solution">Solution</a>
+      <a href="#dashboard">Dashboard</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#prompts">AI Prompts</a>
+      <a href="#war-stories">War Stories</a>
+      <a href="https://razorpay.albertabishek.com" target="_blank" class="nav-cta">Live Demo</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ════════ HERO ════════ -->
+<section class="hero" id="hero">
+  <div class="container">
+    <div class="hero-content">
+      <div class="hero-badge reveal stagger-1">
+        <span class="badge-dot"></span>
+        Razorpay AI Buildathon 2026 &middot; Track 3
+      </div>
+      <h1 class="hero-title reveal stagger-2">
+        What happens after<br>a payment <span class="line-gradient">fails?</span>
+      </h1>
+      <div class="hero-ticker reveal stagger-3" id="ticker"></div>
+      <br>
+      <p class="hero-tagline reveal stagger-4">
+        <em>Vulcan routes payments. Recovery Router routes failures.</em>
+      </p>
+      <p class="hero-oneliner reveal stagger-5">
+        An AI-powered engine that classifies every revenue leak, routes it to the optimal recovery action, and executes through the right channel at the right time &mdash; with honest metrics that never inflate results.
+      </p>
+      <div class="hero-actions reveal stagger-6">
+        <a href="https://razorpay.albertabishek.com" target="_blank" class="btn btn-primary">Live Demo</a>
+        <a href="https://api.albertabishek.com/docs" target="_blank" class="btn btn-secondary">API Docs</a>
+        <a href="https://github.com/albertabishek/Recovery-Router-" target="_blank" class="btn btn-ghost">GitHub</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ PROBLEM ════════ -->
+<section class="problem-section" id="problem">
+  <div class="container">
+    <div class="section-header reveal">
+      <span class="section-label">The Problem</span>
+      <h2 class="section-title">The Scale of Revenue Leakage in India</h2>
+      <p class="section-subtitle">Indian merchants lose crores every month to three separate, unintelligently handled revenue leaks.</p>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card reveal stagger-1">
+        <div class="stat-number" data-target="32" data-suffix="%">0%</div>
+        <div class="stat-label">payment failure rate for Indian D2C brands (Razorpay, May 2026)</div>
+      </div>
+      <div class="stat-card reveal stagger-2">
+        <div class="stat-number" data-target="40" data-suffix="%">0%</div>
+        <div class="stat-label">of customers won't return after their card is declined (Razorpay, May 2026)</div>
+      </div>
+      <div class="stat-card reveal stagger-3">
+        <div class="stat-number" data-target="70" data-suffix="%">0%</div>
+        <div class="stat-label">of cart abandonment in India happens due to payment failures (Razorpay, May 2026)</div>
+      </div>
+      <div class="stat-card reveal stagger-4">
+        <div class="stat-number" data-target="20" data-suffix="%">0%</div>
+        <div class="stat-label">of failed transactions recovered by automated retries alone (Razorpay, May 2026)</div>
+      </div>
+    </div>
+
+    <div class="insight-quote reveal">
+      Existing tools retry payments or send dunning emails separately. Recovery Router unifies classification, routing, and multi-channel outreach into one pipeline for every revenue leak.
+    </div>
+
+    <div class="section-header reveal" style="margin-top: 80px;">
+      <span class="section-label">Competitive Landscape</span>
+      <h2 class="section-title">How the World Handles Recovery Today</h2>
+    </div>
+
+    <div class="competitor-grid">
+      <div class="competitor-card reveal stagger-1">
+        <div class="competitor-name">Stripe Smart Retries</div>
+        <div class="competitor-approach">ML-powered retry timing</div>
+        <div class="competitor-desc">500+ signals, 51-55% recovery on failed subscription invoices, +0.11% overall revenue uplift. Postmates recovered $3M+.</div>
+        <div class="competitor-limit">Limitation: Email-only dunning. No SMS/WhatsApp. Retry and dunning operate independently.</div>
+      </div>
+      <div class="competitor-card reveal stagger-2">
+        <div class="competitor-name">Adyen Auto Rescue</div>
+        <div class="competitor-approach">Contextual multi-armed bandits</div>
+        <div class="competitor-desc">Reinforcement learning for retry optimization. Uses contextual multi-armed bandits to select optimal retry timing and BIN routing.</div>
+        <div class="competitor-limit">Limitation: Retry-only. All dunning communication left to merchants.</div>
+      </div>
+      <div class="competitor-card reveal stagger-3">
+        <div class="competitor-name">Razorpay Today</div>
+        <div class="competitor-approach">Vulcan + Agent Studio</div>
+        <div class="competitor-desc">Vulcan prevents failures (8-10% improvement). Agent Studio provides building blocks. No unified post-failure intelligence.</div>
+        <div class="competitor-limit">Limitation: Three separate tools for three leak types. No routing intelligence.</div>
+      </div>
+      <div class="competitor-card reveal stagger-4">
+        <div class="competitor-name">Cashfree Relay</div>
+        <div class="competitor-approach">AI retry agent</div>
+        <div class="competitor-desc">Failed payment retries, abandoned cart follow-up, failed subscription management. Intelligent routing through best acquirer.</div>
+        <div class="competitor-limit">Limitation: Direct competitor but focused on acquirer routing, not diagnostic intelligence + personalized multi-channel recovery.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ JOURNEY ════════ -->
+<section class="journey-section" id="journey">
+  <div class="container">
+    <div class="section-header reveal">
+      <span class="section-label">My Journey</span>
+      <h2 class="section-title">From Research to Production System</h2>
+      <p class="section-subtitle">Before writing a single line of code, I spent time understanding Razorpay's entire ecosystem.</p>
+    </div>
+
+    <div class="timeline">
+      <div class="timeline-item reveal">
+        <div class="timeline-title">Research Phase</div>
+        <div class="timeline-desc">Studied Razorpay's product ecosystem: Vulcan, Agent Studio, Smart Collect, Payment Links, Magic Checkout. Mapped every gap. Analyzed 25 other Track 3 entries and 12 public repositories. Most were simple retry bots.</div>
+      </div>
+      <div class="timeline-item reveal">
+        <div class="timeline-title">The Core Insight</div>
+        <div class="timeline-desc">"Vulcan routes payments. Recovery Router routes failures." Not a standalone tool, but the missing piece that completes Razorpay's ecosystem &mdash; handling everything after a payment fails.</div>
+      </div>
+      <div class="timeline-item reveal">
+        <div class="timeline-title">n8n Prototype</div>
+        <div class="timeline-desc">Built 5 n8n workflows to validate the logic: Recovery Router, Invoice Scanner, Recovery Tracker, Escalation Agent, Analytics API. Proved the concept &mdash; but n8n lacked distributed locking and race condition handling.</div>
+      </div>
+      <div class="timeline-item reveal">
+        <div class="timeline-title">The Full Rebuild</div>
+        <div class="timeline-desc">Rebuilt everything as a six-component architecture: React Frontend + FastAPI API + Celery Worker + Celery Beat + Redis + Supabase PostgreSQL. Every operation runs through the real async pipeline &mdash; no shortcuts, no mocks, no tricks.</div>
+      </div>
+      <div class="timeline-item reveal">
+        <div class="timeline-title">The Honesty Pivot</div>
+        <div class="timeline-desc">Removed all shortcuts: ghost recovery prevention (organic vs AI-driven), fixed baseline from 17.5% to 15.0%, dynamic attempt budgets, three-layer give-up prevention. If it's not real, it doesn't count.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ SOLUTION ════════ -->
+<section class="solution-section" id="solution">
+  <div class="container">
+    <div class="section-header reveal">
+      <span class="section-label">The Solution</span>
+      <h2 class="section-title">One Engine. Three Leak Types.<br><span style="background: var(--gradient-text); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Every Revenue Leak Classified, Routed, Recovered.</span></h2>
+    </div>
+
+    <div class="pipeline-container reveal-scale">
+      <div class="pipeline-step">
+        <div class="pipeline-num">1</div>
+        <div class="pipeline-label">Classify</div>
+        <div class="pipeline-detail">3-model AI fallback: Claude Haiku 4.5 &rarr; Gemini 3.7 Flash &rarr; GPT-4o-mini. Rule-based if all fail. 12 categories.</div>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-num">2</div>
+        <div class="pipeline-label">Route</div>
+        <div class="pipeline-detail">Dynamic attempt budget per event. High-value UPI timeout &rarr; 5 attempts. Browse-only cart &rarr; 0 attempts. ROI-driven.</div>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-num">3</div>
+        <div class="pipeline-label">Act</div>
+        <div class="pipeline-detail">AI-personalized messages. WhatsApp (Green API &rarr; Twilio) / SMS (Twilio) / Email (Resend). Full degradation chain.</div>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-num">4</div>
+        <div class="pipeline-label">Measure</div>
+        <div class="pipeline-detail">Ghost recovery prevention. 4-strategy reconciliation. Currency + amount validation. Organic vs outreach-driven separation.</div>
+      </div>
+    </div>
+
+    <div class="section-header reveal" style="margin-top: 80px;">
+      <h3 class="section-title" style="font-size: 28px;">Three Leak Types, One Pipeline</h3>
+    </div>
+
+    <div style="overflow-x: auto;">
+      <table class="leak-table reveal">
+        <thead>
+          <tr><th>Revenue Leak</th><th>How It Enters</th><th>What Happens</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Payment Failures</td>
+            <td>Razorpay <code>payment.failed</code> webhook</td>
+            <td>Auto-classified into 12 categories, AI picks the optimal recovery path</td>
+          </tr>
+          <tr>
+            <td>Cart Abandonment</td>
+            <td>Merchant POST to <code>/webhook/recovery-router</code></td>
+            <td>Classified by intent (high intent vs browse-only), only high-value carts get outreach</td>
+          </tr>
+          <tr>
+            <td>Overdue Invoices</td>
+            <td>Invoice scanner polls Razorpay API every 6h</td>
+            <td>Classified by days overdue, escalation tone matches urgency</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ AI PROMPTS ════════ -->
+<section class="prompts-section" id="prompts">
+  <div class="container">
+    <div class="section-header reveal">
+      <span class="section-label">AI System Prompts</span>
+      <h2 class="section-title">The Prompts We Used &mdash; And Why</h2>
+      <p class="section-subtitle">Three specialized AI prompts power the system. Each was designed with specific reasoning about when to act, what channel to use, and when to do nothing.</p>
+    </div>
+
+    <!-- Classifier Prompt -->
+    <div class="prompt-card reveal">
+      <div class="prompt-name">Classification Prompt</div>
+      <div class="prompt-file">backend/app/services/classifier.py &mdash; CLASSIFICATION_PROMPT</div>
+      <div class="prompt-purpose">Analyzes every failed payment, abandoned cart, and overdue invoice to determine the best recovery strategy. Returns structured JSON with category, probability, channel, timing, and reasoning.</div>
+      <div class="prompt-why"><strong>Why this design:</strong> The prompt teaches the AI to think like a triage nurse &mdash; not every failure deserves the same response. A UPI timeout at 9 PM is network congestion (high recovery), not user abandonment. A stolen card gets zero outreach. The AI sees error_description, amount, method, and context to make nuanced decisions that hardcoded rules cannot.</div>
+      <div class="prompt-snippet">You are the classification engine for a payment recovery system used by Indian merchants on Razorpay.
+
+Your job: analyze a failed payment, abandoned cart, or overdue invoice and determine the best recovery strategy.
+
+## How to think about this
+1. READ the error_description carefully
+   - "Payment timed out" with method=upi means network congestion, NOT user abandonment
+   - "Card declined" is ambiguous — look at amount and error_code for clues
+   - "Bank server unavailable" is temporary — very high recovery if you wait
+
+2. CONSIDER the amount — it affects urgency and channel choice
+   - High amounts (>₹5000) justify WhatsApp over email
+   - Low amounts (<₹200) on cart abandonment are likely low-intent browsing
+
+3. PICK the right channel for the situation
+   - WhatsApp: urgent, time-sensitive, high-recovery scenarios
+   - Email: formal, non-urgent, detailed
+   - SMS: brief reminder, secondary nudge
+   - None: fraud, stolen cards, permanently blocked accounts
+
+4. DETECT user-initiated cancellations
+   - Category should be "user_cancelled" — NOT a gateway error
+   - Don't send an immediate retry — wait at least 1 hour
+
+5. SET timing based on what will actually help
+6. ESTIMATE recovery_probability honestly based on ALL signals
+
+Categories: upi_timeout, bank_downtime, card_expired, insufficient_funds,
+gateway_error, user_cancelled, unrecoverable_decline, high_intent_abandonment,
+browse_only_abandonment, recently_overdue, moderately_overdue, long_overdue</div>
+    </div>
+
+    <!-- Escalation Prompt -->
+    <div class="prompt-card reveal">
+      <div class="prompt-name">Escalation Decision Prompt</div>
+      <div class="prompt-file">backend/app/services/escalation.py &mdash; ESCALATION_PROMPT</div>
+      <div class="prompt-purpose">After the first recovery attempt, the escalation engine runs every 5 minutes. The AI analyzes full attempt history &mdash; which channels were tried, what succeeded/failed, what's blocked &mdash; and decides the best next move.</div>
+      <div class="prompt-why"><strong>Why this design:</strong> No hardcoded channel rotation. The AI sees what actually happened: "WhatsApp was sent but customer didn't act &rarr; try email with more detail." It respects the dynamic attempt budget (max_attempts computed per event) and has three layers of give-up prevention so the system never abandons a customer prematurely.</div>
+      <div class="prompt-snippet">You are the escalation decision agent for a payment recovery system.
+
+## Decision framework
+1. LOOK at previous attempts AND blocked/failed channels:
+   - If WhatsApp sent but no action → try email with more detail or SMS
+   - If delivery failed → SWITCH to a different channel
+   - Check "blocked_channels" — these hit a cooldown. ALWAYS pick different.
+   - If a "backup_plan" is provided, follow it when primary didn't work.
+
+2. CONSIDER the event context:
+   - High amount + multiple attempts → customer is hesitating, not forgetting
+   - UPI timeout → high recovery chance, keep trying different channels
+
+3. ADJUST tone:
+   - After 0-1 attempts: friendly, helpful
+   - After 2 attempts: direct, acknowledge follow-up
+   - After 3+ attempts: honest, final chance
+
+4. WHEN TO GIVE UP:
+   - ONLY if attempt_count >= max_attempts
+   - OR if ALL previous delivery attempts failed (bad contact info)
+   - NEVER give up on the first escalation</div>
+    </div>
+
+    <!-- Message Generator Prompt -->
+    <div class="prompt-card reveal">
+      <div class="prompt-name">Message Personalization Prompt</div>
+      <div class="prompt-file">backend/app/services/message_generator.py &mdash; MESSAGE_PROMPT</div>
+      <div class="prompt-purpose">Generates context-aware recovery messages for WhatsApp, SMS, and Email. Each message is personalized based on the failure reason, amount, customer name, and attempt number.</div>
+      <div class="prompt-why"><strong>Why this design:</strong> "Like a helpful shopkeeper who noticed something went wrong" &mdash; not pushy, not corporate. Channel constraints are strict: WhatsApp max 200 chars with 1-2 relevant emojis, SMS max 140 chars with zero fluff, Email with specific subject + body structure. Tone escalates naturally across attempts: friendly &rarr; gentle reminder &rarr; direct &rarr; final honest message.</div>
+      <div class="prompt-snippet">You write recovery messages for a payment recovery system used by Indian merchants.
+Your job: write a SHORT, WARM, HELPFUL message that makes the customer
+want to complete their payment. Not pushy. Not corporate.
+
+## Channel constraints
+WhatsApp (max 200 chars): Conversational, warm, 1-2 relevant emojis
+SMS (max 140 chars): Ultra-brief, action-focused, no emojis
+Email: Subject max 60 chars + 2-3 short paragraphs. No "We apologize for the inconvenience."
+
+## Tone by attempt
+- attempt 0: Helpful, no pressure. "Hey, looks like something went wrong."
+- attempt 1: Gentle reminder. "Just following up."
+- attempt 2: Slightly more direct. "Your payment is still pending."
+- attempt 3+: Final, honest. "Last reminder before we close this."
+
+IMPORTANT: Use {link} as placeholder for the payment URL. Do NOT invent a URL.</div>
+    </div>
+
+    <!-- AI Client -->
+    <div class="prompt-card reveal">
+      <div class="prompt-name">3-Model Fallback Chain</div>
+      <div class="prompt-file">backend/app/services/ai_client.py &mdash; MODEL_CHAIN</div>
+      <div class="prompt-purpose">All three prompts route through a single AI client with automatic model fallback via OpenRouter. If the primary model is down, the next one takes over seamlessly.</div>
+      <div class="prompt-why"><strong>Why this design:</strong> In financial software, the system must never block waiting for an AI provider. The chain is ordered by speed + cost: Claude Haiku 4.5 (fastest, best reasoning) &rarr; Gemini 3.7 Flash (fast alternative) &rarr; GPT-4o-mini (cheapest fallback). If all three fail, rule-based classification keeps the pipeline running with 0% AI dependency.</div>
+      <div class="prompt-snippet">MODEL_CHAIN = [
+  { "id": "anthropic/claude-haiku-4.5",   "name": "Claude Haiku 4.5",  "timeout": 12 },
+  { "id": "google/gemini-3.7-flash",      "name": "Gemini 3.7 Flash",  "timeout": 10 },
+  { "id": "openai/gpt-4o-mini",           "name": "GPT-4o-mini",       "timeout": 12 },
+]
+
+# Each model gets 1 retry with 0.5s backoff
+# Rate limits (429) → skip to next model immediately
+# Invalid JSON → retry once, then skip
+# All models exhausted → return None → rule-based fallback kicks in</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ ARCHITECTURE ════════ -->
+<section class="arch-section" id="architecture">
+  <div class="container">
+    <div class="section-header reveal">
+      <span class="section-label">System Design</span>
+      <h2 class="section-title">Six-Component Architecture</h2>
+      <p class="section-subtitle">Production-grade async pipeline with distributed locking, crash recovery, and database-level safety triggers.</p>
+    </div>
+
+    <div class="arch-diagram reveal-scale">                    ┌──────────────┐
+                    │   Razorpay   │
+                    │   Webhooks   │
+                    └──────┬───────┘
+                           │ HMAC-SHA256 verified
+              ┌────────────▼────────────┐
+              │   Recovery Router API   │
+              │      (FastAPI)          │
+              ├─────────────────────────┤
+              │  Dedup (Redis + DB)     │
+              │  Rate limit (sliding)   │
+              │  Normalize webhook      │
+              └────────────┬────────────┘
+                           │
+                    ┌──────▼───────┐
+                    │   Celery +   │
+                    │    Redis     │
+                    └──────┬───────┘
+                           │
+         ┌─────────────────┼─────────────────┐
+         ▼                 ▼                  ▼
+  ┌──────────────┐  ┌──────────────┐  ┌────────────────┐
+  │  Recovery     │  │  Escalation  │  │ Invoice Scan   │
+  │  Pipeline     │  │  Engine      │  │  (every 6h)    │
+  │  (Celery)     │  │  (every 5m)  │  │  Razorpay API  │
+  ├──────────────┤  │  AI-driven   │  │  polling       │
+  │ 1. Classify  │  │  channel     │  └────────────────┘
+  │ 2. Route     │  │  rotation    │
+  │ 3. Pay link  │  └──────────────┘
+  │ 4. AI msg    │
+  │ 5. Send      │
+  │ 6. Log       │
+  └──────┬───────┘
+         │
+    ┌────┼────────────────┐
+    ▼    ▼                ▼
+ WhatsApp  SMS         Email
+(Green→   (Twilio→    (Resend
+ Twilio→   WA→         AI HTML)
+ Email)    Email)</div>
+
+    <div class="section-header reveal" style="margin-top: 80px;">
+      <h3 class="section-title" style="font-size: 28px;">Tech Stack &mdash; And Why Each Choice</h3>
+    </div>
+
+    <div class="tech-grid">
+      <div class="tech-card reveal stagger-1">
+        <div class="tech-icon" style="background: linear-gradient(135deg, #059669, #10b981);">F</div>
+        <div><div class="tech-name">FastAPI</div><div class="tech-why">Async, auto-docs (Swagger), Pydantic validation, perfect for webhook ingestion</div></div>
+      </div>
+      <div class="tech-card reveal stagger-2">
+        <div class="tech-icon" style="background: linear-gradient(135deg, #37a169, #68d391);">C</div>
+        <div><div class="tech-name">Celery + Redis</div><div class="tech-why">Production-grade async, late ACK, crash recovery, periodic scheduling (Beat)</div></div>
+      </div>
+      <div class="tech-card reveal stagger-3">
+        <div class="tech-icon" style="background: linear-gradient(135deg, #3ecf8e, #1c8656);">S</div>
+        <div><div class="tech-name">Supabase (PostgreSQL)</div><div class="tech-why">Realtime subscriptions for live dashboard, row-level security, built-in REST</div></div>
+      </div>
+      <div class="tech-card reveal stagger-4">
+        <div class="tech-icon" style="background: linear-gradient(135deg, #7c3aed, #a78bfa);">O</div>
+        <div><div class="tech-name">OpenRouter</div><div class="tech-why">Single API for multiple AI models, automatic fallback chain, no vendor lock-in</div></div>
+      </div>
+      <div class="tech-card reveal stagger-5">
+        <div class="tech-icon" style="background: linear-gradient(135deg, #2563eb, #60a5fa);">R</div>
+        <div><div class="tech-name">Razorpay Orders API</div><div class="tech-why">Unlimited orders (vs 30-link Payment Links limit), full checkout control</div></div>
+      </div>
+      <div class="tech-card reveal stagger-6">
+        <div class="tech-icon" style="background: linear-gradient(135deg, #ec4899, #f472b6);">V</div>
+        <div><div class="tech-name">React 19 + Vite 8</div><div class="tech-why">Fast HMR, modern tooling, Razorpay UI clone for native feel</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ DASHBOARD FEATURES ════════ -->
+<section class="solution-section" id="dashboard" style="padding-top: 60px;">
+  <div class="container">
+    <div class="section-header reveal">
+      <span class="section-label">The Dashboard</span>
+      <h2 class="section-title">What the Frontend Actually Does</h2>
+      <p class="section-subtitle">Five pages, each solving a different problem for the merchant.</p>
+    </div>
+
+    <div style="overflow-x: auto;">
+      <table class="leak-table reveal">
+        <thead>
+          <tr><th>Page</th><th>What It Shows</th><th>Key Features</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Overview</td>
+            <td>Revenue recovered, events at risk, AI lift vs industry baseline, channel rankings</td>
+            <td>Auto-refreshes every 30 seconds, global date range filter across all pages</td>
+          </tr>
+          <tr>
+            <td>Recovery Events</td>
+            <td>Filterable event list with status tabs, drill-down detail panel</td>
+            <td>Pause, resume, or cancel any event with optimistic concurrency. Full pipeline trace with every attempt logged.</td>
+          </tr>
+          <tr>
+            <td>Analytics</td>
+            <td>Recovery rate, average attempts, time to recover, breakdown by type/channel/category</td>
+            <td>Server-side aggregation with Redis caching (120s TTL), date range filtering</td>
+          </tr>
+          <tr>
+            <td>Simulator</td>
+            <td>10 test scenarios across all three leak types, plus live Razorpay checkout</td>
+            <td>Try Live Payment: real Razorpay checkout popup with test cards. Fires actual webhooks through the full pipeline.</td>
+          </tr>
+          <tr>
+            <td>Audit Logs</td>
+            <td>Every recovery attempt with AI reasoning, provider chain, outcome, message ID</td>
+            <td>Trace view showing full pipeline stages with degradation paths. Auto-refreshes every 15 seconds.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section-header reveal" style="margin-top: 60px;">
+      <h3 class="section-title" style="font-size: 28px;">Features You Might Miss</h3>
+    </div>
+
+    <div class="security-grid">
+      <div class="security-item reveal stagger-1">
+        <div class="security-icon">&#128179;</div>
+        <div><div class="security-name">Try Live Payment</div><div class="security-desc">Real Razorpay checkout in the Simulator. Payment fails through Razorpay's gateway, webhook fires, recovery starts. Not a mock.</div></div>
+      </div>
+      <div class="security-item reveal stagger-2">
+        <div class="security-icon">&#9208;</div>
+        <div><div class="security-name">Pause / Resume / Cancel</div><div class="security-desc">Manual override on any recovery event with optimistic concurrency (version check prevents stale writes).</div></div>
+      </div>
+      <div class="security-item reveal stagger-3">
+        <div class="security-icon">&#128149;</div>
+        <div><div class="security-name">Health Monitoring</div><div class="security-desc">Live status of Redis, Celery workers, and Supabase. Polls every 30 seconds with color-coded badges.</div></div>
+      </div>
+      <div class="security-item reveal stagger-4">
+        <div class="security-icon">&#128337;</div>
+        <div><div class="security-name">72-Hour Recovery Window</div><div class="security-desc">Each event gets a 72-hour window. If zero attempts were sent by expiry, the window extends 24 hours as a safety net.</div></div>
+      </div>
+      <div class="security-item reveal stagger-5">
+        <div class="security-icon">&#128260;</div>
+        <div><div class="security-name">Retry Failure Tracking</div><div class="security-desc">When a customer clicks a recovery link but that payment also fails, the system catches it and logs it on the parent event.</div></div>
+      </div>
+      <div class="security-item reveal stagger-6">
+        <div class="security-icon">&#128241;</div>
+        <div><div class="security-name">Mobile Responsive</div><div class="security-desc">Full hamburger menu, responsive layout. The dashboard works on phones and tablets, not just desktop.</div></div>
+      </div>
+    </div>
+
+    <div class="section-header reveal" style="margin-top: 60px;">
+      <h3 class="section-title" style="font-size: 28px;">Testing Infrastructure</h3>
+    </div>
+
+    <div class="security-grid">
+      <div class="security-item reveal stagger-1">
+        <div class="security-icon">&#9989;</div>
+        <div><div class="security-name">114 Automated Tests</div><div class="security-desc">6 test suites: API endpoints, security (SQL injection, XSS, CORS), pipeline correctness, error handling, load/concurrency, and end-to-end.</div></div>
+      </div>
+      <div class="security-item reveal stagger-2">
+        <div class="security-icon">&#128202;</div>
+        <div><div class="security-name">Bulk Data Generator</div><div class="security-desc">Creates 100+ diverse events with randomized scenarios, amounts, and customer data for realistic testing.</div></div>
+      </div>
+      <div class="security-item reveal stagger-3">
+        <div class="security-icon">&#128640;</div>
+        <div><div class="security-name">10 Built-in Scenarios</div><div class="security-desc">UPI timeout, card expired, insufficient funds, bank downtime, gateway error, fraud decline, high/low value cart, recent/old invoice.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ SECURITY ════════ -->
+<section class="security-section" id="security">
+  <div class="container">
+    <div class="section-header reveal">
+      <span class="section-label">Security</span>
+      <h2 class="section-title">Built Like Financial Software</h2>
+      <p class="section-subtitle">31 audit findings identified. Most fixed, several remain open. Every layer has defense in depth.</p>
+    </div>
+
+    <div class="security-grid">
+      <div class="security-item reveal stagger-1">
+        <div class="security-icon">&#128274;</div>
+        <div><div class="security-name">HMAC-SHA256 Webhooks</div><div class="security-desc">Timing-safe signature verification on every Razorpay webhook</div></div>
+      </div>
+      <div class="security-item reveal stagger-2">
+        <div class="security-icon">&#128737;</div>
+        <div><div class="security-name">XSS Prevention</div><div class="security-desc">Regex-validated order IDs, html.escape on all user input, json.dumps for JS</div></div>
+      </div>
+      <div class="security-item reveal stagger-3">
+        <div class="security-icon">&#129302;</div>
+        <div><div class="security-name">AI Input Sanitization</div><div class="security-desc">Truncation + control character stripping prevents prompt injection attacks</div></div>
+      </div>
+      <div class="security-item reveal stagger-4">
+        <div class="security-icon">&#9889;</div>
+        <div><div class="security-name">Rate Limiting</div><div class="security-desc">Sliding window per-endpoint + per-resource cooldowns prevent spam</div></div>
+      </div>
+      <div class="security-item reveal stagger-5">
+        <div class="security-icon">&#128274;</div>
+        <div><div class="security-name">Distributed Locks</div><div class="security-desc">Redis NX locks (300s TTL) + conditional DB updates prevent race conditions</div></div>
+      </div>
+      <div class="security-item reveal stagger-6">
+        <div class="security-icon">&#128216;</div>
+        <div><div class="security-name">Database Safety Trigger</div><div class="security-desc">PostgreSQL trigger blocks premature exhaustion from ANY source (incl. n8n)</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ WAR STORIES ════════ -->
+<section class="war-section" id="war-stories">
+  <div class="container">
+    <div class="section-header reveal">
+      <span class="section-label">What Broke</span>
+      <h2 class="section-title">War Stories &mdash; The Bugs That Shaped the System</h2>
+      <p class="section-subtitle">They asked for honesty. Here's every major bug, its root cause, and the lesson learned.</p>
+    </div>
+
+    <div class="bug-grid">
+      <div class="bug-card reveal stagger-1">
+        <div class="bug-num">Bug #1</div>
+        <div class="bug-title">The Premature Give-Up</div>
+        <div class="bug-what"><strong>What:</strong> Events exhausted after 1 attempt with a budget of 5.</div>
+        <div class="bug-cause"><strong>Cause:</strong> AI escalation schema defaulted <code>action</code> to "give_up" instead of "send". Partial AI JSON inherited the destructive default.</div>
+        <div class="bug-fix"><strong>Fix:</strong> Changed default to "send". Added AI override + hard guard. Three layers of defense.</div>
+        <div class="bug-lesson">In financial software, a single safety check is never enough. Defense in depth.</div>
+      </div>
+
+      <div class="bug-card reveal stagger-2">
+        <div class="bug-num">Bug #2</div>
+        <div class="bug-title">The TOCTOU Race Condition</div>
+        <div class="bug-what"><strong>What:</strong> After fixing Bug #1, events #16 and #17 were <em>still</em> prematurely exhausted.</div>
+        <div class="bug-cause"><strong>Cause:</strong> Two Celery tasks processing the same event concurrently. Task A reads "pending", Task B reads "pending", both proceed.</div>
+        <div class="bug-fix"><strong>Fix:</strong> Conditional DB updates (<code>.eq("status", "pending")</code>) + per-event Redis locks + atomic exhaustion check.</div>
+        <div class="bug-lesson">Async systems need explicit serialization. "It works locally" means nothing.</div>
+      </div>
+
+      <div class="bug-card star-story reveal stagger-3">
+        <div class="bug-num">Bug #3 &#11088; Star Story</div>
+        <div class="bug-title">The Ghost Writer Mystery</div>
+        <div class="bug-what"><strong>What:</strong> Event #18 marked exhausted with <code>skip_reason=null</code> and <code>next_action_at</code> still set. Impossible state &mdash; our code always sets both.</div>
+        <div class="bug-cause"><strong>Cause:</strong> n8n workflows were still active, writing directly to Supabase, bypassing the FastAPI backend entirely. Two independent systems racing with no mutual awareness.</div>
+        <div class="bug-fix"><strong>Fix:</strong> Unpublished all n8n workflows. Added PostgreSQL trigger as database-level defense that blocks premature exhaustion from ANY writer.</div>
+        <div class="bug-lesson">When you can't find the bug in your code, look for systems you forgot were still running.</div>
+      </div>
+
+      <div class="bug-card reveal stagger-4">
+        <div class="bug-num">Bug #4</div>
+        <div class="bug-title">WhatsApp Personalization</div>
+        <div class="bug-what"><strong>What:</strong> WhatsApp messages sending generic Twilio templates instead of AI-personalized text.</div>
+        <div class="bug-cause"><strong>Cause:</strong> Twilio WhatsApp requires pre-approved <code>content_sid</code> templates &mdash; can't send custom text.</div>
+        <div class="bug-fix"><strong>Fix:</strong> Prioritized Green API (free-form text) over Twilio WhatsApp. Twilio becomes template fallback.</div>
+        <div class="bug-lesson">Provider limitations shape architecture. Not all APIs are equal.</div>
+      </div>
+
+      <div class="bug-card reveal stagger-5">
+        <div class="bug-num">Bug #5</div>
+        <div class="bug-title">Dynamic Budget Discovery</div>
+        <div class="bug-what"><strong>What:</strong> Every event showing 1/5 attempts. No event exceeding one attempt.</div>
+        <div class="bug-cause"><strong>Cause:</strong> Fixed <code>max_attempts = 5</code> for every event. A $50 browse-only cart got the same budget as a $30,000 failed invoice.</div>
+        <div class="bug-fix"><strong>Fix:</strong> Dynamic <code>max_attempts</code> computed from amount, probability, and failure category. Range: 0 to 5.</div>
+        <div class="bug-lesson">One-size-fits-all is the enemy of ROI. Every attempt has a cost.</div>
+      </div>
+
+      <div class="bug-card reveal stagger-6">
+        <div class="bug-num">Bug #6</div>
+        <div class="bug-title">Railway Build Failures</div>
+        <div class="bug-what"><strong>What:</strong> Railway wouldn't build the Python backend. Three attempts failed.</div>
+        <div class="bug-cause"><strong>Cause:</strong> Manual Nix package configuration conflicted with Nixpacks auto-detection.</div>
+        <div class="bug-fix"><strong>Fix:</strong> Removed all manual Nix config. Let Nixpacks auto-detect from <code>requirements.txt</code>.</div>
+        <div class="bug-lesson">Don't fight the platform. Auto-detection was designed for this.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ PRINCIPLES ════════ -->
+<section class="principles-section" id="principles">
+  <div class="container">
+    <div class="section-header reveal">
+      <span class="section-label">Design Principles</span>
+      <h2 class="section-title">How I Think About Building</h2>
+    </div>
+
+    <div class="principles-grid">
+      <div class="principle-card reveal stagger-1">
+        <div class="principle-num">01</div>
+        <div class="principle-title">"Without ROI, there will be no features"</div>
+        <div class="principle-desc">Every feature must justify its existence through measurable recovery impact. Rejected complex ML, vanity metrics, and features that look impressive but add no recovery value.</div>
+      </div>
+      <div class="principle-card reveal stagger-2">
+        <div class="principle-num">02</div>
+        <div class="principle-title">Think Like You Already Work There</div>
+        <div class="principle-desc">Cloned Razorpay's UI &mdash; design tokens, SVG icons, color system, layout patterns. When you look at the dashboard, it feels like it already belongs in Razorpay's product suite.</div>
+      </div>
+      <div class="principle-card reveal stagger-3">
+        <div class="principle-num">03</div>
+        <div class="principle-title">Honest Metrics Over Impressive Numbers</div>
+        <div class="principle-desc">Ghost recovery prevention: organic payments logged as organic_recovery, not recovered. Recovery is only attributed when outreach was actually sent. This is the metric a PM would trust.</div>
+      </div>
+      <div class="principle-card reveal stagger-4">
+        <div class="principle-num">04</div>
+        <div class="principle-title">Safety First &mdash; It's Financial Software</div>
+        <div class="principle-desc">HMAC-SHA256 verification, XSS prevention, prompt injection defense, rate limiting, distributed locks, three-layer give-up prevention, database safety triggers.</div>
+      </div>
+      <div class="principle-card reveal stagger-5">
+        <div class="principle-num">05</div>
+        <div class="principle-title">Real Architecture, Not Demo Architecture</div>
+        <div class="principle-desc">task_acks_late=True, task_reject_on_worker_lost=True, exponential backoff, distributed Redis locks, conditional DB updates. Every operation through the real async pipeline.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ IMPACT ════════ -->
+<section class="impact-section" id="impact">
+  <div class="container">
+    <div class="section-header reveal">
+      <span class="section-label">Impact</span>
+      <h2 class="section-title">What Recovery Router Delivers</h2>
+    </div>
+
+    <div class="impact-grid">
+      <div class="impact-card reveal stagger-1">
+        <div class="impact-value">12</div>
+        <div class="impact-label">Failure categories with category-specific routing, channels, and timing</div>
+      </div>
+      <div class="impact-card reveal stagger-2">
+        <div class="impact-value">3+1</div>
+        <div class="impact-label">AI models in the fallback chain + rule-based backup (never blocks on AI)</div>
+      </div>
+      <div class="impact-card reveal stagger-3">
+        <div class="impact-value">114</div>
+        <div class="impact-label">Automated tests across 6 suites: API, security, pipeline, errors, load, e2e</div>
+      </div>
+      <div class="impact-card reveal stagger-4">
+        <div class="impact-value">0</div>
+        <div class="impact-label">Ghost recoveries &mdash; organic payments tracked separately from outreach-driven</div>
+      </div>
+    </div>
+
+    <div class="insight-quote reveal" style="margin-top: 48px;">
+      Vulcan makes payments succeed. Recovery Router makes failures recoverable.
+    </div>
+  </div>
+</section>
+
+<!-- ════════ ECOSYSTEM ════════ -->
+<section class="ecosystem-section" id="ecosystem">
+  <div class="container">
+    <div class="section-header reveal">
+      <span class="section-label">Razorpay Ecosystem</span>
+      <h2 class="section-title">Where Recovery Router Fits</h2>
+      <p class="section-subtitle">Not a competitor to any Razorpay product. The missing piece that completes the payment lifecycle.</p>
+    </div>
+
+    <div class="ecosystem-flow reveal-scale">
+      <span class="highlight">Before Payment</span> &rarr; <span class="highlight-cyan">During Payment</span> &rarr; <span class="highlight-green">After Payment</span><br><br>
+      <span class="highlight">Magic Checkout</span> &rarr; <span class="highlight-cyan">Vulcan (AI routing)</span> &rarr; <span class="highlight-green">Recovery Router</span><br>
+      <span class="highlight">(Pre-fill, UX)</span> &nbsp;&nbsp;&nbsp; <span class="highlight-cyan">Smart Collect</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span class="highlight-green">(Classify &rarr; Route &rarr;</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span class="highlight-cyan">Payment Links</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span class="highlight-green">Act &rarr; Measure)</span>
+    </div>
+
+    <div style="overflow-x: auto;">
+      <table class="leak-table reveal">
+        <thead>
+          <tr><th>Razorpay Product</th><th>Integration Point</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Vulcan</td><td>Vulcan prevents failures. When they still happen, Recovery Router takes over. Vulcan's decline signals feed the classifier.</td></tr>
+          <tr><td>Agent Studio</td><td>Recovery Router's messaging layer could use Agent Studio agents. The AI decisions could power custom templates.</td></tr>
+          <tr><td>Smart Collect</td><td>Invoice recovery events could trigger Smart Collect virtual accounts for B2B receivables.</td></tr>
+          <tr><td>Payment Links</td><td>Already generates payment links via Orders API. Native integration would simplify the flow.</td></tr>
+          <tr><td>Magic Checkout</td><td>Pre-payment data (saved cards, UPI IDs) could improve channel selection for returning customers.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ FAQ ════════ -->
+<section class="faq-section" id="faq">
+  <div class="container">
+    <div class="section-header reveal">
+      <span class="section-label">FAQ</span>
+      <h2 class="section-title">Anticipated Questions</h2>
+    </div>
+
+    <div style="max-width: 800px; margin: 0 auto;">
+      <div class="faq-item reveal">
+        <div class="faq-question">How is this different from Razorpay's existing Failed Payment Recovery?</div>
+        <div class="faq-answer"><p>Razorpay's existing product focuses on subscription payment recovery via WhatsApp reminders. Recovery Router handles all three revenue leaks (payment failures, cart abandonment, overdue invoices) through a unified AI pipeline with dynamic attempt budgets, multi-channel fallback, and honest metrics that distinguish organic from AI-driven recovery.</p></div>
+      </div>
+      <div class="faq-item reveal">
+        <div class="faq-question">Why not use Razorpay Agent Studio to build this?</div>
+        <div class="faq-answer"><p>Agent Studio provides building blocks. Recovery Router is the complete pipeline &mdash; classify, route, act, measure &mdash; with production-grade reliability: distributed locks, race condition handling, crash recovery, and database-level safety triggers.</p></div>
+      </div>
+      <div class="faq-item reveal">
+        <div class="faq-question">Why three AI models instead of one?</div>
+        <div class="faq-answer"><p>Reliability. If Claude Haiku is down, Gemini takes over. If both are down, GPT-4o-mini. If all AI fails, rule-based classification keeps the system running. In financial software, the system must never block waiting for an AI provider.</p></div>
+      </div>
+      <div class="faq-item reveal">
+        <div class="faq-question">How do you handle customer consent and spam?</div>
+        <div class="faq-answer"><p>Per-resource cooldowns (5 min per phone/email) prevent over-messaging. Quiet hours (9 PM &ndash; 9 AM IST). Dynamic budgets limit total outreach. Browse-only carts get zero attempts. User-cancelled events get max 2 gentle attempts.</p></div>
+      </div>
+      <div class="faq-item reveal">
+        <div class="faq-question">What about the metrics? Are they real?</div>
+        <div class="faq-answer"><p>Ghost recovery prevention ensures organic payments (no outreach sent) are tracked as organic_recovery, never attributed to the system. Reconciliation uses 4-strategy matching with currency + amount validation. All results are from Razorpay test-mode simulated data &mdash; not production.</p></div>
+      </div>
+      <div class="faq-item reveal">
+        <div class="faq-question">What would you build next?</div>
+        <div class="faq-answer"><p>Hinglish voice recovery (regional language support), merchant-specific model fine-tuning, A/B testing framework for recovery strategies, and integration with Razorpay's Magic Checkout for pre-emptive failure prevention.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ CTA ════════ -->
+<section class="cta-section">
+  <div class="container">
+    <h2 class="cta-title reveal">
+      <span style="background: var(--gradient-text); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">See it in action.</span>
+    </h2>
+    <p class="cta-subtitle reveal">One engine. Every revenue leak &mdash; classified, routed, recovered.</p>
+    <div class="cta-links reveal">
+      <a href="https://razorpay.albertabishek.com" target="_blank" class="btn btn-primary">Live Demo</a>
+      <a href="https://api.albertabishek.com/docs" target="_blank" class="btn btn-secondary">API Documentation</a>
+      <a href="https://github.com/albertabishek/Recovery-Router-" target="_blank" class="btn btn-ghost">View Source</a>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ FOOTER ════════ -->
+<footer>
+  <div class="container">
+    <p>Recovery Router &mdash; Razorpay AI Buildathon 2026 &middot; Track 3: AI Revenue Recovery</p>
+    <p style="margin-top: 8px;">Built by <a href="https://github.com/albertabishek" target="_blank">Albert Abishek I</a></p>
+  </div>
+</footer>
+
+<script>
+// ── Scroll Reveal ──
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+document.querySelectorAll('.reveal, .reveal-left, .reveal-right, .reveal-scale').forEach(el => {
+  observer.observe(el);
+});
+
+// ── Typing Ticker ──
+const tickerTexts = [
+  'UPI timed out...',
+  'Card declined...',
+  'Cart abandoned...',
+  'Invoice overdue...',
+  'Insufficient funds...',
+  'Gateway error...',
+  'Bank downtime...',
+  'Subscription lapsed...'
+];
+let tickerIndex = 0, charIndex = 0, isDeleting = false;
+const tickerEl = document.getElementById('ticker');
+
+function typeTicker() {
+  const current = tickerTexts[tickerIndex];
+  if (isDeleting) {
+    tickerEl.textContent = current.substring(0, charIndex--);
+    if (charIndex < 0) {
+      isDeleting = false;
+      tickerIndex = (tickerIndex + 1) % tickerTexts.length;
+      setTimeout(typeTicker, 400);
+      return;
+    }
+    setTimeout(typeTicker, 30);
+  } else {
+    tickerEl.textContent = current.substring(0, charIndex++);
+    if (charIndex > current.length) {
+      isDeleting = true;
+      setTimeout(typeTicker, 2000);
+      return;
+    }
+    setTimeout(typeTicker, 60);
+  }
+}
+typeTicker();
+
+// ── Counter Animation ──
+function animateCounters() {
+  document.querySelectorAll('.stat-number[data-target]').forEach(el => {
+    const target = parseInt(el.dataset.target);
+    const prefix = el.dataset.prefix || '';
+    const suffix = el.dataset.suffix || '';
+    let current = 0;
+    const increment = target / 40;
+    const timer = setInterval(() => {
+      current += increment;
+      if (current >= target) {
+        current = target;
+        clearInterval(timer);
+      }
+      el.textContent = prefix + Math.round(current) + suffix;
+    }, 30);
+  });
+}
+
+const counterObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      animateCounters();
+      counterObserver.disconnect();
+    }
+  });
+}, { threshold: 0.3 });
+
+const statGrid = document.querySelector('.stat-grid');
+if (statGrid) counterObserver.observe(statGrid);
+
+// ── FAQ Toggle ──
+document.querySelectorAll('.faq-question').forEach(q => {
+  q.addEventListener('click', () => {
+    const item = q.parentElement;
+    const wasOpen = item.classList.contains('open');
+    document.querySelectorAll('.faq-item.open').forEach(i => i.classList.remove('open'));
+    if (!wasOpen) item.classList.add('open');
+  });
+});
+
+// ── Particles ──
+const particlesContainer = document.getElementById('particles');
+for (let i = 0; i < 30; i++) {
+  const p = document.createElement('div');
+  p.className = 'particle';
+  p.style.left = Math.random() * 100 + '%';
+  p.style.animationDuration = (15 + Math.random() * 25) + 's';
+  p.style.animationDelay = Math.random() * 20 + 's';
+  p.style.width = p.style.height = (1 + Math.random() * 2) + 'px';
+  const colors = ['var(--accent-primary)', 'var(--accent-secondary)', 'var(--accent-green)'];
+  p.style.background = colors[Math.floor(Math.random() * colors.length)];
+  particlesContainer.appendChild(p);
+}
+
+// ── Smooth Nav Background ──
+window.addEventListener('scroll', () => {
+  const nav = document.querySelector('nav');
+  if (window.scrollY > 100) {
+    nav.style.background = 'rgba(10, 10, 15, 0.95)';
+  } else {
+    nav.style.background = 'rgba(10, 10, 15, 0.8)';
+  }
+});
+</script>
+</body>
+</html>

@@ -443,9 +443,10 @@ function EventDetailPanel({ event, onClose, onUpdate }) {
               Only successfully sent messages count toward the {e.max_attempts ?? 5}-message limit. Blocked, failed, and customer payment attempts do not.
             </div>
             <div style={{ marginBottom: 16 }}>
-              {attempts.map((a, i) => {
+              {(() => { let outreachNum = 0; return attempts.map((a, i) => {
                 const isCustomerAttempt = a.channel_used === 'payment_link'
                 const isBlocked = a.outcome === 'blocked'
+                if (!isCustomerAttempt) outreachNum++
                 return (
                   <div key={a.id || i} style={{
                     padding: '10px 12px', marginBottom: 6,
@@ -461,7 +462,7 @@ function EventDetailPanel({ event, onClose, onUpdate }) {
                             {a.metadata?.method || 'payment'}
                           </>
                         ) : (
-                          <>#{a.attempt_number} · {a.channel_used}</>
+                          <>#{outreachNum} · {a.channel_used}</>
                         )}
                       </span>
                       <span style={{
@@ -490,7 +491,7 @@ function EventDetailPanel({ event, onClose, onUpdate }) {
                     </div>
                   </div>
                 )
-              })}
+              }) })()}
             </div>
           </>
         )}
