@@ -13,6 +13,7 @@ from app.config import settings
 from app.database import get_supabase
 from app.redis_client import get_redis
 from app.services.ai_client import ai_call
+from postgrest.exceptions import APIError
 from app.services.payment_links import generate_payment_link
 from app.services.messenger import send_message
 
@@ -203,6 +204,15 @@ def run_escalation(events: list[dict]) -> list[dict]:
                 results.append({"event_id": event["id"], "action": "link_failed"})
                 continue
 
+            try:
+                next_number, idem_key = _reserve_attempt(sb, event, channel, decision, link)
+            except APIError as e:
+                if e.json().get("code") == "23505":
+                    logger.info("Escalation already reserved for event %d", event["id"])
+                    results.append({"event_id": event["id"], "action": "already_processed"})
+                    continue
+                raise
+
             send_result = send_message(
                 channel=channel,
                 customer_name=event.get("customer_name", "Customer"),
@@ -217,7 +227,7 @@ def run_escalation(events: list[dict]) -> list[dict]:
                 personalization_hint=event.get("personalization_hint"),
             )
 
-            _log_attempt(sb, event, channel, decision, send_result, link)
+            _finalize_attempt(sb, idem_key, channel, send_result, link, event)
 
             if send_result.get("success", False):
                 _update_event_state(sb, event, decision)
@@ -393,8 +403,7 @@ def _parse_datetime(value) -> datetime | None:
         return None
 
 
-def _log_attempt(sb, event, channel, decision, send_result, link):
-    channel_used = send_result.get("channel_used") or channel
+def _reserve_attempt(sb, event, channel, decision, link):
     max_res = (
         sb.table("recovery_attempts")
         .select("attempt_number")
@@ -404,27 +413,42 @@ def _log_attempt(sb, event, channel, decision, send_result, link):
         .execute()
     )
     next_number = (max_res.data[0]["attempt_number"] + 1) if max_res.data else 1
+    idem_key = f"{event['id']}:escalation:{next_number}"
     sb.table("recovery_attempts").insert({
         "recovery_event_id": event["id"],
         "attempt_number": next_number,
-        "channel_used": channel_used,
-        "action_taken": f"{decision.get('tone', 'firm')} escalation via {channel_used}",
-        "message_id": send_result.get("message_id", ""),
-        "outcome": "sent" if send_result.get("success") else (
-            "blocked" if send_result.get("error") == "Cooldown active" else "failed"
-        ),
+        "channel_used": channel,
+        "action_taken": f"{decision.get('tone', 'firm')} escalation via {channel}",
+        "outcome": "reserved",
         "notes": decision.get("reasoning", ""),
-        "idempotency_key": f"{event['id']}:escalation:{next_number}",
-        "metadata": {
-            "payment_link_id": link.get("id"),
-            "payment_link_url": link.get("short_url"),
-            "escalation_level": event.get("escalation_level", 0) + 1,
-            "send_error": send_result.get("error"),
-            "degraded_from": send_result.get("degraded_from"),
-            "degradation_path": send_result.get("degradation_path", []),
-            "ai_personalized": True,
-        },
+        "idempotency_key": idem_key,
+        "metadata": {"payment_link_url": link.get("short_url")},
     }).execute()
+    return next_number, idem_key
+
+
+def _finalize_attempt(sb, idem_key, channel, send_result, link, event):
+    channel_used = send_result.get("channel_used") or channel
+    outcome = "sent" if send_result.get("success") else (
+        "blocked" if send_result.get("error") == "Cooldown active" else "failed"
+    )
+    try:
+        sb.table("recovery_attempts").update({
+            "channel_used": channel_used,
+            "message_id": send_result.get("message_id", ""),
+            "outcome": outcome,
+            "metadata": {
+                "payment_link_id": link.get("id"),
+                "payment_link_url": link.get("short_url"),
+                "escalation_level": event.get("escalation_level", 0) + 1,
+                "send_error": send_result.get("error"),
+                "degraded_from": send_result.get("degraded_from"),
+                "degradation_path": send_result.get("degradation_path", []),
+                "ai_personalized": True,
+            },
+        }).eq("idempotency_key", idem_key).execute()
+    except Exception:
+        logger.warning("Failed to finalize attempt %s", idem_key)
 
 
 RETRY_DELAY_HOURS = {

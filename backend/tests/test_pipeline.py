@@ -1,6 +1,8 @@
 """End-to-end pipeline tests: simulate → classify → route → send → track."""
 import time
 import pytest
+
+pytestmark = pytest.mark.live
 from conftest import SCENARIOS, EXPECTED, simulate_and_wait, EMAILS, PHONES
 
 

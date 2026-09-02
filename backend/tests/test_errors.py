@@ -1,6 +1,8 @@
 """Edge cases: duplicate webhooks, wrong transitions, missing fields, boundary values."""
 import time
 import pytest
+
+pytestmark = pytest.mark.live
 from conftest import simulate_and_wait, wait_for_celery, EMAILS, PHONES
 
 

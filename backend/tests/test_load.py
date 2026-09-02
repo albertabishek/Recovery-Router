@@ -2,6 +2,8 @@
 import time
 import threading
 import pytest
+
+pytestmark = pytest.mark.live
 from conftest import EMAILS, PHONES
 
 

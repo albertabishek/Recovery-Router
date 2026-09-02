@@ -1,6 +1,8 @@
 """Test all 12 API endpoints with valid, invalid, and edge-case inputs."""
 import pytest
 
+pytestmark = pytest.mark.live
+
 
 class TestHealthEndpoint:
     def test_health_returns_ok(self, api):

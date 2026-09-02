@@ -1,6 +1,8 @@
 """Security tests: injection, XSS, CORS, rate limiting, webhook signatures."""
 import pytest
 
+pytestmark = pytest.mark.live
+
 
 class TestSQLInjection:
     def test_events_status_injection(self):

@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 import httpx
 from celery.exceptions import Retry
+from postgrest.exceptions import APIError
 from app.celery_app import celery_app
 from app.models import RecoveryEventInput
 from app.database import get_supabase
@@ -17,8 +18,8 @@ QUIET_START_HOUR = 21
 QUIET_END_HOUR = 9
 
 
-def _is_quiet_hours() -> bool:
-    now = datetime.now(timezone.utc).astimezone(IST)
+def _is_quiet_hours(now_utc: datetime | None = None) -> bool:
+    now = (now_utc or datetime.now(timezone.utc)).astimezone(IST)
     return now.hour >= QUIET_START_HOUR or now.hour < QUIET_END_HOUR
 
 
@@ -210,6 +211,24 @@ def process_recovery_event(self, event_data: dict) -> dict:
             }).eq("id", event_id).execute()
             return {"status": "link_failed", "event_id": event_id}
 
+        idem_key = f"{event_id}:initial:1"
+        try:
+            sb.table("recovery_attempts").insert({
+                "recovery_event_id": event_id,
+                "attempt_number": 1,
+                "channel_used": action.channel,
+                "action_taken": f"{classification.recommended_action} via {action.channel}",
+                "outcome": "reserved",
+                "notes": classification.reasoning,
+                "idempotency_key": idem_key,
+                "metadata": {"payment_link_url": link.get("short_url")},
+            }).execute()
+        except APIError as e:
+            if e.json().get("code") == "23505":
+                logger.info("Idempotency hit: %s already reserved/sent", idem_key)
+                return {"status": "already_processed", "event_id": event_id}
+            raise
+
         send_result = send_message(
             channel=action.channel,
             customer_name=event.customer_name or "Customer",
@@ -224,27 +243,26 @@ def process_recovery_event(self, event_data: dict) -> dict:
         )
 
         channel_used = send_result.get("channel_used") or action.channel
-
-        sb.table("recovery_attempts").insert({
-            "recovery_event_id": event_id,
-            "attempt_number": 1,
-            "channel_used": channel_used,
-            "action_taken": f"{classification.recommended_action} via {channel_used}",
-            "message_id": send_result.get("message_id", ""),
-            "outcome": "sent" if send_result.get("success") else (
-                "blocked" if send_result.get("error") == "Cooldown active" else "failed"
-            ),
-            "notes": classification.reasoning,
-            "idempotency_key": f"{event_id}:initial:1",
-            "metadata": {
-                "payment_link_id": link.get("id"),
-                "payment_link_url": link.get("short_url"),
-                "send_error": send_result.get("error"),
-                "degraded_from": send_result.get("degraded_from"),
-                "degradation_path": send_result.get("degradation_path", []),
-                "ai_personalized": True,
-            },
-        }).execute()
+        outcome = "sent" if send_result.get("success") else (
+            "blocked" if send_result.get("error") == "Cooldown active" else "failed"
+        )
+        try:
+            sb.table("recovery_attempts").update({
+                "channel_used": channel_used,
+                "action_taken": f"{classification.recommended_action} via {channel_used}",
+                "message_id": send_result.get("message_id", ""),
+                "outcome": outcome,
+                "metadata": {
+                    "payment_link_id": link.get("id"),
+                    "payment_link_url": link.get("short_url"),
+                    "send_error": send_result.get("error"),
+                    "degraded_from": send_result.get("degraded_from"),
+                    "degradation_path": send_result.get("degradation_path", []),
+                    "ai_personalized": True,
+                },
+            }).eq("idempotency_key", idem_key).execute()
+        except Exception:
+            logger.warning("Failed to finalize attempt %s", idem_key)
 
         send_succeeded = send_result.get("success", False)
         delay_hours = RETRY_DELAY_HOURS.get(classification.failure_category, 4)
@@ -363,6 +381,7 @@ def handle_recovery_retry_failure(self, data: dict) -> dict:
                 ),
                 "outcome": "failed",
                 "notes": f"Error: {data.get('error_code')}: {error_desc}",
+                "idempotency_key": f"{parent_id}:retry_failure:{next_number}",
                 "metadata": {
                     "payment_id": data.get("payment_id"),
                     "order_id": data.get("order_id"),
@@ -469,6 +488,34 @@ def _send_delayed(self, event_id: int, channel: str, event_data: dict):
                 }).eq("id", event_id).eq("status", "pending").execute()
                 return {"status": "link_failed", "event_id": event_id}
 
+            max_res = (
+                sb.table("recovery_attempts")
+                .select("attempt_number")
+                .eq("recovery_event_id", event_id)
+                .order("attempt_number", desc=True)
+                .limit(1)
+                .execute()
+            )
+            next_number = (max_res.data[0]["attempt_number"] + 1) if max_res.data else 1
+            idem_key = f"{event_id}:delayed:{next_number}"
+
+            try:
+                sb.table("recovery_attempts").insert({
+                    "recovery_event_id": event_id,
+                    "attempt_number": next_number,
+                    "channel_used": channel,
+                    "action_taken": f"delayed_send via {channel}",
+                    "outcome": "reserved",
+                    "notes": f"Delayed send (originally scheduled for {channel})",
+                    "idempotency_key": idem_key,
+                    "metadata": {"payment_link_url": link.get("short_url")},
+                }).execute()
+            except APIError as e:
+                if e.json().get("code") == "23505":
+                    logger.info("Idempotency hit: %s already reserved/sent", idem_key)
+                    return {"status": "already_processed", "event_id": event_id}
+                raise
+
             send_result = send_message(
                 channel=channel,
                 customer_name=event.customer_name or "Customer",
@@ -483,36 +530,26 @@ def _send_delayed(self, event_id: int, channel: str, event_data: dict):
             )
 
             channel_used = send_result.get("channel_used") or channel
-
-            max_res = (
-                sb.table("recovery_attempts")
-                .select("attempt_number")
-                .eq("recovery_event_id", event_id)
-                .order("attempt_number", desc=True)
-                .limit(1)
-                .execute()
+            outcome = "sent" if send_result.get("success") else (
+                "blocked" if send_result.get("error") == "Cooldown active" else "failed"
             )
-            next_number = (max_res.data[0]["attempt_number"] + 1) if max_res.data else 1
-
-            sb.table("recovery_attempts").insert({
-                "recovery_event_id": event_id,
-                "attempt_number": next_number,
-                "channel_used": channel_used,
-                "action_taken": f"delayed_send via {channel_used}",
-                "message_id": send_result.get("message_id", ""),
-                "outcome": "sent" if send_result.get("success") else (
-                    "blocked" if send_result.get("error") == "Cooldown active" else "failed"
-                ),
-                "notes": f"Delayed send (originally scheduled for {channel})",
-                "metadata": {
-                    "payment_link_id": link.get("id"),
-                    "payment_link_url": link.get("short_url"),
-                    "send_error": send_result.get("error"),
-                    "degraded_from": send_result.get("degraded_from"),
-                    "degradation_path": send_result.get("degradation_path", []),
-                    "ai_personalized": True,
-                },
-            }).execute()
+            try:
+                sb.table("recovery_attempts").update({
+                    "channel_used": channel_used,
+                    "action_taken": f"delayed_send via {channel_used}",
+                    "message_id": send_result.get("message_id", ""),
+                    "outcome": outcome,
+                    "metadata": {
+                        "payment_link_id": link.get("id"),
+                        "payment_link_url": link.get("short_url"),
+                        "send_error": send_result.get("error"),
+                        "degraded_from": send_result.get("degraded_from"),
+                        "degradation_path": send_result.get("degradation_path", []),
+                        "ai_personalized": True,
+                    },
+                }).eq("idempotency_key", idem_key).execute()
+            except Exception:
+                logger.warning("Failed to finalize attempt %s", idem_key)
 
             send_succeeded = send_result.get("success", False)
             delay_hours = RETRY_DELAY_HOURS.get(ev.get("failure_category", ""), 4)
