@@ -90,7 +90,7 @@ Webhook arrives
     +-> Rate limit check (100 req/min per endpoint)
     +-> Redis dedup check (1h TTL, keyed on payment_id/order_id)
     +-> Payload normalization (Razorpay raw or custom format)
-    +-> Parent event check (is this a retry on our recovery link?)
+    +-> Parent event check (is this a retry on my recovery link?)
     |       |
     |       +--[yes]--> handle_recovery_retry_failure.delay()
     |       |               (log attempt on parent, don't create new event)
@@ -139,7 +139,7 @@ Two POST endpoints that Razorpay calls:
    - HMAC-SHA256 signature verification against `RAZORPAY_WEBHOOK_SECRET` using `hmac.compare_digest` (timing-safe).
    - Dedup: extracts a stable identifier (payment entity ID or hash of payload), checks Redis with 1-hour TTL.
    - Normalizes payload: handles both raw Razorpay `payment.failed` webhook format (nested `payload.payment.entity`) and custom flat format.
-   - Parent event detection: if this `payment.failed` webhook is from a recovery payment link we sent, routes to `handle_recovery_retry_failure` instead of creating a duplicate event.
+   - Parent event detection: if this `payment.failed` webhook is from a recovery payment link I sent, routes to `handle_recovery_retry_failure` instead of creating a duplicate event.
    - Dispatches `process_recovery_event.delay(event_data)` to Celery.
 
 2. **`POST /webhook/recovery-tracker`** -- Feedback loop for successful payments.
@@ -279,7 +279,7 @@ Handles the feedback loop when a payment lands. This is architecturally importan
 3. `order_id` on the recovery event (skips TEST_ prefixed IDs).
 4. `payment_id` on the recovery event.
 
-**Organic vs. AI-driven recovery**: if `attempt_count == 0` and no successful outreach attempts exist, the recovery is marked `organic_recovery` (customer paid on their own) rather than `recovered` (our outreach worked). This prevents inflating AI recovery metrics.
+**Organic vs. AI-driven recovery**: if `attempt_count == 0` and no successful outreach attempts exist, the recovery is marked `organic_recovery` (customer paid on their own) rather than `recovered` (my outreach worked). This prevents inflating AI recovery metrics.
 
 #### `backend/app/services/payment_links.py` -- Payment Link Generation
 
@@ -313,7 +313,7 @@ Three Celery tasks:
 
 1. **`process_recovery_event`** (max_retries=3, acks_late=True) -- The main pipeline. Classify -> dedup -> insert -> route -> generate link -> send -> log. Handles transient errors (connection, timeout) with exponential backoff (60s, 120s, 240s). Permanent failures are logged as a recovery_attempt with `outcome="failed"`.
 
-2. **`handle_recovery_retry_failure`** (max_retries=2) -- When a customer opens our recovery link and their payment fails again, this logs it on the parent event instead of creating a duplicate. Uses Redis distributed lock with 60s TTL to prevent races. Detects user cancellations by scanning the error description.
+2. **`handle_recovery_retry_failure`** (max_retries=2) -- When a customer opens my recovery link and their payment fails again, this logs it on the parent event instead of creating a duplicate. Uses Redis distributed lock with 60s TTL to prevent races. Detects user cancellations by scanning the error description.
 
 3. **`_send_delayed`** (max_retries=2) -- Executes delayed sends (for events classified with 5_minutes, 30_minutes, etc. timing). Checks that the event is still pending and hasn't been handled by escalation before sending.
 
@@ -420,7 +420,7 @@ FastAPI receives POST /webhook/recovery-router
     +-- [normalization fails?] --> 400 reject
     |
     v
-Is this a retry failure on our recovery link?
+Is this a retry failure on my recovery link?
     |
     +--[yes]--> handle_recovery_retry_failure.delay(parent_data)
     |               |
@@ -980,7 +980,7 @@ All secrets are injected via environment variables on Railway/Vercel. The backen
 
 ### Why Celery instead of async FastAPI tasks?
 
-The recovery pipeline involves external API calls (Razorpay, OpenRouter, messaging providers) that can take 5-30 seconds. Running these in the FastAPI request handler would block the webhook response and risk Razorpay's webhook timeout. Celery gives us:
+The recovery pipeline involves external API calls (Razorpay, OpenRouter, messaging providers) that can take 5-30 seconds. Running these in the FastAPI request handler would block the webhook response and risk Razorpay's webhook timeout. Celery gives me:
 - Immediate webhook acknowledgment (HTTP 202 within milliseconds).
 - Automatic retries with exponential backoff for transient failures.
 - Delayed task execution (for events classified with non-immediate timing).
@@ -992,7 +992,7 @@ A single API endpoint that routes to multiple models means the AI client only ne
 
 ### Why Razorpay Orders API instead of Payment Links API?
 
-The Payment Links API has a 30-link limit in test mode. The Orders API has no such limit. By creating orders and hosting our own checkout page at `/pay/{order_id}`, we get unlimited test-mode payment links.
+The Payment Links API has a 30-link limit in test mode. The Orders API has no such limit. By creating orders and hosting my own checkout page at `/pay/{order_id}`, I get unlimited test-mode payment links.
 
 ### Why two dedup layers?
 

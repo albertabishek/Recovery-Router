@@ -1,6 +1,6 @@
-# Recovery Router — Complete Build Plan
+# Recovery Router - Complete Build Plan
 
-**Project:** Recovery Router — Razorpay AI Buildathon Track 3  
+**Project:** Recovery Router - Razorpay AI Buildathon Track 3  
 **Author:** Albert Abishek I  
 **Deadline:** September 5, 2026  
 **Date:** August 26, 2026 (Updated with Gemini review fixes)  
@@ -13,16 +13,16 @@
 > These fixes address 5 critical blind spots identified during technical review. Each one would be caught by a Razorpay engineer evaluating the code.
 
 ### Fix 1: Celery + Upstash Redis (NOT custom asyncio queue)
-**Problem:** Custom `brpop` loop in asyncio has no ACK/NACK — if Railway container restarts mid-task, the task is popped and lost forever.  
-**Fix:** Use **Celery** with Upstash Redis URL as broker and result backend. Celery handles task retries, worker crashes, and acknowledgment safely. No Docker needed — Celery worker connects to Upstash over SSL (`rediss://`), deployed as a separate Railway service.
+**Problem:** Custom `brpop` loop in asyncio has no ACK/NACK - if Railway container restarts mid-task, the task is popped and lost forever.  
+**Fix:** Use **Celery** with Upstash Redis URL as broker and result backend. Celery handles task retries, worker crashes, and acknowledgment safely. No Docker needed - Celery worker connects to Upstash over SSL (`rediss://`), deployed as a separate Railway service.
 
 ### Fix 2: Payment Link Expiry (`expire_by`)
 **Problem:** Razorpay payment link payload had no `expire_by` parameter. A payment link for a 72-hour recovery window would stay valid forever.  
 **Fix:** Add `"expire_by": <unix_timestamp>` matching the event's `recovery_window_ends`. Proves the agent's guardrails extend into the actual financial gateway.
 
 ### Fix 3: Ghost Recovery Attribution
-**Problem:** If AI decides "No Action" but the customer pays organically, the tracker matches by `order_id` and marks it as "Recovered" — inflating AI Lift metrics with a recovery the system didn't facilitate.  
-**Fix:** In `recovery_tracker`, only update status to `recovered` IF `attempt_count > 0`. If zero attempts were made, log as `organic_recovery` — do NOT pad AI metrics.
+**Problem:** If AI decides "No Action" but the customer pays organically, the tracker matches by `order_id` and marks it as "Recovered" - inflating AI Lift metrics with a recovery the system didn't facilitate.  
+**Fix:** In `recovery_tracker`, only update status to `recovered` IF `attempt_count > 0`. If zero attempts were made, log as `organic_recovery` - do NOT pad AI metrics.
 
 ### Fix 4: Cart Abandonment Integration Dependency
 **Problem:** Razorpay sends webhooks for failed payments but NOT for abandoned carts (cart state lives on merchant's frontend/backend).  
@@ -50,10 +50,10 @@
 | 4 | **Escalation Agent** | `PaPzRiBHQaAw5nF0` | ACTIVE | Every 5min → Fetch due events (≤20) → Filter actionable → Generate Payment Link → AI Escalation Decision → Route → Send → Log Attempt → Update State |
 | 5 | **Recovery Analytics API** | `N0qClQhURICRTvbU` | ACTIVE | GET webhook → Fetch all events → Compute analytics (JS) → Respond with JSON (CORS enabled) |
 
-### Supabase Database (DONE — Tables exist and have 29+ events)
+### Supabase Database (DONE - Tables exist and have 29+ events)
 
-**Table: `recovery_events`** — event data + AI classification + agent state  
-**Table: `recovery_attempts`** — every recovery action taken (agent memory)
+**Table: `recovery_events`** - event data + AI classification + agent state  
+**Table: `recovery_attempts`** - every recovery action taken (agent memory)
 
 ### Credentials Available
 
@@ -61,8 +61,8 @@
 |---------|-----------|
 | **Razorpay** | Test mode keys configured in `.env` |
 | **OpenAI** | API key configured in `.env` |
-| **Twilio** | SID + auth token configured in `.env` (trial — verified numbers only) |
-| **SendGrid** | API key configured in `.env` (dropped — using Resend only) |
+| **Twilio** | SID + auth token configured in `.env` (trial - verified numbers only) |
+| **SendGrid** | API key configured in `.env` (dropped - using Resend only) |
 | **Resend** | API key configured in `.env`, domain: `mail.albertabishek.com` (verified) |
 | **Supabase** | Project configured in `.env`, using session pooler connection |
 | **Upstash Redis** | URL configured in `.env` (rediss:// SSL) |
@@ -75,10 +75,10 @@ Port all n8n logic to a **FastAPI backend + React frontend** deployed on **Railw
 
 ### Why Code Version
 
-1. n8n workflows ARE the product and will stay running — they prove it works
+1. n8n workflows ARE the product and will stay running - they prove it works
 2. Code version handles concurrency, rate limits, retries properly
 3. React dashboard is the demo centerpiece for judges
-4. Shows judges: "I prototyped in n8n, then built production code — ready for Razorpay scale"
+4. Shows judges: "I prototyped in n8n, then built production code - ready for Razorpay scale"
 5. GitHub repo with clean code is a submission requirement
 
 ---
@@ -133,7 +133,7 @@ Port all n8n logic to a **FastAPI backend + React frontend** deployed on **Railw
 
 ---
 
-## Tech Stack (Verified Versions — August 2026)
+## Tech Stack (Verified Versions - August 2026)
 
 | Layer | Technology | Version | Why |
 |-------|-----------|---------|-----|
@@ -144,13 +144,13 @@ Port all n8n logic to a **FastAPI backend + React frontend** deployed on **Railw
 | **AI** | OpenAI GPT-5 Mini (via `openai`) | `3.3.0` | Same model as n8n workflows, structured outputs via Pydantic |
 | **Email** | Resend (primary, via `resend`) | `2.10.0` | Verified domain `mail.albertabishek.com` |
 | **Email Fallback** | SendGrid (via `sendgrid`) | `6.11.0` | Backup if Resend fails |
-| **WhatsApp/SMS** | Twilio (via `twilio`) | `9.10.9` | Already configured in n8n (trial — verified numbers only) |
+| **WhatsApp/SMS** | Twilio (via `twilio`) | `9.10.9` | Already configured in n8n (trial - verified numbers only) |
 | **Payment Links** | Razorpay API (via `httpx`) | `0.28.1` | Generate one-tap payment links per recovery |
 | **HTTP Client** | httpx | `0.28.1` | Async HTTP for Razorpay API calls |
 | **Frontend** | React + Vite | `19.x` / `6.x` | Fast build, modern, clean |
 | **CSS** | Tailwind CSS v4 (via `@tailwindcss/vite`) | `4.3.3` | Utility-first, responsive, Vite plugin |
 | **Realtime** | `@supabase/supabase-js` | `2.x` | Live event feed without polling |
-| **Deployment** | Railway | — | n8n already there, single platform |
+| **Deployment** | Railway | - | n8n already there, single platform |
 | **Python** | Python | `3.11+` | Required by all dependencies |
 
 ### Python requirements.txt (Pinned)
@@ -355,7 +355,7 @@ recovery-router/
 
 #### POST /webhook/recovery-tracker
 
-**Purpose:** Feedback loop — mark events as recovered when payment is captured.
+**Purpose:** Feedback loop - mark events as recovered when payment is captured.
 
 **Accepts:** Razorpay `payment.captured` and `payment_link.paid` webhook payloads.
 
@@ -365,7 +365,7 @@ recovery-router/
 3. For `payment_link.paid`: extract payment_link_id, reference_id, payment details
 4. Query Supabase: `recovery_events WHERE order_id = ? AND status = 'pending'` (LIMIT 1)
 5. If found AND `attempt_count > 0`: UPDATE → `status='recovered'`, `recovered_at=now`, `recovered_amount=amount`, `payment_id=new_payment_id`
-6. If found AND `attempt_count == 0`: Log as `organic_recovery` — do NOT pad AI metrics (Ghost Recovery Fix)
+6. If found AND `attempt_count == 0`: Log as `organic_recovery` - do NOT pad AI metrics (Ghost Recovery Fix)
 7. If not found: Log as organic payment (not a recovery)
 
 **Edge cases:**
@@ -411,12 +411,12 @@ class ClassificationResult(BaseModel):
 | card_expired | payment_failure | 0.40-0.60 | Email | Immediate |
 | insufficient_funds | payment_failure | 0.30-0.50 | SMS | 4 hours |
 | gateway_error | payment_failure | 0.80-0.90 | WhatsApp | 5 min |
-| unrecoverable_decline | payment_failure | 0 | None | — |
+| unrecoverable_decline | payment_failure | 0 | None | - |
 | high_intent_abandonment | cart_abandonment | 0.30-0.50 | WhatsApp | 1 hour |
-| browse_only_abandonment | cart_abandonment | 0.05-0.10 | None | — |
+| browse_only_abandonment | cart_abandonment | 0.05-0.10 | None | - |
 | recently_overdue | invoice_overdue | 0.60-0.80 | WhatsApp | Immediate |
 | moderately_overdue | invoice_overdue | 0.30-0.50 | Email | Immediate |
-| long_overdue | invoice_overdue | 0.10-0.20 | Email | — |
+| long_overdue | invoice_overdue | 0.10-0.20 | Email | - |
 
 **Rate limiting for OpenAI:**
 - Max 50 classifications per minute (Upstash Redis counter)
@@ -466,15 +466,15 @@ def route_action(classification: ClassificationResult) -> ActionPlan:
 - To: customer_phone (must be verified on trial)
 - Message includes: customer name, amount, failure category, payment link URL
 - `toWhatsapp: false` on trial (sends as SMS instead)
-- **Limitation:** Trial account — only verified numbers. Document this honestly.
+- **Limitation:** Trial account - only verified numbers. Document this honestly.
 
-#### Email (via Resend — PRIMARY)
+#### Email (via Resend - PRIMARY)
 - From: `noreply@mail.albertabishek.com` (verified domain)
 - To: customer_email
 - HTML template with: heading, personalized body, "Complete Payment" CTA button, AI reasoning
 - Resend has higher deliverability than SendGrid on trial
 
-#### Email (via SendGrid — FALLBACK)
+#### Email (via SendGrid - FALLBACK)
 - Used if Resend fails
 - From: `abishekialbert@gmail.com`
 - Same HTML template
@@ -527,7 +527,7 @@ def route_action(classification: ClassificationResult) -> ActionPlan:
 }
 ```
 
-**Returns:** `{ id, short_url, status }` — the `short_url` is the one-tap payment link.
+**Returns:** `{ id, short_url, status }` - the `short_url` is the one-tap payment link.
 
 **Error handling:**
 - API error → use fallback URL: `https://rzp.io/i/recovery` (generic)
@@ -542,14 +542,14 @@ def route_action(classification: ClassificationResult) -> ActionPlan:
 
 **Flow:**
 1. Fetch from Supabase: `recovery_events WHERE status='pending' AND next_action_at <= now()` LIMIT 20
-2. Filter actionable (code logic — same as n8n):
+2. Filter actionable (code logic - same as n8n):
    - Skip if `opted_out = true`
    - Skip if `recovery_window_ends <= now` (72h window expired)
    - Skip if `attempt_count >= max_attempts` (default 5)
    - Skip if `failure_category = 'unrecoverable_decline'` or `recovery_probability = 0`
-3. For all actionable events (batch via `asyncio.gather()` — 20 events in ~2s instead of ~30s):
+3. For all actionable events (batch via `asyncio.gather()` - 20 events in ~2s instead of ~30s):
    a. Generate fresh Razorpay payment link (with `expire_by`)
-   b. Call AI (GPT-5 Mini) for escalation decision — all calls concurrent
+   b. Call AI (GPT-5 Mini) for escalation decision - all calls concurrent
    c. Route to channel (WhatsApp/Email/SMS/Give Up)
    d. Send message
    e. Log attempt to `recovery_attempts`
@@ -561,9 +561,9 @@ def route_action(classification: ClassificationResult) -> ActionPlan:
 |---------|-----------------|------|
 | 0 (first) | Use originally recommended channel | Friendly reminder |
 | 1 | Switch channel (WhatsApp↔Email, SMS→WhatsApp) | Firm follow-up |
-| 2 | SMS with urgent language | Urgent — time-sensitive |
-| 3 | Email final notice | Formal — mentions escalation |
-| 4+ | Give up → status='exhausted' | — |
+| 2 | SMS with urgent language | Urgent - time-sensitive |
+| 3 | Email final notice | Formal - mentions escalation |
+| 4+ | Give up → status='exhausted' | - |
 
 **Concurrency control:**
 - Redis lock: `escalation:lock` with 4-minute TTL (prevents overlapping runs)
@@ -635,9 +635,9 @@ def route_action(classification: ClassificationResult) -> ActionPlan:
 - Last updated timestamp
 
 **Stat tiles row (3 big numbers):**
-- **Revenue at Risk** — sum of all event amounts (red-tinted)
-- **Revenue Recovered** — sum of recovered amounts (green-tinted)
-- **Recovery Rate** — recovered/total as percentage (with trend arrow)
+- **Revenue at Risk** - sum of all event amounts (red-tinted)
+- **Revenue Recovered** - sum of recovered amounts (green-tinted)
+- **Recovery Rate** - recovered/total as percentage (with trend arrow)
 
 **AI Lift comparison card:**
 - Side-by-side: "Razorpay Baseline: 17.5%" vs "Recovery Router: X%"
@@ -660,7 +660,7 @@ def route_action(classification: ClassificationResult) -> ActionPlan:
 - Email: X% recovery rate, Y events
 - SMS: X% recovery rate, Y events
 
-**Simulator panel (bottom — for demo):**
+**Simulator panel (bottom - for demo):**
 - Dropdown: event type (payment_failure / cart_abandonment / invoice_overdue)
 - Dropdown: scenario preset (UPI Timeout, Card Expired, Fraud, High-Value Cart, etc.)
 - "Send Test Event" button
@@ -676,7 +676,7 @@ def route_action(classification: ClassificationResult) -> ActionPlan:
 
 ---
 
-## Database Schema (Existing — May Need Updates)
+## Database Schema (Existing - May Need Updates)
 
 ### recovery_events (PRIMARY TABLE)
 ```sql
@@ -770,7 +770,7 @@ CREATE INDEX IF NOT EXISTS idx_recovery_attempts_event ON recovery_attempts(reco
 ALTER PUBLICATION supabase_realtime ADD TABLE recovery_attempts;
 ```
 
-### pending_captures (NEW — handles race condition)
+### pending_captures (NEW - handles race condition)
 ```sql
 CREATE TABLE IF NOT EXISTS pending_captures (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -789,46 +789,46 @@ CREATE TABLE IF NOT EXISTS pending_captures (
 ## Edge Cases & Error Handling
 
 ### Webhook Edge Cases
-1. **Duplicate webhooks** — Razorpay may send the same webhook multiple times → Redis dedup with `{payment_id}` key, 1h TTL
-2. **Out-of-order webhooks** — `payment.captured` arrives before `payment.failed` → store in `pending_captures`, match later
-3. **Missing fields** — Normalize with null-safe defaults (amount=0, currency='INR', customer_name='Unknown')
-4. **Raw Razorpay payload** — Detect `body.event === 'payment.failed'` and extract from nested structure
-5. **Extremely large payloads** — Limit request body to 1MB
-6. **Invalid event_type** — Return 400 with allowed values
+1. **Duplicate webhooks** - Razorpay may send the same webhook multiple times → Redis dedup with `{payment_id}` key, 1h TTL
+2. **Out-of-order webhooks** - `payment.captured` arrives before `payment.failed` → store in `pending_captures`, match later
+3. **Missing fields** - Normalize with null-safe defaults (amount=0, currency='INR', customer_name='Unknown')
+4. **Raw Razorpay payload** - Detect `body.event === 'payment.failed'` and extract from nested structure
+5. **Extremely large payloads** - Limit request body to 1MB
+6. **Invalid event_type** - Return 400 with allowed values
 
 ### AI Classification Edge Cases
-7. **OpenAI API down** — Fallback to rule-based classification using error_code mapping
-8. **AI returns invalid JSON** — Retry once, then use fallback classification
-9. **AI returns unknown failure_category** — Map to closest known category, flag as `classification_uncertain`
-10. **AI returns recovery_probability outside 0-1** — Clamp to [0, 1]
-11. **Classification takes >10 seconds** — Timeout, use fallback
-12. **Token limit exceeded** — Truncate event data, retry
+7. **OpenAI API down** - Fallback to rule-based classification using error_code mapping
+8. **AI returns invalid JSON** - Retry once, then use fallback classification
+9. **AI returns unknown failure_category** - Map to closest known category, flag as `classification_uncertain`
+10. **AI returns recovery_probability outside 0-1** - Clamp to [0, 1]
+11. **Classification takes >10 seconds** - Timeout, use fallback
+12. **Token limit exceeded** - Truncate event data, retry
 
 ### Message Sending Edge Cases
-13. **Customer has no phone** — Skip WhatsApp/SMS, try email only
-14. **Customer has no email** — Skip email, try SMS only
-15. **No contact info at all** — Log as `uncontactable`, status='exhausted'
-16. **Twilio trial: unverified number** — Error logged, mark attempt as failed, try email
-17. **Invalid phone format** — Normalize phone (add +91 if missing country code)
-18. **Email bounced** — Mark attempt outcome as 'failed'
-19. **Rate limit hit on messaging API** — Queue with exponential backoff
+13. **Customer has no phone** - Skip WhatsApp/SMS, try email only
+14. **Customer has no email** - Skip email, try SMS only
+15. **No contact info at all** - Log as `uncontactable`, status='exhausted'
+16. **Twilio trial: unverified number** - Error logged, mark attempt as failed, try email
+17. **Invalid phone format** - Normalize phone (add +91 if missing country code)
+18. **Email bounced** - Mark attempt outcome as 'failed'
+19. **Rate limit hit on messaging API** - Queue with exponential backoff
 
 ### Payment Link Edge Cases
-20. **Razorpay payment link API fails** — Use fallback generic URL
-21. **Amount is 0 or negative** — Skip payment link, log error
-22. **Currency not INR** — Still create link (Razorpay supports multi-currency)
+20. **Razorpay payment link API fails** - Use fallback generic URL
+21. **Amount is 0 or negative** - Skip payment link, log error
+22. **Currency not INR** - Still create link (Razorpay supports multi-currency)
 
 ### Escalation Edge Cases
-23. **Event recovered between fetch and send** — Re-check status before sending
-24. **All channels failed for an event** — Mark as `delivery_failed`, retry in next cycle
-25. **Recovery window expired during processing** — Check before each action
-26. **Customer opted out** — Skip immediately, respect preference
-27. **Max attempts reached** — Mark as 'exhausted', stop trying
+23. **Event recovered between fetch and send** - Re-check status before sending
+24. **All channels failed for an event** - Mark as `delivery_failed`, retry in next cycle
+25. **Recovery window expired during processing** - Check before each action
+26. **Customer opted out** - Skip immediately, respect preference
+27. **Max attempts reached** - Mark as 'exhausted', stop trying
 
 ### Concurrency Edge Cases
-28. **Two escalation runs overlap** — Redis distributed lock prevents this
-29. **Webhook + escalation try to update same event** — Supabase handles with row-level locking
-30. **Multiple payment.captured for same order** — Only first one matches (status changes from pending)
+28. **Two escalation runs overlap** - Redis distributed lock prevents this
+29. **Webhook + escalation try to update same event** - Supabase handles with row-level locking
+30. **Multiple payment.captured for same order** - Only first one matches (status changes from pending)
 
 ---
 
@@ -865,7 +865,7 @@ CREATE TABLE IF NOT EXISTS pending_captures (
 Upstash Redis serves two roles: **Celery broker/backend** (task queue) and **direct Redis** (rate limiting, dedup, caching, locks).
 
 ### 1. Celery Broker + Result Backend
-Celery connects to Upstash via `rediss://` (SSL). See "Celery + Upstash Redis Configuration" section above. Tasks are dispatched with `.delay()` and executed by Celery workers. No custom queue management needed — Celery handles ACK/NACK, retries, and crash recovery.
+Celery connects to Upstash via `rediss://` (SSL). See "Celery + Upstash Redis Configuration" section above. Tasks are dispatched with `.delay()` and executed by Celery workers. No custom queue management needed - Celery handles ACK/NACK, retries, and crash recovery.
 
 ### 2. Rate Limiting
 Sliding window counters:
@@ -911,11 +911,11 @@ await redis.set("cache:analytics", json.dumps(result), ex=30)
 
 ## Celery Tasks & Beat Schedule
 
-Three Railway services — `web` (FastAPI), `worker` (Celery), `beat` (periodic scheduler) — all connect to Upstash Redis.
+Three Railway services - `web` (FastAPI), `worker` (Celery), `beat` (periodic scheduler) - all connect to Upstash Redis.
 
 ### Celery Tasks (tasks/)
 
-#### `process_recovery_event` — The Merged Pipeline
+#### `process_recovery_event` - The Merged Pipeline
 ```python
 @celery_app.task(bind=True, max_retries=3, acks_late=True)
 def process_recovery_event(self, event_data: dict):
@@ -937,7 +937,7 @@ def process_recovery_event(self, event_data: dict):
     return {"status": "sent", "event_id": event_id, "channel": action.channel}
 ```
 
-#### `run_escalation_cycle` — Periodic (every 5 min via Beat)
+#### `run_escalation_cycle` - Periodic (every 5 min via Beat)
 ```python
 @celery_app.task
 def run_escalation_cycle():
@@ -955,7 +955,7 @@ def run_escalation_cycle():
     return {"processed": len(actionable)}
 ```
 
-#### `scan_overdue_invoices` — Periodic (every 6h via Beat)
+#### `scan_overdue_invoices` - Periodic (every 6h via Beat)
 ```python
 @celery_app.task
 def scan_overdue_invoices():
@@ -998,9 +998,9 @@ celery_app.conf.beat_schedule = {
 
 ### Phase 1: Backend Core (Day 1-2)
 1. Project scaffold (FastAPI + Celery + requirements.txt + config)
-2. Celery app configuration (`celery_app.py` — Upstash Redis broker with SSL)
+2. Celery app configuration (`celery_app.py` - Upstash Redis broker with SSL)
 3. Supabase client + database helpers
-4. Redis client (direct — for rate limiting, dedup, caching, locks)
+4. Redis client (direct - for rate limiting, dedup, caching, locks)
 5. Pydantic models (all request/response schemas)
 6. Normalizer (handle both raw Razorpay and custom format)
 7. Deduplication logic (Redis SET NX with TTL)
@@ -1065,14 +1065,14 @@ celery_app.conf.beat_schedule = {
 
 ## Design Principles (From Our Strategy)
 
-1. **One rupee recovered > ten features built** — Every component must directly recover revenue or measure recovery
-2. **Think like Razorpay, not like a hackathon participant** — Would a Razorpay PM approve this for production?
-3. **Smarter than doing nothing** — Know when NOT to act. Skipping unrecoverable events is a feature.
-4. **Measurable or it didn't happen** — Recovery rate by failure type. False positive rate. Every claim backed by a number.
-5. **Honest about what doesn't work** — Surface limitations. Quantify them. Judges reward this.
-6. **One engine, not three products** — Three input types, one classify → route → act → measure pipeline
-7. **Complement Razorpay, don't compete** — "Vulcan prevents failures. Recovery Router handles the ones that still happen."
-8. **Ship beats perfect** — Working system with honest metrics beats polished system that's half-built
+1. **One rupee recovered > ten features built** - Every component must directly recover revenue or measure recovery
+2. **Think like Razorpay, not like a hackathon participant** - Would a Razorpay PM approve this for production?
+3. **Smarter than doing nothing** - Know when NOT to act. Skipping unrecoverable events is a feature.
+4. **Measurable or it didn't happen** - Recovery rate by failure type. False positive rate. Every claim backed by a number.
+5. **Honest about what doesn't work** - Surface limitations. Quantify them. Judges reward this.
+6. **One engine, not three products** - Three input types, one classify → route → act → measure pipeline
+7. **Complement Razorpay, don't compete** - "Vulcan prevents failures. Recovery Router handles the ones that still happen."
+8. **Ship beats perfect** - Working system with honest metrics beats polished system that's half-built
 
 ---
 
@@ -1080,10 +1080,10 @@ celery_app.conf.beat_schedule = {
 
 - NEVER build a feature without answering: "How much revenue does this recover?"
 - NEVER show a metric without showing how it was measured
-- NEVER hide a limitation — surface it, quantify it, explain why
+- NEVER hide a limitation - surface it, quantify it, explain why
 - NEVER duplicate what Razorpay already does well (Vulcan routing, at-checkout retry)
 - NEVER send a recovery action without the system having a reason it chose THAT action
-- NEVER treat all failures the same — differentiated treatment IS our value proposition
+- NEVER treat all failures the same - differentiated treatment IS our value proposition
 - ALWAYS ask: "Would a Razorpay PM ship this?" If no, cut it
 - ALWAYS ask: "Is this one engine or am I building a second product?" If second, merge or cut
 
@@ -1091,25 +1091,25 @@ celery_app.conf.beat_schedule = {
 
 ## Known Limitations (We Surface These Honestly)
 
-1. **Twilio trial account** — WhatsApp/SMS only to verified numbers. In production: upgrade account or use WhatsApp Business API directly.
-2. **Simulated data** — Metrics come from synthetic events. Real-world recovery rates will differ. Test methodology stated transparently.
-3. **Classification accuracy depends on LLM** — We report classification accuracy alongside recovery rates.
-4. **Recovery attribution is imperfect** — Customer pays 3 days after WhatsApp — did our message cause it? Acknowledge correlation-vs-causation gap.
-5. **Single-merchant scope** — No multi-tenant isolation. Scale path: add tenant_id column, per-merchant configuration.
-6. **n8n throughput limits** — For Razorpay-scale (millions), logic moves to async workers (which is what this code version IS).
-7. **No A/B testing** — Can't prove channel X beats channel Y without controlled experiments. Future improvement.
-8. **WhatsApp Business templates** — Need Meta approval for production. Using Twilio sandbox for demo.
+1. **Twilio trial account** - WhatsApp/SMS only to verified numbers. In production: upgrade account or use WhatsApp Business API directly.
+2. **Simulated data** - Metrics come from synthetic events. Real-world recovery rates will differ. Test methodology stated transparently.
+3. **Classification accuracy depends on LLM** - We report classification accuracy alongside recovery rates.
+4. **Recovery attribution is imperfect** - Customer pays 3 days after WhatsApp - did our message cause it? Acknowledge correlation-vs-causation gap.
+5. **Single-merchant scope** - No multi-tenant isolation. Scale path: add tenant_id column, per-merchant configuration.
+6. **n8n throughput limits** - For Razorpay-scale (millions), logic moves to async workers (which is what this code version IS).
+7. **No A/B testing** - Can't prove channel X beats channel Y without controlled experiments. Future improvement.
+8. **WhatsApp Business templates** - Need Meta approval for production. Using Twilio sandbox for demo.
 
 ---
 
 ## The 5-Minute Pitch Structure
 
-- **0:00-0:30** — The problem (Razorpay's own numbers: 25% failure, 70% never return, 80% unrecovered)
-- **0:30-1:00** — The insight ("Vulcan routes payments. I route failures.")
-- **1:00-2:30** — Live demo (3 different events → 3 different intelligent routing decisions on the dashboard)
-- **2:30-3:30** — Architecture (system diagram, classification example, routing logic)
-- **3:30-4:15** — Results (recovery rates by type, total recovered, actions skipped, AI lift over baseline)
-- **4:15-5:00** — Limitations and scale path (honest, quantified)
+- **0:00-0:30** - The problem (Razorpay's own numbers: 25% failure, 70% never return, 80% unrecovered)
+- **0:30-1:00** - The insight ("Vulcan routes payments. I route failures.")
+- **1:00-2:30** - Live demo (3 different events → 3 different intelligent routing decisions on the dashboard)
+- **2:30-3:30** - Architecture (system diagram, classification example, routing logic)
+- **3:30-4:15** - Results (recovery rates by type, total recovered, actions skipped, AI lift over baseline)
+- **4:15-5:00** - Limitations and scale path (honest, quantified)
 
 ---
 

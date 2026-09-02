@@ -1,4 +1,4 @@
-# Security Model — Recovery Router
+# Security Model - Recovery Router
 
 **Razorpay AI Buildathon Track 3** | Last updated: 2026-08-27
 
@@ -12,7 +12,7 @@ This document describes the security measures implemented in Recovery Router. Al
 
 Both `/webhook/recovery-router` and `/webhook/recovery-tracker` verify the `X-Razorpay-Signature` header using HMAC-SHA256 with a timing-safe comparison (`hmac.compare_digest`). The webhook secret is stored in `.env` as `RAZORPAY_WEBHOOK_SECRET`.
 
-If the secret is not configured (empty string), signature verification is bypassed to allow development without Razorpay — this should be set in production.
+If the secret is not configured (empty string), signature verification is bypassed to allow development without Razorpay - this should be set in production.
 
 ## 2. XSS Prevention
 
@@ -39,7 +39,7 @@ This prevents prompt injection attacks where a malicious `error_description` cou
 Redis-based deduplication with 1-hour TTL prevents duplicate event processing:
 - Uses `payment_id`, `order_id`, or `invoice_id` as the dedup key
 - If none exist, a SHA256 hash of the full payload is used as fallback
-- Empty identifiers bypass dedup (by design — such events are rare and non-critical)
+- Empty identifiers bypass dedup (by design - such events are rare and non-critical)
 
 ## 5. Rate Limiting
 
@@ -90,7 +90,7 @@ All Redis/Upstash connections use `ssl.CERT_REQUIRED` for TLS certificate verifi
 - `.gitignore` excludes: `.env`, `.env.*` (except `.env.example`), `Credentials_for_you/`, `*.pem`, `*.key`
 - `.env.example` files provide templates with placeholder values
 - Frontend uses `VITE_` prefixed env vars (Vite strips non-prefixed vars from the bundle)
-- Supabase anon key is intentionally exposed in frontend (by design) — RLS policies should restrict it to SELECT on `recovery_events` only
+- Supabase anon key is intentionally exposed in frontend (by design) - RLS policies should restrict it to SELECT on `recovery_events` only
 
 ## 10. Ghost Recovery Prevention
 
@@ -104,7 +104,7 @@ This prevents inflating AI Lift metrics by counting recoveries that would have h
 
 ## 11. Error Handling
 
-- Webhook endpoints return generic error messages (`"Invalid payload format"`) — full errors logged server-side only
+- Webhook endpoints return generic error messages (`"Invalid payload format"`) - full errors logged server-side only
 - Celery tasks use exponential backoff retry: `60 * (2^retries)` seconds (60s, 120s, 240s)
 - `acks_late=True` and `task_reject_on_worker_lost=True` ensure tasks survive worker crashes
 - All provider send functions catch exceptions and return structured error results (never crash the pipeline)

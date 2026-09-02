@@ -1,6 +1,6 @@
 # Decision Log -- Recovery Router
 
-Every technical and non-technical decision made in the Recovery Router project, including things we intentionally did not build.
+Every technical and non-technical decision made in the Recovery Router project, including things I intentionally didn't build.
 
 Built by Albert Abishek I for the Razorpay AI Buildathon 2026 (Track 3: AI Revenue Recovery).
 
@@ -56,9 +56,9 @@ Python RQ is simpler but lacks delayed tasks and built-in periodic scheduling. D
 
 **Alternatives considered:** Self-hosted PostgreSQL with SQLAlchemy, Firebase, PlanetScale.
 
-**Why this choice:** Supabase gave us three things for free that would have taken days to build:
+**Why this choice:** Supabase gave me three things for free that would have taken days to build:
 
-1. **Realtime subscriptions.** The frontend dashboard subscribes to the `recovery_events` table via Supabase Realtime. New events and status changes appear on the dashboard instantly without polling. With raw PostgreSQL, we would need to set up LISTEN/NOTIFY plus a WebSocket relay -- Supabase provides this out of the box.
+1. **Realtime subscriptions.** The frontend dashboard subscribes to the `recovery_events` table via Supabase Realtime. New events and status changes appear on the dashboard instantly without polling. With raw PostgreSQL, I'd need to set up LISTEN/NOTIFY plus a WebSocket relay -- Supabase provides this out of the box.
 2. **Managed infrastructure.** No provisioning, no backups, no patching. One fewer thing to maintain during a buildathon under time pressure.
 3. **Dual-key access model.** The backend uses `SUPABASE_SERVICE_KEY` for full table access. The frontend uses `SUPABASE_ANON_KEY` for Realtime subscriptions only. Row-level security policies restrict what the anon key can read.
 
@@ -72,7 +72,7 @@ Firebase was considered but rejected: it is NoSQL-only, and Recovery Router's da
 
 **Alternatives considered:** Direct Anthropic SDK, direct Google Gemini SDK, direct OpenAI SDK, LiteLLM.
 
-**Why this choice:** Recovery Router uses three AI models from three different providers. Without OpenRouter, we would need three API keys, three SDK integrations, three request/response formats, and three error handling paths. OpenRouter provides a single endpoint (`https://openrouter.ai/api/v1/chat/completions`) with a unified OpenAI-compatible format.
+**Why this choice:** Recovery Router uses three AI models from three different providers. Without OpenRouter, I'd need three API keys, three SDK integrations, three request/response formats, and three error handling paths. OpenRouter provides a single endpoint (`https://openrouter.ai/api/v1/chat/completions`) with a unified OpenAI-compatible format.
 
 The entire AI client (`ai_client.py`) is 191 lines. With three separate SDKs, it would be 400+ lines with three times the error handling surface. Switching models is a string change, not a library swap.
 
@@ -120,12 +120,12 @@ The fallback uses a two-pass keyword match: first against the error code, then a
 
 **Why this choice:** The Payment Links API has a 30-link lifetime limit in test mode. During development and demo, each test scenario creates a payment link. Hit the limit after 30 tests and the system stops working. The Orders API has no such limit.
 
-By creating orders and hosting our own checkout page at `/pay/{order_id}`, we get unlimited test-mode payment generation. The hosted page loads Razorpay's Standard Checkout SDK, pre-fills customer details from a Redis-stored token, and auto-opens the checkout modal.
+By creating orders and hosting my own checkout page at `/pay/{order_id}`, I get unlimited test-mode payment generation. The hosted page loads Razorpay's Standard Checkout SDK, pre-fills customer details from a Redis-stored token, and auto-opens the checkout modal.
 
 **Tradeoffs accepted:** Three things are worse with this approach:
 - Checkout URLs are longer than Razorpay's `rzp.io` short links.
-- The checkout page is served by our FastAPI app -- if the backend goes down, checkout links break.
-- We had to build and maintain a server-rendered HTML checkout page instead of using Razorpay's hosted page.
+- The checkout page is served by my FastAPI app -- if the backend goes down, checkout links break.
+- I had to build and maintain a server-rendered HTML checkout page instead of using Razorpay's hosted page.
 
 In production, you would use the Payment Links API (no 30-link limit outside test mode). This was a necessary buildathon workaround.
 
@@ -135,7 +135,7 @@ In production, you would use the Payment Links API (no 30-link limit outside tes
 
 **Alternatives considered:** Twilio WhatsApp only, WhatsApp Business API directly, no WhatsApp.
 
-**Why this choice:** The entire value proposition of Recovery Router's AI is personalized messages. The AI writes context-aware recovery text ("Hey Arun, looks like your UPI payment of Rs 4,999 timed out..."). Green API lets us send that personalized text as a free-form WhatsApp message.
+**Why this choice:** The entire value proposition of Recovery Router's AI is personalized messages. The AI writes context-aware recovery text ("Hey Arun, looks like your UPI payment of Rs 4,999 timed out..."). Green API lets me send that personalized text as a free-form WhatsApp message.
 
 Twilio's WhatsApp integration requires pre-approved templates via `content_sid`. You cannot send dynamic, AI-personalized text -- every message uses the same template. That defeats the purpose of having AI-generated messages.
 
@@ -149,13 +149,13 @@ Green API allows sending any text, which means the customer receives the actual 
 
 **Alternatives considered:** Razorpay Payment Links (hosted by Razorpay), Razorpay Standard Checkout in a static page.
 
-**Why this choice:** This was a consequence of the Orders API decision (see 1.7). Since we use Orders instead of Payment Links, there is no Razorpay-hosted checkout page. We needed to build one.
+**Why this choice:** This was a consequence of the Orders API decision (see 1.7). Since I use Orders instead of Payment Links, there is no Razorpay-hosted checkout page. I needed to build one.
 
 The page is server-rendered HTML from `backend/app/routers/checkout.py`. It loads Razorpay's Checkout.js SDK, reads customer details from a Redis token (`?t={token}`), and auto-opens the checkout modal 500ms after page load. The order ID is validated against a regex (`^order_[A-Za-z0-9]{8,30}$`). All user-supplied strings are escaped for both HTML and JavaScript contexts.
 
 Customer PII (name, email, phone) is stored server-side in Redis with a random 24-byte token. The PII never appears in the URL path or query parameters beyond the opaque token. This means recovery links can be forwarded or shared without leaking customer information.
 
-**Tradeoffs accepted:** The checkout page is a security surface we maintain. It runs on our backend -- if the backend goes down, checkout links break. There is no CSRF protection on the page. The checkout token has a 24-hour TTL, after which the page still works but without pre-filled customer details.
+**Tradeoffs accepted:** The checkout page is a security surface I maintain. It runs on my backend -- if the backend goes down, checkout links break. There is no CSRF protection on the page. The checkout token has a 24-hour TTL, after which the page still works but without pre-filled customer details.
 
 ### 1.10 Redis for Six Different Purposes
 
@@ -388,7 +388,7 @@ The implementation is Redis `SET NX EX`: atomic, self-expiring, no cleanup neede
 
 **Alternatives considered:** Separate pipelines per leak type, payment failures only.
 
-**Why this choice:** The recovery problem is the same regardless of leak type: something went wrong, we need to understand what, decide how to recover, reach the customer, and track the outcome. The operations differ (a UPI timeout needs an immediate WhatsApp, an overdue invoice needs a formal email), but the pipeline shape is identical.
+**Why this choice:** The recovery problem is the same regardless of leak type: something went wrong, the system needs to understand what, decide how to recover, reach the customer, and track the outcome. The operations differ (a UPI timeout needs an immediate WhatsApp, an overdue invoice needs a formal email), but the pipeline shape is identical.
 
 Building three separate pipelines would mean three sets of escalation logic, three sets of messaging code, three sets of analytics. One pipeline with a 12-category classification system is simpler to build, test, and maintain.
 
@@ -414,11 +414,11 @@ This means the system spends its outreach budget where it is most likely to reco
 
 ### 3.3 Ghost Recovery Prevention (Honest Metrics)
 
-**Decision:** When a payment is captured and matched to a recovery event, the system checks whether our outreach actually contributed to the recovery.
+**Decision:** When a payment is captured and matched to a recovery event, the system checks whether my outreach actually contributed to the recovery.
 
 **Alternatives considered:** Count all matched payments as "recovered" (simpler, inflated numbers).
 
-**Why this choice:** If a customer's UPI payment times out at 3:00 PM, we send a WhatsApp at 3:01 PM, and the customer retries on their own at 3:02 PM (before even seeing the message), did we recover that payment? No. But if we count it as "recovered," our metrics look better than they are.
+**Why this choice:** If a customer's UPI payment times out at 3:00 PM, the system sends a WhatsApp at 3:01 PM, and the customer retries on their own at 3:02 PM (before even seeing the message), did the system recover that payment? No. But if I count it as "recovered," my metrics look better than they are.
 
 The system distinguishes two outcomes:
 - **`recovered`**: At least one outreach message was successfully sent before the payment was captured.
@@ -426,7 +426,7 @@ The system distinguishes two outcomes:
 
 The check is deliberately conservative: even if `attempt_count` is 0 (maybe due to a timing bug), if any attempt record shows `outcome = "sent"`, the recovery is attributed to outreach.
 
-**Tradeoffs accepted:** This undercounts our effectiveness. If we sent a WhatsApp and the customer paid 30 seconds later (probably because of the message), but the message delivery was not confirmed (only "sent" to the provider), we still count it as our recovery. But if the provider never accepted the message and the customer paid anyway, it is correctly marked organic. The undercounting direction is intentional -- better to understate than overstate.
+**Tradeoffs accepted:** This undercounts my effectiveness. If the system sent a WhatsApp and the customer paid 30 seconds later (probably because of the message), but the message delivery was not confirmed (only "sent" to the provider), I still count it as my recovery. But if the provider never accepted the message and the customer paid anyway, it is correctly marked organic. The undercounting direction is intentional -- better to understate than overstate.
 
 ### 3.4 Razorpay UI Clone (Feel Like a Native Feature)
 
@@ -441,7 +441,7 @@ The check is deliberately conservative: even if `attempt_count` is 0 (maybe due 
 - Status badges matching Razorpay's color system (green for success, amber for pending, red for failure)
 - Inter font family with consistent weight hierarchy
 
-This is a handcrafted CSS approach, not Razorpay's official design system library. The goal is that a Razorpay PM looking at the dashboard should immediately feel "this could be one of our products."
+This is a handcrafted CSS approach, not Razorpay's official design system library. The goal is that a Razorpay PM looking at the dashboard should immediately feel "this could be one of their products."
 
 **Tradeoffs accepted:** The design is a visual clone, not a component library integration. If Razorpay updates their design language, the dashboard does not update automatically. The styling is done via CSS custom properties and Tailwind utilities, not a reusable design system. For a buildathon, visual fidelity matters more than engineering rigor in the design layer.
 
@@ -455,7 +455,7 @@ This is a handcrafted CSS approach, not Razorpay's official design system librar
 
 9 PM to 9 AM covers the overnight period when most Indian consumers would not appreciate transactional messages. IST is hardcoded because Recovery Router is built for Indian merchants on Razorpay.
 
-**Tradeoffs accepted:** A customer in a different timezone (say, a US-based customer of an Indian merchant) might be awake at 3 AM IST. The system still holds the message until 9 AM IST. Per-customer timezone detection would require IP geolocation or customer profile data that we do not have. Fixed IST is a reasonable default for Razorpay's primary market.
+**Tradeoffs accepted:** A customer in a different timezone (say, a US-based customer of an Indian merchant) might be awake at 3 AM IST. The system still holds the message until 9 AM IST. Per-customer timezone detection would require IP geolocation or customer profile data that I do not have. Fixed IST is a reasonable default for Razorpay's primary market.
 
 ### 3.6 "Sent" Not "Delivered"
 
@@ -463,11 +463,11 @@ This is a handcrafted CSS approach, not Razorpay's official design system librar
 
 **Alternatives considered:** Full delivery tracking via webhooks from each provider.
 
-**Why this choice:** Honesty. The system can confirm that Green API, Twilio, or Resend accepted the message for delivery. It cannot confirm the customer saw it. Calling it "delivered" when we only know it was "sent" would inflate our outreach metrics.
+**Why this choice:** Honesty. The system can confirm that Green API, Twilio, or Resend accepted the message for delivery. It cannot confirm the customer saw it. Calling it "delivered" when I only know it was "sent" would inflate my outreach metrics.
 
 The audit log and analytics dashboard use "sent" consistently. The ghost recovery prevention (3.3) uses this distinction too -- a message marked "sent" might not have reached the customer, so if the customer pays without any "sent" messages, it is classified as organic.
 
-**Tradeoffs accepted:** We overstate our uncertainty. Many "sent" messages are probably delivered. Without delivery receipts, we cannot refine this. Building delivery webhook integrations for Green API, Twilio, and Resend would add three more webhook handlers, three more status tracking paths, and three more provider-specific behaviors. That is a v2 feature, not a buildathon feature.
+**Tradeoffs accepted:** I overstate my uncertainty. Many "sent" messages are probably delivered. Without delivery receipts, I cannot refine this. Building delivery webhook integrations for Green API, Twilio, and Resend would add three more webhook handlers, three more status tracking paths, and three more provider-specific behaviors. That is a v2 feature, not a buildathon feature.
 
 ---
 
@@ -489,7 +489,7 @@ More importantly, PTP introduces a new trust problem. If a customer promises to 
 
 **Alternatives considered:** Training a custom classifier on Razorpay's historical failure data.
 
-**Why not:** Training an ML model requires labeled training data: thousands of payment failures with correct failure categories and recovery outcomes. We do not have access to Razorpay's historical data. We are building on test-mode transactions with synthetic scenarios.
+**Why not:** Training an ML model requires labeled training data: thousands of payment failures with correct failure categories and recovery outcomes. I do not have access to Razorpay's historical data. I am building on test-mode transactions with synthetic scenarios.
 
 LLMs (Claude, Gemini, GPT) are effective zero-shot classifiers for this task. The error descriptions from Razorpay are natural language text ("Payment processing failed because the bank server is temporarily unavailable"). An LLM reads this and assigns the right category without any training data.
 
@@ -505,10 +505,10 @@ The rule-based fallback (keyword matching against error codes) provides a simple
 
 Three specific anti-inflation measures:
 1. **Organic vs. recovered split.** Payments captured with zero successful outreach are marked `organic_recovery`, not `recovered`.
-2. **"Sent" not "delivered."** Outreach metrics say "sent" because that is what we can verify.
+2. **"Sent" not "delivered."** Outreach metrics say "sent" because that is what I can verify.
 3. **AI lift comparison.** The analytics page compares against a 15% industry baseline (cited from Razorpay's 2026 blog) so the improvement is contextualized, not presented as an absolute.
 
-This hurts our demo numbers. A system that counts all matched payments as "recovered" would show a higher recovery rate. But honest numbers build trust, and trust is what a payment recovery system needs.
+This hurts my demo numbers. A system that counts all matched payments as "recovered" would show a higher recovery rate. But honest numbers build trust, and trust is what a payment recovery system needs.
 
 ### 4.4 No Feature-Rich Dashboard (Fewer, High-Impact Features)
 

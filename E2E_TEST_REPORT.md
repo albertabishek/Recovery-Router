@@ -1,7 +1,7 @@
 # Recovery Router - E2E Test Report
 
 **Date:** 2026-08-27
-**Tested by:** Claude (automated pipeline tests — real API calls, no mocks)
+**Tested by:** Claude (automated pipeline tests - real API calls, no mocks)
 **Status:** Production-ready with known trial-tier limitations
 
 ---
@@ -16,7 +16,7 @@ All 10 test scenarios processed through the full pipeline without crashes. The A
 HTTP POST -> FastAPI -> AI Classification -> Route Decision -> Payment Link (Razorpay) -> Send Message -> Log to Supabase
 ```
 
-Each step is real — no mocks, no bypasses, no hardcoded test scripts.
+Each step is real - no mocks, no bypasses, no hardcoded test scripts.
 
 ## Test Results
 
@@ -48,7 +48,7 @@ The AI makes **different decisions** based on actual signal analysis:
 
 ### AI Escalation Intelligence
 
-Tested separately — AI analyzes attempt history and makes context-aware next moves:
+Tested separately - AI analyzes attempt history and makes context-aware next moves:
 
 | Test | AI Decision | Reasoning |
 |---|---|---|
@@ -102,7 +102,7 @@ broker_transport_options = {"visibility_timeout": 3600}  # Re-visible after 1 ho
 
 ## Known Limitations
 
-1. **Twilio Trial**: Only sends to verified number +919042824369. Custom body not supported — uses predefined templates for SMS, content_sid for WhatsApp.
+1. **Twilio Trial**: Only sends to verified number +919042824369. Custom body not supported - uses predefined templates for SMS, content_sid for WhatsApp.
 2. **Resend Free Tier**: 60 emails/day, 65/month.
 3. **Green API**: Monthly quota exhausted (466). Kept as fallback.
 4. **Cooldown**: 1 hour per channel per phone/email. By design to prevent spam.

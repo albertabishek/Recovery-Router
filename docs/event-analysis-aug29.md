@@ -1,4 +1,4 @@
-# Recovery Router — Event Data Analysis & Bug Report
+# Recovery Router - Event Data Analysis & Bug Report
 
 **Date:** August 29, 2026
 **Events analyzed:** Last 15 events (IDs 411–425) + all 312 exhausted events + 5 recovered events
@@ -17,7 +17,7 @@
 | 5 | "current_strategy" says "initial" forever for most events | MEDIUM | Backend pipeline |
 | 6 | Frontend doesn't show the reason when recovery is stopped | HIGH | Frontend display |
 | 7 | Recovered events show escalation_level = 0 (never updated) | LOW | Backend pipeline |
-| 8 | Technical jargon everywhere — users can't understand the status labels | HIGH | Frontend UX |
+| 8 | Technical jargon everywhere - users can't understand the status labels | HIGH | Frontend UX |
 | 9 | Fallback events show wrong/generic skip_reason text | MEDIUM | Backend classifier |
 | 10 | "alternative_action" field never shown in frontend | LOW | Frontend display |
 | 11 | No way to see WHY an event was classified a certain way in the list view | LOW | Frontend UX |
@@ -27,110 +27,110 @@
 
 ## Detailed Analysis: Last 15 Events (IDs 411–425)
 
-### Event #425 — Bank Server Down (Netbanking ₹4,999)
+### Event #425 - Bank Server Down (Netbanking ₹4,999)
 - **Status:** Pending (actively being recovered)
 - **What happened:** Payment failed because the bank server was temporarily offline. AI correctly identified this and sent a WhatsApp message within 5 minutes.
 - **What's right:** escalation_level=1, attempt_count=1, recovery_probability=82%, channel=whatsapp
 - **What's wrong:**
-  - `current_strategy` still says "initial" — should say something like "first message sent" after the first attempt
-  - The next attempt is scheduled for 4 hours later. For a bank downtime (temporary issue), 4 hours is too long — the bank could be back in 30 minutes
+  - `current_strategy` still says "initial" - should say something like "first message sent" after the first attempt
+  - The next attempt is scheduled for 4 hours later. For a bank downtime (temporary issue), 4 hours is too long - the bank could be back in 30 minutes
 
-### Event #424 — Bank Server Down (Netbanking ₹4,999) — duplicate of 425
+### Event #424 - Bank Server Down (Netbanking ₹4,999) - duplicate of 425
 - **Status:** Pending
-- **Same issues as #425** — these are from the same test run
+- **Same issues as #425** - these are from the same test run
 
-### Event #423 — Payment System Error (UPI ₹1,599)
+### Event #423 - Payment System Error (UPI ₹1,599)
 - **Status:** Pending
 - **What happened:** The payment gateway had a technical error. AI sent WhatsApp immediately.
 - **What's right:** escalation_level=1, attempt_count=1, probability=78%
 - **What's wrong:**
-  - `current_strategy` = "initial" (same issue — not updated after first attempt)
+  - `current_strategy` = "initial" (same issue - not updated after first attempt)
 
-### Event #422 — Payment Timed Out (UPI ₹4,999)
+### Event #422 - Payment Timed Out (UPI ₹4,999)
 - **Status:** Pending
 - **What happened:** UPI payment timed out. WhatsApp sent immediately. Customer later tried to pay via card on the recovery link but cancelled the payment.
 - **What's right:** escalation_level=1, 2 attempts logged (1 sent + 1 customer-cancelled)
 - **What's wrong:**
-  - `attempt_count` = 1 but there are actually 2 attempts in history (the customer's failed retry was logged as attempt #2 but didn't increment the event's attempt_count) — this means the count shown in the UI (1/4) is misleading
+  - `attempt_count` = 1 but there are actually 2 attempts in history (the customer's failed retry was logged as attempt #2 but didn't increment the event's attempt_count) - this means the count shown in the UI (1/4) is misleading
   - `current_strategy` = "initial" still, even though customer already tried and cancelled
 
-### Event #421 — Customer Browsed But Didn't Buy (Cart ₹149)
+### Event #421 - Customer Browsed But Didn't Buy (Cart ₹149)
 - **Status:** No Action Needed
 - **What happened:** Low-value cart (₹149, 1 item), no payment was even attempted. AI correctly decided not to chase this customer.
 - **What's right:** status=no_action_needed, max_attempts=0, probability=15%
 - **What's wrong:**
-  - `skip_reason` = "Browse-only abandonment with no payment attempt and low cart value does not justify immediate outreach. Cost of recovery effort exceeds expected transaction value." — This is GOOD, but too technical for a normal user to understand
+  - `skip_reason` = "Browse-only abandonment with no payment attempt and low cart value does not justify immediate outreach. Cost of recovery effort exceeds expected transaction value." - This is GOOD, but too technical for a normal user to understand
   - In the frontend, this event shows perfectly fine
 
-### Event #420 — Suspected Fraud (Card ₹14,999)
+### Event #420 - Suspected Fraud (Card ₹14,999)
 - **Status:** No Action Needed
 - **What happened:** Bank flagged payment as potentially fraudulent. FALLBACK classification (AI was unavailable).
 - **What's right:** status=no_action_needed, probability=0, channel=none
 - **What's wrong:**
-  - `fallback_classification` = true — AI was unavailable, so the system used hardcoded rules instead. The reasoning says "Rule-based fallback (AI unavailable)" — this is honest but confusing for users
-  - `recommended_action` = "fallback_none_recovery" — this is an internal code name, NOT a human-readable message. A user seeing this would have no idea what it means
-  - `skip_reason` = "Unrecoverable decline" — very short and unhelpful compared to event #415 (same scenario but WITH AI) which has a full paragraph explaining why
+  - `fallback_classification` = true - AI was unavailable, so the system used hardcoded rules instead. The reasoning says "Rule-based fallback (AI unavailable)" - this is honest but confusing for users
+  - `recommended_action` = "fallback_none_recovery" - this is an internal code name, NOT a human-readable message. A user seeing this would have no idea what it means
+  - `skip_reason` = "Unrecoverable decline" - very short and unhelpful compared to event #415 (same scenario but WITH AI) which has a full paragraph explaining why
 
-### Event #419 — Invoice Very Late (54 days overdue, ₹30,000)
+### Event #419 - Invoice Very Late (54 days overdue, ₹30,000)
 - **Status:** Pending
 - **What happened:** Invoice is 54 days late. AI recommended formal email with payment deadline.
 - **What's right:** channel=email, probability=25%, max_attempts=3, escalation_level=1
 - **What's wrong:**
   - `current_strategy` = "initial" (same persistent bug)
 
-### Event #418 — Invoice Recently Late (2 days overdue, ₹5,000)
+### Event #418 - Invoice Recently Late (2 days overdue, ₹5,000)
 - **Status:** Pending
 - **What happened:** Invoice just went overdue. AI sent a friendly email reminder.
 - **What's right:** channel=email, probability=75%, max_attempts=5, escalation_level=1
 - **What's wrong:**
   - `current_strategy` = "initial"
 
-### Event #417 — Customer Browsed But Didn't Buy (Cart ₹99)
+### Event #417 - Customer Browsed But Didn't Buy (Cart ₹99)
 - **Status:** No Action Needed
 - **What happened:** Very low value cart. FALLBACK classification.
 - **What's wrong:**
-  - `fallback_classification` = true — same issues as #420
-  - `recommended_action` = "fallback_none_recovery" — internal code, not human-readable
-  - `skip_reason` = "Unrecoverable decline" — WRONG! This is a low-value browsing cart, not a "declined" payment. The skip reason is completely incorrect for this scenario. It's using the same generic text for all fallback-classified events regardless of the actual situation
-  - `recovery_probability` = 0.07 — AI set this correctly but then the fallback slapped a fraud-related skip reason on a browsing event
+  - `fallback_classification` = true - same issues as #420
+  - `recommended_action` = "fallback_none_recovery" - internal code, not human-readable
+  - `skip_reason` = "Unrecoverable decline" - WRONG! This is a low-value browsing cart, not a "declined" payment. The skip reason is completely incorrect for this scenario. It's using the same generic text for all fallback-classified events regardless of the actual situation
+  - `recovery_probability` = 0.07 - AI set this correctly but then the fallback slapped a fraud-related skip reason on a browsing event
 
-### Event #416 — Customer Left High-Value Cart (₹9,999, 4 items)
+### Event #416 - Customer Left High-Value Cart (₹9,999, 4 items)
 - **Status:** Pending
 - **What happened:** Customer had 4 items worth ₹9,999 in cart but left without paying. AI recommended WhatsApp in 1 hour.
 - **What's right:** failure_category=high_intent_abandonment, probability=72%, channel=whatsapp
 - **What's wrong:**
-  - `attempt_count` = 0, `escalation_level` = 0, `last_attempt_at` = null — because the timing was "1_hour" (delayed), the actual WhatsApp message hasn't been sent yet. The `_send_delayed` Celery task is supposed to fire in 1 hour, but...
+  - `attempt_count` = 0, `escalation_level` = 0, `last_attempt_at` = null - because the timing was "1_hour" (delayed), the actual WhatsApp message hasn't been sent yet. The `_send_delayed` Celery task is supposed to fire in 1 hour, but...
   - **BIG ISSUE:** The `next_action_at` was set to 1 hour from creation (01:14 AM). If the Celery Beat/worker wasn't running at that exact time, or the delayed task failed silently, this event would sit forever with no message ever sent and no way to know why
-  - No attempt history at all — empty
+  - No attempt history at all - empty
 
-### Event #415 — Suspected Fraud (Card ₹14,999)
+### Event #415 - Suspected Fraud (Card ₹14,999)
 - **Status:** No Action Needed
 - **What happened:** Same fraud scenario as #420, but THIS time AI was available.
 - **What's right:** Fully detailed reasoning explaining why fraud flags can't be recovered. skip_reason has a complete explanation.
-- **Contrast with #420:** Shows how much worse the fallback classification is — #420 has "Unrecoverable decline" (3 words) vs #415 which has a full paragraph explaining what to do
+- **Contrast with #420:** Shows how much worse the fallback classification is - #420 has "Unrecoverable decline" (3 words) vs #415 which has a full paragraph explaining what to do
 
-### Event #414 — Payment System Error (UPI ₹3,999)
+### Event #414 - Payment System Error (UPI ₹3,999)
 - **Status:** Pending
 - **What happened:** Gateway error on UPI. AI sent WhatsApp immediately.
 - **What's right:** escalation_level=1, attempt_count=1, probability=78%
 - **What's wrong:** `current_strategy` = "initial"
 
-### Event #413 — Bank Server Down (Netbanking ₹4,999)
+### Event #413 - Bank Server Down (Netbanking ₹4,999)
 - **Status:** Pending
 - **What happened:** Bank downtime. AI recommended WhatsApp in 30 minutes (delayed).
 - **What's wrong:**
-  - `attempt_count` = 0, `escalation_level` = 0 — DELAYED SEND. Same issue as #416. The message was supposed to be sent 30 minutes later, but it's been hours and still attempt_count=0
-  - `next_action_at` = 00:44 AM — this was when the delayed send should have happened. It's now long past. Either the delayed task failed or the Celery worker wasn't processing it
+  - `attempt_count` = 0, `escalation_level` = 0 - DELAYED SEND. Same issue as #416. The message was supposed to be sent 30 minutes later, but it's been hours and still attempt_count=0
+  - `next_action_at` = 00:44 AM - this was when the delayed send should have happened. It's now long past. Either the delayed task failed or the Celery worker wasn't processing it
   - This event is stuck: it looks like it's "pending" and has a scheduled action, but that action time is already in the past
 
-### Event #412 — Not Enough Money in Account (Card ₹4,999)
+### Event #412 - Not Enough Money in Account (Card ₹4,999)
 - **Status:** Pending
 - **What happened:** Card payment failed due to insufficient funds. AI recommended SMS in 4 hours.
 - **What's wrong:**
-  - `attempt_count` = 0, `escalation_level` = 0 — DELAYED SEND. Same pattern as #413 and #416
-  - `next_action_at` = 04:14 AM — the delayed send might not have fired yet (or might have)
+  - `attempt_count` = 0, `escalation_level` = 0 - DELAYED SEND. Same pattern as #413 and #416
+  - `next_action_at` = 04:14 AM - the delayed send might not have fired yet (or might have)
 
-### Event #411 — Card Has Expired (Card ₹3,499)
+### Event #411 - Card Has Expired (Card ₹3,499)
 - **Status:** Pending
 - **What happened:** Customer's card expired. AI sent WhatsApp immediately.
 - **What's right:** escalation_level=1, attempt_count=1, probability=72%
@@ -145,12 +145,12 @@ Checked the top 5 exhausted events (IDs 399, 374, 357, 356, 355). ALL of them ha
 | Field | Current Value | Should Be |
 |-------|--------------|-----------|
 | `skip_reason` | `null` (empty!) | Should explain WHY recovery stopped (e.g., "All 4 attempts used" or "Recovery window expired") |
-| `next_action_at` | Still has a date/time | Should be `null` — there IS no next action, recovery is over |
-| `recovery_window_ends` | Still has a date | Should be `null` — the window already passed |
+| `next_action_at` | Still has a date/time | Should be `null` - there IS no next action, recovery is over |
+| `recovery_window_ends` | Still has a date | Should be `null` - the window already passed |
 
-**Root cause:** These 312 events were marked as "exhausted" by the OLD code (before our bug fixes). The old `_mark_exhausted` functions in `escalation.py` and `tasks/escalation.py` didn't clear `next_action_at`, didn't clear `recovery_window_ends`, and didn't set `skip_reason`.
+**Root cause:** These 312 events were marked as "exhausted" by the OLD code (before my bug fixes). The old `_mark_exhausted` functions in `escalation.py` and `tasks/escalation.py` didn't clear `next_action_at`, didn't clear `recovery_window_ends`, and didn't set `skip_reason`.
 
-**The fix is in the code now** — newly exhausted events will get correct values. But the 312 existing events need a one-time database cleanup.
+**The fix is in the code now** - newly exhausted events will get correct values. But the 312 existing events need a one-time database cleanup.
 
 ---
 
@@ -158,11 +158,11 @@ Checked the top 5 exhausted events (IDs 399, 374, 357, 356, 355). ALL of them ha
 
 All 5 recovered events (IDs 203, 184, 182, etc.) have `escalation_level` = 0.
 
-**Root cause:** These events were recovered (customer paid) BEFORE we fixed the code to set `escalation_level = 1` after the first attempt. The `handle_payment_captured` webhook handler doesn't update escalation_level when marking as recovered — it only existed events that were already at level 0.
+**Root cause:** These events were recovered (customer paid) BEFORE I fixed the code to set `escalation_level = 1` after the first attempt. The `handle_payment_captured` webhook handler doesn't update escalation_level when marking as recovered - it only existed events that were already at level 0.
 
 ---
 
-## Bug List — Organized by Priority
+## Bug List - Organized by Priority
 
 ### CRITICAL (Must fix before demo)
 
@@ -193,7 +193,7 @@ All 5 recovered events (IDs 203, 184, 182, etc.) have `escalation_level` = 0.
 - Every event that gets a message sent still shows `current_strategy = "initial"`
 - It only changes when the escalation cycle runs and updates it to the AI's "tone" decision
 - For the first attempt, the pipeline sets "initial" and never changes it to something meaningful
-- **Impact:** The strategy field is useless for first-attempt events — you can't tell if a message was sent or not from this field alone
+- **Impact:** The strategy field is useless for first-attempt events - you can't tell if a message was sent or not from this field alone
 - **Location:** `backend/app/tasks/recovery.py` lines 150-157
 
 **BUG 5: `attempt_count` doesn't include customer's own retry attempts**
@@ -213,17 +213,17 @@ All 5 recovered events (IDs 203, 184, 182, etc.) have `escalation_level` = 0.
 - Every event gets `next_action_at = now + 4 hours` regardless of urgency
 - UPI timeout (customer is actively waiting) gets same 4-hour delay as insufficient funds (customer needs time)
 - The AI's `recommended_timing` is only used for the FIRST attempt; all subsequent retry delays are hardcoded to 4 hours
-- **Impact:** Suboptimal recovery timing — urgent cases wait too long, non-urgent cases might be too frequent
+- **Impact:** Suboptimal recovery timing - urgent cases wait too long, non-urgent cases might be too frequent
 - **Location:** `backend/app/tasks/recovery.py` line 154, `backend/app/services/escalation.py` line 274
 
 **BUG 8: `recovery_window_ends` not cleared for no_action_needed events that are then marked as such during insert**
 - The `process_recovery_event` correctly clears it for `no_action` events, but the initial insert always sets it
 - This means for a brief moment, no_action events have a recovery window (then it's removed in the update)
-- **Impact:** Minor — the update removes it. But it's a two-step operation that could fail partway
+- **Impact:** Minor - the update removes it. But it's a two-step operation that could fail partway
 
 **BUG 9: UTF-8 encoding issues in AI responses**
 - The rupee symbol (₹) appears as garbled text: "â‚¹" instead of "₹"
-- Dashes appear as "â€"" instead of "—"
+- Dashes appear as "â€"" instead of "-"
 - Visible in: reasoning, recommended_action, alternative_action fields
 - **Impact:** AI explanations look broken to users
 - **Location:** Likely an encoding mismatch when storing/retrieving from Supabase, or in the AI response parsing
@@ -234,8 +234,8 @@ All 5 recovered events (IDs 203, 184, 182, etc.) have `escalation_level` = 0.
 
 | Current Term | What It Means | Suggested Human-Friendly Name |
 |---|---|---|
-| `pending` | We're actively trying to get the customer to pay | **In Progress** or **Recovering** |
-| `exhausted` | We tried everything and gave up | **Gave Up** or **Recovery Stopped** |
+| `pending` | Actively trying to get the customer to pay | **In Progress** or **Recovering** |
+| `exhausted` | Tried everything and gave up | **Gave Up** or **Recovery Stopped** |
 | `no_action_needed` | This event doesn't need any follow-up | **Skipped** or **No Follow-Up Needed** |
 | `recovered` | Customer paid! | **Paid** or **Payment Received** |
 | `paused` | An admin manually paused recovery | **On Hold** |
@@ -250,15 +250,15 @@ All 5 recovered events (IDs 203, 184, 182, etc.) have `escalation_level` = 0.
 | `recently_overdue` | Invoice is a few days late | **Recently Late** |
 | `long_overdue` | Invoice is very late (30+ days) | **Very Late** |
 | `fallback_classification` | AI was unavailable, so rules were used instead | **Rule-Based** (or hide this entirely) |
-| `escalation_level` | How many times we've escalated the urgency | **Follow-Up Round** |
+| `escalation_level` | How many times the urgency has been escalated | **Follow-Up Round** |
 | `current_strategy` | The current approach being used | **Current Approach** |
 | `attempt_count` / `max_attempts` | How many messages sent vs. budget | **Messages Sent / Message Limit** |
 | `recovery_window_ends` | Deadline to stop trying | **Stop Trying After** |
 | `next_action_at` | When the next message will be sent | **Next Message At** |
 | `recommended_timing` | When the AI says to send the first message | **Send First Message** |
-| `skip_reason` | Why we decided not to pursue this | **Reason** |
+| `skip_reason` | Why I decided not to pursue this | **Reason** |
 | `leak_type` | Category of revenue loss | **Loss Type** |
-| `recovery_probability` | AI's estimate of how likely we are to get the payment | **Recovery Chance** |
+| `recovery_probability` | AI's estimate of how likely the payment will be recovered | **Recovery Chance** |
 
 ---
 
@@ -281,7 +281,7 @@ All 5 recovered events (IDs 203, 184, 182, etc.) have `escalation_level` = 0.
 - Users don't know if the system is broken or just waiting
 
 ### Issue 4: Category names shown as raw snake_case
-- The code does `.replace(/_/g, ' ')` which turns "upi_timeout" into "upi timeout" — lowercase, no formatting
+- The code does `.replace(/_/g, ' ')` which turns "upi_timeout" into "upi timeout" - lowercase, no formatting
 - Should be properly capitalized and human-friendly
 
 ### Issue 5: Fallback events show "fallback_none_recovery" as the recommended action
@@ -312,7 +312,7 @@ All 5 recovered events (IDs 203, 184, 182, etc.) have `escalation_level` = 0.
 4. Fix fallback classifier to use correct skip_reason per scenario (not "Unrecoverable decline" for everything)
 5. Fix fallback classifier to use human-readable `recommended_action` (not "fallback_none_recovery")
 6. Update `current_strategy` after first attempt (change from "initial" to something meaningful like "first_contact_sent")
-7. Investigate why delayed sends (events #413, #416) have attempt_count=0 — check Celery logs
+7. Investigate why delayed sends (events #413, #416) have attempt_count=0 - check Celery logs
 8. Fix `handle_recovery_retry_failure` to increment attempt_count when customer retries
 
 ### Phase 3: Frontend Improvements

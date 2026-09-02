@@ -1,4 +1,4 @@
-# Security Architecture — Recovery Router
+# Security Architecture - Recovery Router
 
 > Recovery Router is an AI-powered payment recovery system handling real money flows through Razorpay. This document describes every security layer in the system, with exact file paths, line numbers, and code snippets.
 >
@@ -36,7 +36,7 @@
 def _verify_razorpay_signature(raw_body: bytes, signature: str) -> bool:
     secret = settings.RAZORPAY_WEBHOOK_SECRET
     if not secret:
-        logger.warning("RAZORPAY_WEBHOOK_SECRET not configured — rejecting webhook")
+        logger.warning("RAZORPAY_WEBHOOK_SECRET not configured - rejecting webhook")
         return False
     expected = hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected, signature)
@@ -143,8 +143,8 @@ def is_duplicate(event_type: str, identifier: str) -> bool:
     r = get_redis()
     key = f"dedup:{event_type}:{identifier}"
     if r.set(key, "1", nx=True, ex=DEDUP_TTL_SECONDS):
-        return False   # First time seeing this — not a duplicate
-    return True        # Key already exists — duplicate
+        return False   # First time seeing this - not a duplicate
+    return True        # Key already exists - duplicate
 ```
 
 **How it works:** `SET NX` (set-if-not-exists) is an atomic Redis operation. The first request for a given identifier wins; all subsequent requests within the 1-hour TTL are rejected as duplicates. This runs in the webhook handler before any database work.
@@ -415,9 +415,9 @@ $$;
 **Why it exists:** This is the last line of defense against bugs or external writers (manual SQL queries, n8n workflows, third-party integrations) that might prematurely mark an event as exhausted before the customer has been contacted. In a payment recovery system, a premature exhaustion means lost revenue.
 
 **Allowed exhaustion conditions:**
-1. `attempt_count >= max_attempts` — the recovery budget is genuinely used up.
-2. `max_attempts = 0` — the event was classified as unrecoverable (e.g., fraud).
-3. `skip_reason IS NOT NULL` — the application code provided an explicit reason (e.g., window expired).
+1. `attempt_count >= max_attempts` - the recovery budget is genuinely used up.
+2. `max_attempts = 0` - the event was classified as unrecoverable (e.g., fraud).
+3. `skip_reason IS NOT NULL` - the application code provided an explicit reason (e.g., window expired).
 
 ### Row-Level Security (RLS)
 

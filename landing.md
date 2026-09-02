@@ -1,6 +1,6 @@
-# Recovery Router — Submission Landing Page Content
+# Recovery Router - Submission Landing Page Content
 
-> **Razorpay AI Buildathon 2026 — Track 3: AI Revenue Recovery**
+> **Razorpay AI Buildathon 2026 - Track 3: AI Revenue Recovery**
 > Built by Albert Abishek I
 
 ---
@@ -17,7 +17,7 @@
 **Vulcan routes payments. Recovery Router routes failures.**
 
 ### One-liner
-An AI-powered engine that classifies every revenue leak, routes it to the optimal recovery action, and executes through the right channel at the right time — with honest metrics that never inflate results.
+An AI-powered engine that classifies every revenue leak, routes it to the optimal recovery action, and executes through the right channel at the right time - with honest metrics that never inflate results.
 
 ### CTA Buttons
 - **Live Demo** → razorpay.albertabishek.com
@@ -26,7 +26,7 @@ An AI-powered engine that classifies every revenue leak, routes it to the optima
 
 ---
 
-## Section 2: THE PROBLEM — Why This Track Exists
+## Section 2: THE PROBLEM - Why This Track Exists
 
 ### The Scale of Revenue Leakage in India
 
@@ -38,16 +38,16 @@ An AI-powered engine that classifies every revenue leak, routes it to the optima
 | Automated retry recovery rate | 15–20% of failed transactions | Same Razorpay article, May 2026 |
 | Vulcan improvement | 8–10% better success rates | razorpay.com/foundation-model |
 
-### What Exists Today — And Why It's Not Enough
+### What Exists Today - And Why It's Not Enough
 
 **Razorpay's current arsenal:**
 - **Vulcan** (Aug 2026): India's first transformer-based AI model for payments. Trained on 4B transactions, 3T data points, ~3,000 signals per transaction. Improves payment *success* rates by 8–10%. Hyper-precision routing, fraud detection, RTO risk intelligence.
 - **Agent Studio** (Mar 2026): World's first AI Agent Studio for payments, built on Anthropic's Claude Agent SDK. 8 pre-built agents including Dispute Responder, Subscription Recovery, Abandoned Cart Conversion, Cashflow Forecaster.
 - **Failed Payment Recovery**: Existing product for subscription payment recovery via WhatsApp reminders and incentive-led nudges.
 
-**The gap:** Vulcan optimizes the *before* — making payments succeed. But when they don't? There's no unified, intelligent system that understands *why* a payment failed and routes the failure to the right recovery action through the right channel at the right time. Agent Studio provides building blocks, but not a complete classify-route-act-measure pipeline across all three revenue leak types.
+**The gap:** Vulcan optimizes the *before* - making payments succeed. But when they don't? There's no unified, intelligent system that understands *why* a payment failed and routes the failure to the right recovery action through the right channel at the right time. Agent Studio provides building blocks, but not a complete classify-route-act-measure pipeline across all three revenue leak types.
 
-### The Global Landscape — How Others Handle It
+### The Global Landscape - How Others Handle It
 
 **Stripe (Global leader in recovery):**
 - **Combined Billing tools** (Smart Retries + automatic card updates + recovery automations): Stripe reports **55% of failed payments recovered on average** using the combined suite
@@ -57,18 +57,18 @@ An AI-powered engine that classifies every revenue leak, routes it to the optima
 
 **PayPal:**
 - Rigid retry: every 5 days, up to twice per billing cycle, fixed schedule
-- No native dunning email automation — merchants build their own
+- No native dunning email automation - merchants build their own
 - Partners with FlexFactor for ML-based recoverability scoring (not native)
 - **Limitation**: No merchant control, no multi-channel outreach
 
 **Adyen:**
 - **Auto Rescue**: ML-powered retry for recurring payments, uses reinforcement learning to optimize retry timing
-- Uses **contextual multi-armed bandits** — one of the most technically sophisticated retry approaches globally
+- Uses **contextual multi-armed bandits** - one of the most technically sophisticated retry approaches globally
 - **Limitation**: Retry-only focus, dunning communication left entirely to merchants
 
 **Lemon Squeezy:**
 - Auto-retries 4 times over 2 weeks, sends dunning emails at each failure
-- Simple, opinionated, free — good for indie devs
+- Simple, opinionated, free - good for indie devs
 - **Limitation**: No ML, email-only, no analytics on recovery performance
 
 **Square:**
@@ -91,7 +91,7 @@ An AI-powered engine that classifies every revenue leak, routes it to the optima
 - **Chargebee**: 30–40% native recovery, pre-dunning workflows recover an additional 15–22%
 - **Recurly**: Claims **70–80% recovery rate** with Intelligent Dunning ML
 - **Zuora**: Reports SaaS companies lose **9–12% of MRR annually** without dunning automation
-- All subscription-only — no one-time payment recovery, no cart abandonment
+- All subscription-only - no one-time payment recovery, no cart abandonment
 
 ### Global Industry Benchmarks
 
@@ -106,40 +106,40 @@ An AI-powered engine that classifies every revenue leak, routes it to the optima
 | Failure breakdown: risk management (hard flag) | 25–33% |
 | Failure breakdown: card issues (expired, lost) | 10–15% |
 
-### What's Missing Globally — The Gaps
+### What's Missing Globally - The Gaps
 
 1. **Retry-dunning coordination**: Most platforms treat retries and customer emails as independent systems that sometimes compete with each other
 2. **Multi-channel outreach**: Almost everyone is email-only. SMS, WhatsApp, in-app are absent or require third-party integrations
 3. **Decline-code intelligence**: Different decline codes need different responses, but most platforms apply the same dunning sequence regardless
-4. **Cross-leak-type coverage**: Everyone specializes — subscriptions OR carts OR invoices. Nobody does all three in one pipeline
+4. **Cross-leak-type coverage**: Everyone specializes - subscriptions OR carts OR invoices. Nobody does all three in one pipeline
 5. **Personalized messaging**: Template-based dunning emails are the norm. AI-personalized, channel-specific messages are largely unsolved
 
-**The pattern:** Everyone focuses on *retry mechanics* — when to retry the same payment method. Nobody combines diagnostic intelligence (understanding *why* it failed) with personalized multi-channel recovery (right channel, right message, right timing, right number of attempts) across all three revenue leak types in a single engine. Recovery Router fills this gap.
+**The pattern:** Everyone focuses on *retry mechanics* - when to retry the same payment method. Nobody combines diagnostic intelligence (understanding *why* it failed) with personalized multi-channel recovery (right channel, right message, right timing, right number of attempts) across all three revenue leak types in a single engine. Recovery Router fills this gap.
 
 ---
 
-## Section 3: MY JOURNEY — From Hackathon Post to Production System
+## Section 3: MY JOURNEY - From Hackathon Post to Production System
 
 ### Discovering the Buildathon
-I saw the Razorpay AI Buildathon announcement and immediately went to study the problem statements. Track 3 — AI Revenue Recovery — wasn't just a coding challenge. It was Razorpay admitting they had a gap in their own product ecosystem.
+I saw the Razorpay AI Buildathon announcement and immediately went to study the problem statements. Track 3 - AI Revenue Recovery - wasn't just a coding challenge. It was Razorpay admitting they had a gap in their own product ecosystem.
 
-### The Research Phase — Thinking Like a Razorpay Engineer
+### The Research Phase - Thinking Like a Razorpay Engineer
 Before writing a single line of code, I spent time understanding:
 
-1. **Razorpay's product ecosystem** — Vulcan, Agent Studio, Smart Collect, Payment Links, Magic Checkout. What does each solve? Where do they intersect? Where are the gaps?
+1. **Razorpay's product ecosystem** - Vulcan, Agent Studio, Smart Collect, Payment Links, Magic Checkout. What does each solve? Where do they intersect? Where are the gaps?
 
-2. **Why they posed this problem** — Vulcan had just launched (Aug 2026), Agent Studio in March. They had optimized the *success* path. But the *failure* path — what happens after a payment fails — was still fragmented. Separate tools for separate leak types, no unified intelligence.
+2. **Why they posed this problem** - Vulcan had just launched (Aug 2026), Agent Studio in March. They had optimized the *success* path. But the *failure* path - what happens after a payment fails - was still fragmented. Separate tools for separate leak types, no unified intelligence.
 
-3. **The competitive landscape** — Studied Stripe's Smart Retries, Cashfree's Relay, Juspay's orchestration. Everyone focuses on retry mechanics. Nobody does diagnostic intelligence + personalized recovery.
+3. **The competitive landscape** - Studied Stripe's Smart Retries, Cashfree's Relay, Juspay's orchestration. Everyone focuses on retry mechanics. Nobody does diagnostic intelligence + personalized recovery.
 
-4. **Industry data** — 68–74% D2C success rates, 70% of cart abandonment caused by payment failures, 40% of customers won't return after a decline (all from Razorpay's 2026 guide). The numbers made the ROI case obvious.
+4. **Industry data** - 68–74% D2C success rates, 70% of cart abandonment caused by payment failures, 40% of customers won't return after a decline (all from Razorpay's 2026 guide). The numbers made the ROI case obvious.
 
-5. **Other Track 3 submissions** — Researched 25 entries and 12 public repositories. Most were building simple retry bots or basic WhatsApp notification systems. None were thinking about the unified pipeline problem.
+5. **Other Track 3 submissions** - Researched 25 entries and 12 public repositories. Most were building simple retry bots or basic WhatsApp notification systems. None were thinking about the unified pipeline problem.
 
 ### The Core Insight
 > "Vulcan routes payments. Recovery Router routes failures."
 
-This became the north star. Not a standalone tool, but something that *completes* Razorpay's ecosystem — the missing piece that handles everything after a payment fails.
+This became the north star. Not a standalone tool, but something that *completes* Razorpay's ecosystem - the missing piece that handles everything after a payment fails.
 
 ### Prototyping with n8n
 Started with 5 n8n workflows as a rapid prototype:
@@ -149,10 +149,10 @@ Started with 5 n8n workflows as a rapid prototype:
 - Escalation Agent (5-min AI decision loop)
 - Recovery Analytics API
 
-These proved the logic worked. But n8n was too limited for production reliability — no distributed locking, no race condition handling, no proper deduplication. The n8n workflows would later come back to haunt us (Section 7).
+These proved the logic worked. But n8n was too limited for production reliability - no distributed locking, no race condition handling, no proper deduplication. The n8n workflows would later come back to haunt us (Section 7).
 
 ### The Full Rebuild
-Rebuilt everything as a proper six-component architecture: FastAPI + Celery Worker + Celery Beat + React Frontend + Redis + Supabase. Every operation runs through the real async pipeline — no shortcuts, no mocks, no tricks.
+Rebuilt everything as a proper six-component architecture: FastAPI + Celery Worker + Celery Beat + React Frontend + Redis + Supabase. Every operation runs through the real async pipeline - no shortcuts, no mocks, no tricks.
 
 ---
 
@@ -164,17 +164,17 @@ Every feature had to justify its existence through measurable impact. I rejected
 **What I intentionally avoided:**
 - Complex ML models that couldn't be explained to a merchant
 - Features that look impressive in demos but add no recovery value
-- Over-engineering the AI — rule-based fallback exists because reliability > sophistication
-- Vanity metrics — organic recoveries are tracked separately, never inflated
-- Claiming "delivered" when we only know "sent" — the system tracks provider acceptance, not delivery receipts
+- Over-engineering the AI - rule-based fallback exists because reliability > sophistication
+- Vanity metrics - organic recoveries are tracked separately, never inflated
+- Claiming "delivered" when we only know "sent" - the system tracks provider acceptance, not delivery receipts
 
 ### 2. Think Like You Already Work There
-I cloned Razorpay's actual UI — not because it's pretty, but because it makes judges see Recovery Router as a native feature, not a hackathon toy. I used their design tokens, their SVG icons, their color system, their layout patterns. When you look at the dashboard, it feels like it already belongs in Razorpay's product suite.
+I cloned Razorpay's actual UI - not because it's pretty, but because it makes judges see Recovery Router as a native feature, not a hackathon toy. I used their design tokens, their SVG icons, their color system, their layout patterns. When you look at the dashboard, it feels like it already belongs in Razorpay's product suite.
 
 ### 3. Honest Metrics Over Impressive Numbers
-Ghost recovery prevention: if a customer pays organically (no outreach was sent), it's logged as `organic_recovery`, not `recovered`. The system separates organic from outreach-driven recovery — only events where messages were actually sent count toward recovery metrics. This is the metric a product manager at Razorpay would trust.
+Ghost recovery prevention: if a customer pays organically (no outreach was sent), it's logged as `organic_recovery`, not `recovered`. The system separates organic from outreach-driven recovery - only events where messages were actually sent count toward recovery metrics. This is the metric a product manager at Razorpay would trust.
 
-### 4. Safety First — It's Financial Software
+### 4. Safety First - It's Financial Software
 Every security decision was made with the awareness that this handles real money:
 - HMAC-SHA256 webhook verification with timing-safe comparison
 - XSS prevention on checkout pages (regex-validated order IDs)
@@ -182,20 +182,20 @@ Every security decision was made with the awareness that this handles real money
 - Rate limiting on every endpoint
 - Per-event distributed locks to prevent race conditions
 - Three-layer defense against premature give-up
-- Server-side PII — customer data never appears in URLs
+- Server-side PII - customer data never appears in URLs
 - Database trigger as last line of defense against external writers
 
 ### 5. Real Architecture, Not Demo Architecture
-"Everything will be async. Use Celery, workers, everything — no tricks."
-- `task_acks_late=True` — tasks aren't acknowledged until complete
-- `task_reject_on_worker_lost=True` — tasks requeue on worker crash
+"Everything will be async. Use Celery, workers, everything - no tricks."
+- `task_acks_late=True` - tasks aren't acknowledged until complete
+- `task_reject_on_worker_lost=True` - tasks requeue on worker crash
 - Exponential backoff on transient failures (60s → 120s → 240s)
 - Distributed Redis locks serialize concurrent event processing
 - Conditional database updates prevent TOCTOU race conditions
 
 ---
 
-## Section 5: WHAT I BUILT — The Solution
+## Section 5: WHAT I BUILT - The Solution
 
 ### One Engine, Three Leak Types
 
@@ -207,7 +207,7 @@ Every security decision was made with the awareness that this handles real money
 
 **Two entry paths:**
 - **Real webhooks** (`/webhook/recovery-router`): HMAC-SHA256 signature verification + Redis deduplication (1h TTL) + normalization → full pipeline
-- **Simulator** (`/api/simulate`): Creates synthetic events and queues Celery tasks directly — no signature verification, no dedup (designed for testing, not production ingestion)
+- **Simulator** (`/api/simulate`): Creates synthetic events and queues Celery tasks directly - no signature verification, no dedup (designed for testing, not production ingestion)
 
 ### The Pipeline: Classify → Route → Act → Measure
 
@@ -215,7 +215,7 @@ Every security decision was made with the awareness that this handles real money
 3-model fallback chain via OpenRouter: Claude Haiku 4.5 → Gemini 3.7 Flash → GPT-4o-mini. Rule-based fallback if all AI fails (the system never blocks on AI). Each event is classified into one of 12 categories with a recovery probability estimate.
 
 **Step 2: Route (Dynamic Budgets)**
-`max_attempts` is computed per event — not a fixed 5 for everyone:
+`max_attempts` is computed per event - not a fixed 5 for everyone:
 - High-value UPI timeout → 5 attempts (high probability, high value)
 - Browse-only cart abandonment → 0 attempts (no ROI in chasing)
 - User-cancelled → 2 attempts (respect the customer's signal)
@@ -235,10 +235,10 @@ Every provider attempt is logged in the `degradation_path` for full audit trail.
 - Ghost recovery prevention: organic payments (no outreach sent) tracked separately, never counted as recovered
 - Double-attribution prevention: unique `recovered_payment_id` index
 - Currency match, amount tolerance (1%), entity status validation
-- Tracks provider acceptance ("sent"), not delivery receipts — delivery tracking not yet integrated
+- Tracks provider acceptance ("sent"), not delivery receipts - delivery tracking not yet integrated
 
 ### Escalation Engine (AI-Driven, Every 5 Minutes)
-The AI analyzes full attempt history — which channels were tried, what succeeded/failed, what's left — and decides:
+The AI analyzes full attempt history - which channels were tried, what succeeded/failed, what's left - and decides:
 - Next channel and tone (friendly → firm → urgent → final)
 - Whether to continue or give up
 - Three-layer safety: schema default → AI override → hard guard
@@ -251,7 +251,7 @@ Razorpay Payment Links API has a 30-link test-mode limit. We bypassed this with:
 - Razorpay Orders API (unlimited) + self-hosted checkout page at `/pay/{order_id}`
 - Server-side PII: customer details stored in Redis with 24h-TTL token
 - XSS-safe: regex-validated order IDs, `json.dumps` JS escaping
-- **Try Live Payment**: real Razorpay test-mode checkout in the Simulator — creates actual orders via Orders API, payment failure triggers webhook through the full recovery pipeline
+- **Try Live Payment**: real Razorpay test-mode checkout in the Simulator - creates actual orders via Orders API, payment failure triggers webhook through the full recovery pipeline
 
 ### Dashboard (5 Pages)
 
@@ -264,12 +264,12 @@ Razorpay Payment Links API has a 30-link test-mode limit. We bypassed this with:
 | **Audit Logs** | Full recovery attempt trail with AI reasoning, provider degradation paths, delivery status, auto-refresh every 15 seconds |
 
 ### Features You Might Miss
-- **Event pause/resume/cancel** — manual control over any recovery event from the detail panel
-- **Health monitoring** — `/api/health` endpoint with component-level status (database, Redis, Celery, Razorpay API)
-- **Full event trace** — every AI decision, provider attempt, and state transition logged and viewable
-- **Recovery retry failure tracking** — failed delivery attempts recorded with error details and degradation path
-- **Mobile responsive** — dashboard works on phone and tablet
-- **Bulk data generator** — populate the system with test data across all event types for demo or testing
+- **Event pause/resume/cancel** - manual control over any recovery event from the detail panel
+- **Health monitoring** - `/api/health` endpoint with component-level status (database, Redis, Celery, Razorpay API)
+- **Full event trace** - every AI decision, provider attempt, and state transition logged and viewable
+- **Recovery retry failure tracking** - failed delivery attempts recorded with error details and degradation path
+- **Mobile responsive** - dashboard works on phone and tablet
+- **Bulk data generator** - populate the system with test data across all event types for demo or testing
 
 ### Testing Infrastructure
 - **114 automated tests** across 6 test files
@@ -324,7 +324,7 @@ Razorpay Payment Links API has a 30-link test-mode limit. We bypassed this with:
  Email)    Email)
 ```
 
-### Tech Stack — And Why Each Choice
+### Tech Stack - And Why Each Choice
 
 | Component | Choice | Why |
 |-----------|--------|-----|
@@ -370,16 +370,16 @@ Razorpay Payment Links API has a 30-link test-mode limit. We bypassed this with:
 **Lesson:** In financial software, a single safety check is never enough. Defense in depth.
 
 ### Bug #2: The TOCTOU Race Condition
-**What happened:** After fixing Bug #1, events #16 and #17 were *still* prematurely exhausted. The code was correct — but two Celery tasks were processing the same event concurrently.
+**What happened:** After fixing Bug #1, events #16 and #17 were *still* prematurely exhausted. The code was correct - but two Celery tasks were processing the same event concurrently.
 **Root cause:** `_send_delayed` (a countdown task) and the Beat escalation cycle could both pick up the same event. Task A reads status="pending", Task B reads status="pending", both proceed, one sets exhausted before the other finishes.
 **Fix:** Three-pronged:
-1. Conditional database updates using `.eq("status", "pending")` — optimistic concurrency control
+1. Conditional database updates using `.eq("status", "pending")` - optimistic concurrency control
 2. Per-event Redis distributed locks (`lock:event:{id}`, 300s TTL)
-3. Atomic exhaustion check in `_update_event_state` — single write for state transition
+3. Atomic exhaustion check in `_update_event_state` - single write for state transition
 **Lesson:** Async systems need explicit serialization. "It works locally" means nothing.
 
 ### Bug #3: The Ghost Writer Mystery (⭐ The Star Story)
-**What happened:** Event #18 was marked exhausted with `skip_reason=null` and `next_action_at` still set. This was an *impossible* state — our code always sets `skip_reason` when exhausting and clears `next_action_at`.
+**What happened:** Event #18 was marked exhausted with `skip_reason=null` and `next_action_at` still set. This was an *impossible* state - our code always sets `skip_reason` when exhausting and clears `next_action_at`.
 **Investigation:**
 - Checked every code path. None could produce this state.
 - Checked git history of every file version. The current code was correct.
@@ -394,7 +394,7 @@ Razorpay Payment Links API has a 30-link test-mode limit. We bypassed this with:
   {"fieldId": "current_strategy", "fieldValue": "exhausted"}
 ]}}
 ```
-No `skip_reason`. No `next_action_at = null`. No status guard. And all 5 n8n workflows were still active — writing directly to Supabase with their own credentials, completely bypassing the FastAPI backend.
+No `skip_reason`. No `next_action_at = null`. No status guard. And all 5 n8n workflows were still active - writing directly to Supabase with their own credentials, completely bypassing the FastAPI backend.
 
 **Two independent systems were racing against each other with no mutual awareness.**
 
@@ -421,7 +421,7 @@ This blocks ANY writer (n8n, manual queries, future integrations) from marking a
 
 ### Bug #5: WhatsApp Personalization
 **What happened:** WhatsApp messages were sending generic Twilio templates instead of AI-personalized text.
-**Root cause:** Twilio WhatsApp requires pre-approved `content_sid` templates — you can't send custom text.
+**Root cause:** Twilio WhatsApp requires pre-approved `content_sid` templates - you can't send custom text.
 **Fix:** Prioritized Green API (which supports free-form text) over Twilio WhatsApp. Twilio becomes the template-based fallback.
 **Lesson:** Not all APIs are equal. Provider limitations shape architecture.
 
@@ -429,7 +429,7 @@ This blocks ANY writer (n8n, manual queries, future integrations) from marking a
 **What happened:** The user noticed "why is everyone showing 1/5, no event is more than one attempt."
 **Root cause:** Fixed `max_attempts = 5` for every event. A $50 browse-only cart abandonment got the same budget as a $30,000 failed invoice payment.
 **Fix:** Dynamic `max_attempts` computed from amount, recovery probability, and failure category. Range: 0 (unrecoverable) to 5 (high-value, high-probability).
-**Lesson:** One-size-fits-all is the enemy of ROI. Every attempt has a cost — balance it against recovery probability.
+**Lesson:** One-size-fits-all is the enemy of ROI. Every attempt has a cost - balance it against recovery probability.
 
 ---
 
@@ -440,12 +440,12 @@ This blocks ANY writer (n8n, manual queries, future integrations) from marking a
 | Metric | Before Recovery Router | With Recovery Router |
 |--------|----------------------|---------------------|
 | Failed payments recovered | ~0% (manual follow-up) | AI-classified into 12 categories, multi-channel recovery with dynamic budgets |
-| Cart recovery rate | Industry: 5–10% | High-intent only — browse-only carts get 0 attempts, respects customer signal |
+| Cart recovery rate | Industry: 5–10% | High-intent only - browse-only carts get 0 attempts, respects customer signal |
 | Invoice collection improvement | Manual: weeks | Automated: starts within hours, escalation tone matches urgency |
 | Customer re-engagement | 40% won't return after decline | Multi-channel outreach within optimal timing window (72h recovery window) |
 | Time to first recovery action | Hours to days (manual) | Seconds to minutes (automated) |
 
-**Note:** All metrics are from test-mode data with simulated scenarios. Production recovery rates depend on merchant volume, payment mix, and customer demographics. The system tracks provider acceptance ("sent"), not delivery receipts — delivery tracking is not yet integrated.
+**Note:** All metrics are from test-mode data with simulated scenarios. Production recovery rates depend on merchant volume, payment mix, and customer demographics. The system tracks provider acceptance ("sent"), not delivery receipts - delivery tracking is not yet integrated.
 
 ### What the System Tracks
 
@@ -463,7 +463,7 @@ This blocks ANY writer (n8n, manual queries, future integrations) from marking a
 - Per-resource cooldowns (5 min per phone/email) prevent customer fatigue and spam
 
 ### What a Razorpay Product Manager Would See
-- **Honest metrics:** Organic vs outreach-driven recovery clearly separated — if no message was sent, it's marked organic, never counted as recovered
+- **Honest metrics:** Organic vs outreach-driven recovery clearly separated - if no message was sent, it's marked organic, never counted as recovered
 - **Channel effectiveness ranking:** Which channel recovers best, backed by data
 - **Failure category distribution:** What's failing and why, across the merchant base
 - **ROI per attempt:** Cost of outreach vs recovery value, per category
@@ -474,18 +474,18 @@ This blocks ANY writer (n8n, manual queries, future integrations) from marking a
 ## Section 9: DEMO
 
 ### Video
-5-minute demo video — two-part demo structure with live Razorpay payment + simulated cart abandonment
+5-minute demo video - two-part demo structure with live Razorpay payment + simulated cart abandonment
 
 ### Timeline
 | Timestamp | What's Shown |
 |-----------|-------------|
-| 0:00–0:15 | Problem statement — Razorpay's published D2C success rates, the recovery gap |
-| 0:15–0:30 | The thesis — one pipeline for three leak types |
-| 0:30–2:30 | **Live Payment Demo** — real Razorpay test-mode checkout, payment fails through actual gateway, webhook triggers full recovery pipeline |
-| 2:30–3:10 | **Simulated Cart Abandonment** — different leak type, different AI classification, different budget and tone |
-| 3:10–3:40 | Honest tracking — organic vs outreach-driven separation, provider acceptance tracking |
-| 3:40–4:05 | Safety proofs — dedup rejection, escalation engine, three-layer give-up prevention |
-| 4:05–4:25 | The Ghost Writer bug — best war story, database-level safety net |
+| 0:00–0:15 | Problem statement - Razorpay's published D2C success rates, the recovery gap |
+| 0:15–0:30 | The thesis - one pipeline for three leak types |
+| 0:30–2:30 | **Live Payment Demo** - real Razorpay test-mode checkout, payment fails through actual gateway, webhook triggers full recovery pipeline |
+| 2:30–3:10 | **Simulated Cart Abandonment** - different leak type, different AI classification, different budget and tone |
+| 3:10–3:40 | Honest tracking - organic vs outreach-driven separation, provider acceptance tracking |
+| 3:40–4:05 | Safety proofs - dedup rejection, escalation engine, three-layer give-up prevention |
+| 4:05–4:25 | The Ghost Writer bug - best war story, database-level safety net |
 | 4:25–5:00 | Limitations, open items, and close |
 
 ---
@@ -529,12 +529,12 @@ This blocks ANY writer (n8n, manual queries, future integrations) from marking a
 ## Section 12: ABOUT ME
 
 ### Albert Abishek I
-**Razorpay AI Buildathon 2026 — Track 3 (Revenue Recovery)**
+**Razorpay AI Buildathon 2026 - Track 3 (Revenue Recovery)**
 
-[Your experience, background, education — to be filled]
+[Your experience, background, education - to be filled]
 
 ### Why Razorpay?
-[Your personal connection to the problem, why this company, why this track — to be filled]
+[Your personal connection to the problem, why this company, why this track - to be filled]
 
 ### Why I Built It This Way
 I didn't build a hackathon project. I built what I would build if I were a Razorpay engineer assigned to solve this problem on Day 1.
@@ -553,10 +553,10 @@ I didn't build a hackathon project. I built what I would build if I were a Razor
 A: Razorpay's existing product focuses on subscription payment recovery via WhatsApp reminders. Recovery Router handles all three revenue leaks (payment failures, cart abandonment, overdue invoices) through a unified AI pipeline with dynamic attempt budgets, multi-channel fallback, and honest metrics that distinguish organic from AI-driven recovery.
 
 **Q: Why not use Razorpay Agent Studio to build this?**
-A: Agent Studio provides building blocks. Recovery Router is the complete pipeline — classify, route, act, measure — with production-grade reliability (distributed locks, race condition handling, crash recovery, database-level safety triggers). Agent Studio agents could potentially be integrated as the messaging layer.
+A: Agent Studio provides building blocks. Recovery Router is the complete pipeline - classify, route, act, measure - with production-grade reliability (distributed locks, race condition handling, crash recovery, database-level safety triggers). Agent Studio agents could potentially be integrated as the messaging layer.
 
 **Q: What's the actual recovery rate?**
-A: This runs on Razorpay test-mode data with simulated scenarios. The system demonstrates the full classify-route-act-measure pipeline, but production recovery rates depend on merchant volume, payment mix, and customer demographics. The honest metrics system ensures we only count events where outreach was actually sent — organic recoveries are tracked separately and never inflated into recovery numbers. Recovery attempts track provider acceptance ("sent"), not delivery receipts, because delivery tracking is not yet integrated.
+A: This runs on Razorpay test-mode data with simulated scenarios. The system demonstrates the full classify-route-act-measure pipeline, but production recovery rates depend on merchant volume, payment mix, and customer demographics. The honest metrics system ensures we only count events where outreach was actually sent - organic recoveries are tracked separately and never inflated into recovery numbers. Recovery attempts track provider acceptance ("sent"), not delivery receipts, because delivery tracking is not yet integrated.
 
 **Q: How do you handle scale?**
 A: Celery workers with Redis broker support horizontal scaling. Each event is processed as an independent task. Distributed locks prevent concurrent processing of the same event. Rate limiting prevents provider and API overload. The architecture supports multiple workers with no code changes.
@@ -572,7 +572,7 @@ A: Delivery receipt integration (track whether messages were actually opened, no
 
 ---
 
-## Section 13: RAZORPAY PRODUCT ANALYSIS — Where Recovery Router Fits
+## Section 13: RAZORPAY PRODUCT ANALYSIS - Where Recovery Router Fits
 
 ### The Razorpay Ecosystem (2026)
 
@@ -599,6 +599,6 @@ Magic Checkout    →    Vulcan (AI routing)    →  ???
 | **Magic Checkout** | Pre-payment data from Magic Checkout (saved cards, UPI IDs) could improve Recovery Router's channel selection for returning customers. |
 
 ### The Positioning
-Recovery Router isn't a competitor to any Razorpay product. It's the missing piece — the system that handles everything after a payment fails, across all three revenue leak types, with the intelligence and safety that financial software demands.
+Recovery Router isn't a competitor to any Razorpay product. It's the missing piece - the system that handles everything after a payment fails, across all three revenue leak types, with the intelligence and safety that financial software demands.
 
 **"Vulcan makes payments succeed. Recovery Router makes failures recoverable."**

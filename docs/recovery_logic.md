@@ -77,9 +77,9 @@ Two paths:
 
 **Step 4 -- Recovery Link Failure Detection** (`webhooks.py`, lines 59-77):
 
-Before dispatching a new recovery event, the webhook checks whether this `payment.failed` is actually a customer failing to pay through a recovery link we already sent. It does a two-pass lookup via `_find_parent_recovery_event`:
+Before dispatching a new recovery event, the webhook checks whether this `payment.failed` is actually a customer failing to pay through a recovery link I already sent. It does a two-pass lookup via `_find_parent_recovery_event`:
 
-1. Check if `notes.source == "recovery_router"` (set by our checkout page)
+1. Check if `notes.source == "recovery_router"` (set by my checkout page)
 2. Query `recovery_attempts` for a matching `order_id` in the metadata
 
 If a parent event is found, the webhook dispatches `handle_recovery_retry_failure` instead of `process_recovery_event`, which logs the failure on the existing event rather than creating a duplicate.
@@ -141,7 +141,7 @@ POST /api/live-checkout
 
 Creates a real Razorpay test-mode order via the Orders API. Returns the order ID and Razorpay key to the frontend, which then opens the Razorpay checkout modal. If the customer intentionally fails the payment (e.g., using Razorpay's test-mode failure cards), it generates a real `payment.failed` webhook that flows through the production pipeline.
 
-This exists so judges can trigger real end-to-end recovery flows without needing a production Razorpay account.
+This exists so you can trigger real end-to-end recovery flows without needing a production Razorpay account.
 
 ### 1.5 Invoice Scanner (Periodic Task)
 
@@ -497,7 +497,7 @@ The system tracks "sent" status -- meaning the provider accepted the message for
 
 **File:** `backend/app/services/recovery_tracker.py`
 
-When a customer pays, the `payment.captured` webhook triggers reconciliation. The tracker matches the payment to an open recovery event and determines whether the recovery was driven by our outreach or happened organically.
+When a customer pays, the `payment.captured` webhook triggers reconciliation. The tracker matches the payment to an open recovery event and determines whether the recovery was driven by my outreach or happened organically.
 
 ### 5.1 Four-Strategy Matching
 
@@ -507,11 +507,11 @@ The tracker tries four matching strategies in order, stopping at the first hit:
 
 ```python
 # Strategy 1: notes.recovery_event_id
-# Set when we generated the payment link -- most reliable
+# Set when I generated the payment link -- most reliable
 res = sb.table("recovery_events").select("*").eq("id", int(recovery_event_id))...
 
 # Strategy 2: payment_link reference_id
-# Our order_id stored as the payment link's reference_id
+# My order_id stored as the payment link's reference_id
 res = sb.table("recovery_events").select("*").eq("order_id", reference_id)...
 
 # Strategy 3: order_id from the payment entity
@@ -545,7 +545,7 @@ The captured amount must be within 1% of the event amount (tolerance = 0.01). Th
 
 **File:** `recovery_tracker.py`, lines 146-173
 
-The critical question: did our outreach cause this payment, or would the customer have paid anyway?
+The critical question: did my outreach cause this payment, or would the customer have paid anyway?
 
 ```python
 # Re-read the latest attempt_count (may have changed since initial query)
@@ -565,7 +565,7 @@ A recovery is classified as **organic** when both conditions are true:
 1. `actual_attempt_count == 0` -- no outreach attempts have been counted
 2. `not has_successful_outreach` -- no recovery attempt has `outcome = "sent"`
 
-This dual check is deliberately conservative. Even if `attempt_count` is 0 (perhaps due to a bug or race condition), if any attempt record shows successful delivery, the recovery is attributed to our outreach.
+This dual check is deliberately conservative. Even if `attempt_count` is 0 (perhaps due to a bug or race condition), if any attempt record shows successful delivery, the recovery is attributed to my outreach.
 
 **Organic recoveries** are stored with status `"organic_recovery"` rather than `"recovered"`, clearly separating them in analytics. This prevents inflating the AI recovery rate with payments that would have happened regardless.
 
@@ -804,7 +804,7 @@ Every recovery event follows this state machine:
 | `pending` | Actively being worked on. Has a `next_action_at` for the escalation engine. | No |
 | `paused` | Merchant manually paused recovery. No escalation until resumed. | No |
 | `no_action_needed` | Classification determined no recovery action should be taken (e.g., fraud, browse-only). | Yes |
-| `recovered` | Payment was captured and attributed to our outreach. | Yes |
+| `recovered` | Payment was captured and attributed to my outreach. | Yes |
 | `organic_recovery` | Payment was captured but no successful outreach was sent (customer paid on their own). | Yes |
 | `exhausted` | All recovery attempts used or recovery window expired. | Semi-terminal* |
 | `cancelled` | Merchant manually cancelled recovery. | Yes |

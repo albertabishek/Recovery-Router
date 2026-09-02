@@ -1,4 +1,4 @@
-# Recovery Router — Impact Analysis & ROI
+# Recovery Router - Impact Analysis & ROI
 
 Built by Albert Abishek I for the Razorpay AI Buildathon 2026, Track 3: AI Revenue Recovery.
 
@@ -15,7 +15,7 @@ Recovery Router is a working system, not a slide deck. But it runs on Razorpay t
 | Webhook ingestion with HMAC-SHA256 verification | Working | Razorpay test-mode webhooks processed end-to-end |
 | AI classification into 12 failure categories | Working | 3+1 model chain (Claude Haiku 4.5, Gemini 3.7 Flash, GPT-4o-mini, rule-based fallback) |
 | Dynamic attempt budgets (0-5 range) | Working | Zero attempts for unrecoverable declines, up to 5 for high-value recoverable failures |
-| Multi-channel messaging (WhatsApp, SMS, Email) | Working | Green API + Twilio WhatsApp, Twilio SMS, Resend Email — all with provider fallback chains |
+| Multi-channel messaging (WhatsApp, SMS, Email) | Working | Green API + Twilio WhatsApp, Twilio SMS, Resend Email - all with provider fallback chains |
 | Payment link generation via Razorpay Orders API | Working | Test-mode orders created, hosted checkout pages served |
 | Escalation engine with AI-driven decisions | Working | 5-minute sweep cycle, channel rotation, tone escalation |
 | Ghost recovery prevention | Working | Tracks "sent" (provider acceptance), separates organic recoveries from outreach-driven ones |
@@ -31,7 +31,7 @@ Recovery Router is a working system, not a slide deck. But it runs on Razorpay t
 - Actual recovery rates are unknown. The system can measure them, but there is no production data to measure.
 - Scale behavior beyond load tests (6 concurrent test scenarios) is unverified.
 
-This honesty matters. Every recovery rate number in this document is labeled as "industry benchmark," "potential," or "estimated" — never as a measured result from Recovery Router.
+This honesty matters. Every recovery rate number in this document is labeled as "industry benchmark," "potential," or "estimated" - never as a measured result from Recovery Router.
 
 ---
 
@@ -62,7 +62,7 @@ Razorpay's current retry systems recover 15-20% of failed transactions. That lea
 | Multi-channel vs email-only improvement | Up to 34% reduction in churn | [Baremetrics](https://baremetrics.com/blog/involuntary-churn) |
 | Smart subscription retry | Up to 57% | [Razorpay 2026 Guide](https://razorpay.com/blog/payment-success-rate-optimization-india/) |
 
-The gap between what retries catch (15-20%) and what top performers achieve (70-85%) is the addressable opportunity. Recovery Router's design — AI classification, multi-channel outreach, dynamic budgets, escalation — targets moving merchants from baseline toward that top-performer range.
+The gap between what retries catch (15-20%) and what top performers achieve (70-85%) is the addressable opportunity. Recovery Router's design - AI classification, multi-channel outreach, dynamic budgets, escalation - targets moving merchants from baseline toward that top-performer range.
 
 ### 2.3 What Recovery Router Adds Beyond Simple Retries
 
@@ -70,11 +70,11 @@ Recovery Router is not a retry system. It is a classify-route-act-measure pipeli
 
 | Capability | Simple Retry | Recovery Router |
 |---|---|---|
-| Failure classification | None — all failures treated the same | 12 AI-classified categories with distinct recovery strategies |
+| Failure classification | None - all failures treated the same | 12 AI-classified categories with distinct recovery strategies |
 | Channel selection | Single channel (usually email) | AI selects from WhatsApp, SMS, Email based on failure type and amount |
 | Retry timing | Fixed schedule (e.g., day 1, day 3, day 5) | Category-specific delays (1h for gateway errors, 8h for insufficient funds, 48h for overdue invoices) |
 | Attempt budget | Same for every failure | Dynamic 0-5 based on recovery probability and amount |
-| Unrecoverable handling | Retries anyway (wastes money, annoys customer) | Zero attempts — no cost, no customer fatigue |
+| Unrecoverable handling | Retries anyway (wastes money, annoys customer) | Zero attempts - no cost, no customer fatigue |
 | Message personalization | Static template | AI-generated, channel-appropriate, tone-escalating |
 | Measurement | Counts retries sent | Separates organic recoveries from outreach-driven ones |
 
@@ -168,7 +168,7 @@ Recovery Router's architecture actively reduces costs:
 | Design Decision | Cost Impact |
 |---|---|
 | **Zero attempts for unrecoverable declines** | If 10% of events are unrecoverable (fraud, stolen card), that is 500 events x $0 = $0 saved vs. $40 if retried blindly |
-| **Zero attempts for browse-only abandonment** | Low-value cart visits get no outreach — no wasted messages |
+| **Zero attempts for browse-only abandonment** | Low-value cart visits get no outreach - no wasted messages |
 | **Per-resource cooldowns** | Prevents sending 3 messages in 5 minutes to the same customer |
 | **Dynamic budgets (0-5)** | A $50 gateway error gets 5 attempts; a $200 insufficient-funds failure with 0.1 probability gets 1 |
 | **AI classification before action** | No spray-and-pray. Each event gets the right channel and timing on the first try |
@@ -231,8 +231,8 @@ Recovery Router's cost structure improves with scale:
 
 | Scale Factor | Effect |
 |---|---|
-| AI costs | Per-call pricing — linear scaling, no per-seat fees |
-| Messaging costs | Per-message pricing — no minimums beyond Green API subscription |
+| AI costs | Per-call pricing - linear scaling, no per-seat fees |
+| Messaging costs | Per-message pricing - no minimums beyond Green API subscription |
 | Infrastructure | Railway scales with usage; Supabase Pro ($25/mo) at higher volumes |
 | Classification quality | More events = more diverse training signal if Razorpay integrates learning loops |
 | Fixed cost amortization | Green API subscription ($7.50/mo) is irrelevant at 50,000+ events |
@@ -259,7 +259,7 @@ Magic Checkout            Vulcan Foundation Model   Recovery Router
                                                     - Measure honestly
 ```
 
-Each layer addresses a different stage. Magic Checkout reduces friction before the customer clicks "Pay." Vulcan optimizes routing so the payment succeeds. Recovery Router handles the 26-32% that still fail — the transactions that both Magic Checkout and Vulcan could not save.
+Each layer addresses a different stage. Magic Checkout reduces friction before the customer clicks "Pay." Vulcan optimizes routing so the payment succeeds. Recovery Router handles the 26-32% that still fail - the transactions that both Magic Checkout and Vulcan could not save.
 
 ### 5.2 Product Synergies
 
@@ -289,7 +289,7 @@ Recovery Router unifies these into a single classify-route-act-measure pipeline.
 
 1. **Cross-merchant learning.** With 12 million merchants, Razorpay sees patterns no individual merchant can. A classifier trained across all merchants learns which failure types recover best at which times, through which channels, for which industries.
 
-2. **Recovery as a platform feature.** Instead of merchants building their own recovery systems (or not building them at all), Razorpay offers intelligent recovery as a built-in capability — like Vulcan is built into routing.
+2. **Recovery as a platform feature.** Instead of merchants building their own recovery systems (or not building them at all), Razorpay offers intelligent recovery as a built-in capability - like Vulcan is built into routing.
 
 3. **Data flywheel.** Every recovered payment generates signal: which classification was correct, which channel worked, what timing succeeded. This feeds back into the classifier, improving accuracy over time.
 
@@ -305,7 +305,7 @@ Razorpay earns approximately 2% commission on each transaction (plus GST). Every
 
 *Estimation basis: $180B annual TPV, assume 30% D2C, 26% failure rate, INR 1,500 average order value.*
 
-These are rough estimates with significant assumptions. The point is that even recovering a small percentage of failed transactions across Razorpay's merchant base generates meaningful commission revenue — on payments that would otherwise have been lost entirely.
+These are rough estimates with significant assumptions. The point is that even recovering a small percentage of failed transactions across Razorpay's merchant base generates meaningful commission revenue - on payments that would otherwise have been lost entirely.
 
 ---
 
@@ -316,7 +316,7 @@ These are rough estimates with significant assumptions. The point is that even r
 **Problem:** 26-32% payment failure rates. Most D2C brands have no recovery system. A brand doing INR 1 crore monthly GMV loses INR 26-32 lakhs to failures.
 
 **Recovery Router impact (potential):**
-- AI classification determines *why* each payment failed — is it a bank timeout (retry in 1 hour), insufficient funds (retry after payday), or card expiry (ask for card update)?
+- AI classification determines *why* each payment failed - is it a bank timeout (retry in 1 hour), insufficient funds (retry after payday), or card expiry (ask for card update)?
 - Multi-channel outreach through WhatsApp (98% open rate in India) rather than email-only dunning (20-25% open rate)
 - A 5-percentage-point improvement on INR 1 crore GMV = INR 5 lakhs additional monthly revenue ([Razorpay 2026 Guide](https://razorpay.com/blog/payment-success-rate-optimization-india/))
 
@@ -324,7 +324,7 @@ These are rough estimates with significant assumptions. The point is that even r
 
 ### 6.2 Subscription Businesses
 
-**Problem:** 9% of MRR at risk from failed recurring payments. Involuntary churn accounts for 20-40% of total churn — customers who want to stay but whose payments fail.
+**Problem:** 9% of MRR at risk from failed recurring payments. Involuntary churn accounts for 20-40% of total churn - customers who want to stay but whose payments fail.
 
 **Recovery Router impact (potential):**
 - Subscription recovery via smart retries can reach 57% ([Razorpay 2026 Guide](https://razorpay.com/blog/payment-success-rate-optimization-india/))
@@ -344,11 +344,11 @@ These are rough estimates with significant assumptions. The point is that even r
 
 ### 6.4 Small Merchants
 
-**Problem:** Razorpay serves 12 million+ merchants. The vast majority are small businesses without engineering teams. They have no recovery system at all — a failed payment is simply lost revenue.
+**Problem:** Razorpay serves 12 million+ merchants. The vast majority are small businesses without engineering teams. They have no recovery system at all - a failed payment is simply lost revenue.
 
 **Recovery Router impact (potential):**
 - Recovery as a platform feature means small merchants get the same intelligent recovery that large enterprises build for themselves
-- No engineering required — it works off the same webhooks Razorpay already processes
+- No engineering required - it works off the same webhooks Razorpay already processes
 - The cost is low enough ($0.008 per attempt) to be viable even for merchants with modest transaction volumes
 
 ---
@@ -374,20 +374,20 @@ No existing solution covers all of these dimensions:
 
 | Dimension | Recovery Router | Closest Competitor |
 |---|---|---|
-| Covers payment failures, cart abandonment, AND invoices | Yes — unified pipeline | Cashfree Relay (partial, unproven) |
-| Multi-channel: WhatsApp + SMS + Email | Yes — with provider fallback chains | Zuora (email + SMS only) |
-| AI failure classification (12 categories) | Yes — with transparent reasoning | Adyen (partial, retry-only) |
-| Dynamic attempt budgets | Yes — 0-5 based on probability and amount | None found |
-| Honest metrics (organic vs. AI-recovered separation) | Yes — by design | None found |
-| Three-model AI fallback | Yes — Claude Haiku, Gemini Flash, GPT-4o-mini + rules | None found (most use single model) |
+| Covers payment failures, cart abandonment, AND invoices | Yes - unified pipeline | Cashfree Relay (partial, unproven) |
+| Multi-channel: WhatsApp + SMS + Email | Yes - with provider fallback chains | Zuora (email + SMS only) |
+| AI failure classification (12 categories) | Yes - with transparent reasoning | Adyen (partial, retry-only) |
+| Dynamic attempt budgets | Yes - 0-5 based on probability and amount | None found |
+| Honest metrics (organic vs. AI-recovered separation) | Yes - by design | None found |
+| Three-model AI fallback | Yes - Claude Haiku, Gemini Flash, GPT-4o-mini + rules | None found (most use single model) |
 
 ### 7.3 What This Means for Razorpay vs. Competitors
 
-**Vs. Stripe:** Stripe's Revenue Recovery is the market leader but limited to subscription billing with email-only dunning. If Razorpay integrates Recovery Router's approach, it would offer multi-channel (WhatsApp is dominant in India), cross-leak-type recovery — something Stripe does not have. In the Indian market specifically, WhatsApp's 98% open rate vs. email's 20-25% open rate is a decisive advantage.
+**Vs. Stripe:** Stripe's Revenue Recovery is the market leader but limited to subscription billing with email-only dunning. If Razorpay integrates Recovery Router's approach, it would offer multi-channel (WhatsApp is dominant in India), cross-leak-type recovery - something Stripe does not have. In the Indian market specifically, WhatsApp's 98% open rate vs. email's 20-25% open rate is a decisive advantage.
 
-**Vs. Cashfree Relay:** Cashfree launched Relay in mid-2026 with similar ambitions (AI agents for payment recovery). This is the most direct competitor in India. Recovery Router's advantages: (1) explicit AI classification with transparent reasoning, (2) honest metrics that separate organic recoveries, (3) invoice recovery as a third leak type, (4) dynamic attempt budgets. The timing is critical — Cashfree is first to market with an "agentic payments" narrative. Razorpay needs an answer.
+**Vs. Cashfree Relay:** Cashfree launched Relay in mid-2026 with similar ambitions (AI agents for payment recovery). This is the most direct competitor in India. Recovery Router's advantages: (1) explicit AI classification with transparent reasoning, (2) honest metrics that separate organic recoveries, (3) invoice recovery as a third leak type, (4) dynamic attempt budgets. The timing is critical - Cashfree is first to market with an "agentic payments" narrative. Razorpay needs an answer.
 
-**Vs. Juspay:** Juspay is an orchestration layer — it optimizes payment routing, not post-failure recovery. Recovery Router and Juspay solve different (complementary) problems. This is not a competitive concern.
+**Vs. Juspay:** Juspay is an orchestration layer - it optimizes payment routing, not post-failure recovery. Recovery Router and Juspay solve different (complementary) problems. This is not a competitive concern.
 
 **First-mover opportunity:** No major payment processor offers a unified, AI-classified, multi-channel recovery engine that covers payment failures, cart abandonment, and overdue invoices with honest attribution metrics. This is the positioning opportunity for Razorpay.
 
@@ -457,19 +457,19 @@ Recovery Router is a buildathon prototype. Moving to production within Razorpay 
 - The system has only been tested with Razorpay test-mode data.
 - Actual recovery rates will depend on merchant vertical, customer demographics, failure mix, and market conditions.
 - Message delivery rates (not just "sent" rates) are unknown until production integration with delivery receipt APIs.
-- The cost model assumes current pricing for OpenRouter, Twilio, Green API, and Resend — prices may change.
+- The cost model assumes current pricing for OpenRouter, Twilio, Green API, and Resend - prices may change.
 
 ---
 
 ## Sources
 
 ### Pricing Sources
-- [OpenRouter — Claude Haiku 4.5](https://openrouter.ai/anthropic/claude-haiku-4.5)
-- [OpenRouter — Gemini 3.7 Flash](https://openrouter.ai/google/gemini-3.7-flash)
-- [OpenRouter — GPT-4o-mini](https://openrouter.ai/openai/gpt-4o-mini)
+- [OpenRouter - Claude Haiku 4.5](https://openrouter.ai/anthropic/claude-haiku-4.5)
+- [OpenRouter - Gemini 3.7 Flash](https://openrouter.ai/google/gemini-3.7-flash)
+- [OpenRouter - GPT-4o-mini](https://openrouter.ai/openai/gpt-4o-mini)
 - [Twilio SMS Pricing India](https://www.twilio.com/en-us/sms/pricing/in)
 - [Twilio WhatsApp Pricing](https://www.twilio.com/en-us/whatsapp/pricing)
-- [Green API — WhatsApp Business API Pricing 2026](https://green-api.com/articles/en/how-much-is-whatsapp-business-api-worth-in-2026/)
+- [Green API - WhatsApp Business API Pricing 2026](https://green-api.com/articles/en/how-much-is-whatsapp-business-api-worth-in-2026/)
 - [Resend Pricing](https://costbench.com/software/email-api/resend/)
 - [Railway Pricing](https://railway.com/pricing)
 - [Vercel Pricing](https://costbench.com/software/developer-tools/vercel/)
@@ -481,25 +481,25 @@ Recovery Router is a buildathon prototype. Moving to production within Razorpay 
 - [Razorpay Agent Studio](https://razorpay.com/blog/agent-studio-ai-agents-by-razorpay/)
 - [Razorpay Failed Payment Recovery](https://razorpay.com/blog/razorpay-failed-payment-recovery/)
 - [Razorpay Payment Gateway Pricing](https://razorpay.com/blog/razorpay-payment-gateway-pricing-explained/)
-- [Baremetrics — Involuntary Churn Guide](https://baremetrics.com/blog/involuntary-churn)
-- [Digital Applied — Failed Payment Recovery 2026 Dunning Playbook](https://www.digitalapplied.com/blog/failed-payment-recovery-dunning-playbook-2026)
-- [CoinLaw — Card Decline Statistics](https://coinlaw.io/card-decline-statistics/)
-- [Atradius India — B2B Payment Practices](https://atradius.in/knowledge-and-research/reports/b2b-payment-practices-trends-india-2026)
-- [Clockify — Late Invoice Statistics](https://clockify.me/late-invoice-statistics)
-- [iPiD — True Cost of Failed Payments](https://ipid.tech/blog/the-true-cost-of-failed-payment)
-- [ZeroCartAI — Cart Abandonment Statistics](https://zerocartai.com/blog/cart-abandonment-statistics-2025)
-- [LexisNexis / Accuity — True Cost of Failed Payments](https://risk.lexisnexis.com/about-us/press-room/press-release/20210714-true-cost-of-failed-payments)
-- [Recurly — Failed Payments Cost $129B](https://recurly.com/press/failed-payments-could-cost-subscription-companies-more-than-129-billion-in-2025-us/)
+- [Baremetrics - Involuntary Churn Guide](https://baremetrics.com/blog/involuntary-churn)
+- [Digital Applied - Failed Payment Recovery 2026 Dunning Playbook](https://www.digitalapplied.com/blog/failed-payment-recovery-dunning-playbook-2026)
+- [CoinLaw - Card Decline Statistics](https://coinlaw.io/card-decline-statistics/)
+- [Atradius India - B2B Payment Practices](https://atradius.in/knowledge-and-research/reports/b2b-payment-practices-trends-india-2026)
+- [Clockify - Late Invoice Statistics](https://clockify.me/late-invoice-statistics)
+- [iPiD - True Cost of Failed Payments](https://ipid.tech/blog/the-true-cost-of-failed-payment)
+- [ZeroCartAI - Cart Abandonment Statistics](https://zerocartai.com/blog/cart-abandonment-statistics-2025)
+- [LexisNexis / Accuity - True Cost of Failed Payments](https://risk.lexisnexis.com/about-us/press-room/press-release/20210714-true-cost-of-failed-payments)
+- [Recurly - Failed Payments Cost $129B](https://recurly.com/press/failed-payments-could-cost-subscription-companies-more-than-129-billion-in-2025-us/)
 
 ### Competitor Sources
 - [Stripe Billing](https://stripe.com/billing)
-- [Stripe — How We Built Smart Retries](https://stripe.com/blog/how-we-built-it-smart-retries)
-- [Redux Payments — Stripe Smart Retries Analysis](https://www.reduxpayments.com/blog/stripe-smart-retries-explained)
-- [Cashfree Relay — Business Standard](https://www.business-standard.com/companies/news/cashfree-rolls-out-ai-agents-for-merchants-to-automate-payment-operations-126083000455_1.html)
-- [Juspay — Smart Payment Retries](https://juspay.io/blog/smart-payment-retries-which-declines-should-be-retried)
-- [Adyen — Auto Rescue](https://docs.adyen.com/online-payments/auto-rescue/)
-- [Chargebee — Dunning Management](https://www.chargebee.com/blog/dunning-management-for-saas-business/)
-- [Recurly — Failed Payment Recovery Data](https://recurly.com/blog/failed-payment-recovery-data-based-strategy/)
+- [Stripe - How We Built Smart Retries](https://stripe.com/blog/how-we-built-it-smart-retries)
+- [Redux Payments - Stripe Smart Retries Analysis](https://www.reduxpayments.com/blog/stripe-smart-retries-explained)
+- [Cashfree Relay - Business Standard](https://www.business-standard.com/companies/news/cashfree-rolls-out-ai-agents-for-merchants-to-automate-payment-operations-126083000455_1.html)
+- [Juspay - Smart Payment Retries](https://juspay.io/blog/smart-payment-retries-which-declines-should-be-retried)
+- [Adyen - Auto Rescue](https://docs.adyen.com/online-payments/auto-rescue/)
+- [Chargebee - Dunning Management](https://www.chargebee.com/blog/dunning-management-for-saas-business/)
+- [Recurly - Failed Payment Recovery Data](https://recurly.com/blog/failed-payment-recovery-data-based-strategy/)
 
 ---
 

@@ -11,9 +11,9 @@ Author: Albert Abishek I. Last updated: August 2026.
 
 Stripe's revenue recovery sits inside Stripe Billing and combines three automated tools:
 
-- **Smart Retries** — ML-powered retry engine trained on billions of historical transactions. Rather than retrying on a fixed schedule, it picks the time window most likely to succeed for each individual card, factoring in card type, issuer behavior, and historical patterns.
-- **Card Account Updater** — Pre-dunning tool that pulls refreshed card details from Visa/Mastercard networks before a charge even fails. With roughly 40% of cards replaced yearly, this catches expired credentials proactively.
-- **Automated Emails** — Template-based dunning emails with a hosted payment-update page. Customers get a Stripe-branded email linking to a page where they can swap in a new card.
+- **Smart Retries** - ML-powered retry engine trained on billions of historical transactions. Rather than retrying on a fixed schedule, it picks the time window most likely to succeed for each individual card, factoring in card type, issuer behavior, and historical patterns.
+- **Card Account Updater** - Pre-dunning tool that pulls refreshed card details from Visa/Mastercard networks before a charge even fails. With roughly 40% of cards replaced yearly, this catches expired credentials proactively.
+- **Automated Emails** - Template-based dunning emails with a hosted payment-update page. Customers get a Stripe-branded email linking to a page where they can swap in a new card.
 
 ### Technical approach
 
@@ -23,17 +23,17 @@ Source: [How we built it: Smart Retries](https://stripe.com/blog/how-we-built-it
 
 ### Claimed recovery rates
 
-- **55% average recovery rate** across all Stripe Billing users — published on [stripe.com/billing](https://stripe.com/billing). This figure combines Smart Retries, card updater, and cancellation surveys working together.
-- **$8.2 billion** in failed payments recovered across the platform in 2025 — published on [stripe.com/billing](https://stripe.com/billing).
-- **$14 recovered for every $1 spent** on Billing in 2025 — same source.
-- **9% more revenue** recovered by Smart Retries vs. fixed-schedule retries — [Stripe blog](https://stripe.com/blog/how-we-built-it-smart-retries).
+- **55% average recovery rate** across all Stripe Billing users - published on [stripe.com/billing](https://stripe.com/billing). This figure combines Smart Retries, card updater, and cancellation surveys working together.
+- **$8.2 billion** in failed payments recovered across the platform in 2025 - published on [stripe.com/billing](https://stripe.com/billing).
+- **$14 recovered for every $1 spent** on Billing in 2025 - same source.
+- **9% more revenue** recovered by Smart Retries vs. fixed-schedule retries - [Stripe blog](https://stripe.com/blog/how-we-built-it-smart-retries).
 - Subscriptions recovered by Stripe tools continue for an average of **7 more months**.
 
 ### Independent analysis: the B2C reality
 
 Stripe's 55% headline blends B2B and B2C merchants. Independent analysis tells a different story for consumer subscription businesses:
 
-- Redux Payments audited **200+ B2C Stripe Billing accounts** representing **$500M+ in failed-payment volume** and found actual recovery rates of **25–35%** — a 20+ percentage point gap from the published average.
+- Redux Payments audited **200+ B2C Stripe Billing accounts** representing **$500M+ in failed-payment volume** and found actual recovery rates of **25–35%** - a 20+ percentage point gap from the published average.
 - Recurly's own data corroborates this: B2B recovery reaches 53.5% while B2C achieves only 34.6%.
 - The gap exists because B2B uses ACH and corporate cards (0.5% failure rate) while B2C relies on consumer cards (6.5–10% failure rate), and consumer subscribers are far more likely to passively abandon without updating their card.
 
@@ -41,11 +41,11 @@ Source: [Stripe Smart Retries: How They Work, Recovery Rates, and Where They Fai
 
 ### Limitations
 
-1. **Email-only dunning** — No native SMS, WhatsApp, push notifications, or in-app messaging. Stripe's dunning emails have a 20–25% open rate. Third-party analysis shows SMS achieves 45%+ open rates for payment recovery.
-2. **Template emails, not contextual** — The copy doesn't adapt to the underlying decline reason (insufficient funds gets the same message as an expired card).
-3. **Retry and dunning are independent** — Smart Retries and customer emails operate as separate systems with no unified decision engine. Retries don't inform when or whether to email, and vice versa.
-4. **No cart abandonment or invoice recovery** — Stripe Billing only addresses subscription payment failures. Cart abandonment and overdue invoice follow-up require separate integrations.
-5. **B2C underperformance** — Retry timing doesn't account for consumer payday cycles, and there's insufficient differentiation between soft and hard decline codes for consumer payment patterns.
+1. **Email-only dunning** - No native SMS, WhatsApp, push notifications, or in-app messaging. Stripe's dunning emails have a 20–25% open rate. Third-party analysis shows SMS achieves 45%+ open rates for payment recovery.
+2. **Template emails, not contextual** - The copy doesn't adapt to the underlying decline reason (insufficient funds gets the same message as an expired card).
+3. **Retry and dunning are independent** - Smart Retries and customer emails operate as separate systems with no unified decision engine. Retries don't inform when or whether to email, and vice versa.
+4. **No cart abandonment or invoice recovery** - Stripe Billing only addresses subscription payment failures. Cart abandonment and overdue invoice follow-up require separate integrations.
+5. **B2C underperformance** - Retry timing doesn't account for consumer payday cycles, and there's insufficient differentiation between soft and hard decline codes for consumer payment patterns.
 
 Sources: [Stripe dunning limitations](https://churnbuster.io/articles/stripe-dunning), [Redux Payments analysis](https://www.reduxpayments.com/blog/stripe-smart-retries-explained)
 
@@ -72,13 +72,13 @@ PayPal offers automatic retry for failed subscription payments, with a proprieta
 - Second reattempt 5 days after the first retry
 - If both fail, the subscription is canceled
 
-Source: [PayPal Developer — Payment Failures and Balance Recovery](https://developer.paypal.com/docs/subscriptions/customize/payment-failure-retry/)
+Source: [PayPal Developer - Payment Failures and Balance Recovery](https://developer.paypal.com/docs/subscriptions/customize/payment-failure-retry/)
 
 ### FlexFactor partnership
 
 PayPal Enterprise Payments has partnered with **FlexFactor** for real-time decline recovery on one-time transactions. When a transaction is declined, PayPal Orchestration can route it through FlexFactor's ML decision engine, which continuously learns from transaction patterns to determine if a declined payment should be retried immediately. This is designed for high-volume enterprise merchants and operates within PayPal's existing orchestration framework.
 
-Source: [PayPal — Recover declined payments with Orchestration](https://www.paypal.com/us/brc/article/recover-declined-payments)
+Source: [PayPal - Recover declined payments with Orchestration](https://www.paypal.com/us/brc/article/recover-declined-payments)
 
 ### Technical approach
 
@@ -86,15 +86,15 @@ PayPal's native retry uses a proprietary algorithm (no public ML architecture de
 
 ### Claimed recovery rates
 
-No publicly disclosed recovery rates found for PayPal's native retry system. FlexFactor does not publish specific recovery percentages on PayPal's platform. **Unverified — no source found for specific recovery rate claims.**
+No publicly disclosed recovery rates found for PayPal's native retry system. FlexFactor does not publish specific recovery percentages on PayPal's platform. **Unverified - no source found for specific recovery rate claims.**
 
 ### Limitations
 
-1. **No native dunning automation** — PayPal does not send automated dunning emails or payment-update reminders to customers after a failed subscription payment. Merchants must build this themselves or use third-party tools.
-2. **Fixed retry cadence** — Every-5-days schedule with a maximum of 2 retries is rigid. No ML-optimized timing for the native retry path.
-3. **No cart abandonment recovery** — PayPal offers no built-in tools to follow up on abandoned checkouts.
-4. **Enterprise-only ML** — The FlexFactor ML integration is limited to PayPal Enterprise Payments customers, not available to standard merchants.
-5. **Single-channel** — No SMS, WhatsApp, or multi-channel outreach capabilities for payment recovery.
+1. **No native dunning automation** - PayPal does not send automated dunning emails or payment-update reminders to customers after a failed subscription payment. Merchants must build this themselves or use third-party tools.
+2. **Fixed retry cadence** - Every-5-days schedule with a maximum of 2 retries is rigid. No ML-optimized timing for the native retry path.
+3. **No cart abandonment recovery** - PayPal offers no built-in tools to follow up on abandoned checkouts.
+4. **Enterprise-only ML** - The FlexFactor ML integration is limited to PayPal Enterprise Payments customers, not available to standard merchants.
+5. **Single-channel** - No SMS, WhatsApp, or multi-channel outreach capabilities for payment recovery.
 
 ### How Recovery Router differs
 
@@ -108,7 +108,7 @@ Recovery Router provides automated multi-channel dunning that PayPal entirely la
 
 Adyen's **Auto Rescue** automatically retries declined shopper-not-present transactions such as subscription renewals. It uses machine learning to determine which declined payments are recoverable and when to retry them, rather than applying a fixed schedule.
 
-Source: [Auto Rescue — Adyen Docs](https://docs.adyen.com/online-payments/auto-rescue/)
+Source: [Auto Rescue - Adyen Docs](https://docs.adyen.com/online-payments/auto-rescue/)
 
 ### Technical approach: contextual multi-armed bandits
 
@@ -118,11 +118,11 @@ Adyen published detailed research on their ML approach. Auto Rescue uses **conte
 - **Actions**: Possible retry timing windows within the rescue period
 - **Reward**: Successful payment conversion
 - The system uses an **epsilon-greedy exploration strategy** combined with random forests. Rather than averaging tree predictions, they sample from individual trees' outputs to emulate Thompson Sampling, balancing exploration with exploitation.
-- The model learns "hundreds, if not thousands" of contextual rules — for example, accounting for payday patterns (US biweekly vs. UK monthly), bank system load, and account balance cycles.
+- The model learns "hundreds, if not thousands" of contextual rules - for example, accounting for payday patterns (US biweekly vs. UK monthly), bank system load, and account balance cycles.
 
-Source: [Rescuing failed subscription payments using contextual multi-armed bandits — Adyen](https://www.adyen.com/knowledge-hub/rescuing-failed-subscription-payments-using-contextual-multi-armed-bandits)
+Source: [Rescuing failed subscription payments using contextual multi-armed bandits - Adyen](https://www.adyen.com/knowledge-hub/rescuing-failed-subscription-payments-using-contextual-multi-armed-bandits)
 
-Academic paper: [Contextual Bandits in Payment Processing — Adyen (arXiv)](https://arxiv.org/html/2412.00569v1)
+Academic paper: [Contextual Bandits in Payment Processing - Adyen (arXiv)](https://arxiv.org/html/2412.00569v1)
 
 ### Claimed recovery rates
 
@@ -130,20 +130,20 @@ Academic paper: [Contextual Bandits in Payment Processing — Adyen (arXiv)](htt
 - Early experiments: ML model converted **about 6% more orders** than the baseline.
 - Store-and-Forward retries (a separate feature): recovery rate of **more than 40%** on retried offline transactions.
 
-**Note on the "300% increase" claim:** This figure does **not** appear in any verifiable Adyen source. The number that does appear is that "the subscription economy has grown more than 300% in the last seven years," which describes market growth, not Auto Rescue's performance. The 300% claim for Auto Rescue is **unverified — no source found.**
+**Note on the "300% increase" claim:** This figure does **not** appear in any verifiable Adyen source. The number that does appear is that "the subscription economy has grown more than 300% in the last seven years," which describes market growth, not Auto Rescue's performance. The 300% claim for Auto Rescue is **unverified - no source found.**
 
-Sources: [Auto Rescue — Adyen Knowledge Hub](https://www.adyen.com/knowledge-hub/auto-rescue-making-subscriptions-unstoppable), [Adyen contextual bandits research](https://www.adyen.com/knowledge-hub/rescuing-failed-subscription-payments-using-contextual-multi-armed-bandits)
+Sources: [Auto Rescue - Adyen Knowledge Hub](https://www.adyen.com/knowledge-hub/auto-rescue-making-subscriptions-unstoppable), [Adyen contextual bandits research](https://www.adyen.com/knowledge-hub/rescuing-failed-subscription-payments-using-contextual-multi-armed-bandits)
 
 ### Limitations
 
-1. **Retry-only, no dunning** — Auto Rescue handles silent retries behind the scenes but does not send any customer-facing communications (no emails, no SMS, no payment-update prompts).
-2. **Recurring payments only** — Designed for subscription renewals and shopper-not-present transactions. Does not cover one-time payment failures, cart abandonment, or invoice recovery.
-3. **No multi-channel outreach** — When silent retries are exhausted, there's no automated fallback to ask the customer to update their payment method.
-4. **Modest published improvements** — The 4–10% improvement range, while meaningful at Adyen's scale, is incremental compared to solutions that combine retry with active customer engagement.
+1. **Retry-only, no dunning** - Auto Rescue handles silent retries behind the scenes but does not send any customer-facing communications (no emails, no SMS, no payment-update prompts).
+2. **Recurring payments only** - Designed for subscription renewals and shopper-not-present transactions. Does not cover one-time payment failures, cart abandonment, or invoice recovery.
+3. **No multi-channel outreach** - When silent retries are exhausted, there's no automated fallback to ask the customer to update their payment method.
+4. **Modest published improvements** - The 4–10% improvement range, while meaningful at Adyen's scale, is incremental compared to solutions that combine retry with active customer engagement.
 
 ### How Recovery Router differs
 
-Recovery Router combines Adyen-style ML retry optimization with active multi-channel customer outreach. When silent retries fail, Recovery Router doesn't stop — it escalates to contextual email, SMS, or WhatsApp based on the customer's predicted channel preference. It also covers cart abandonment and invoices, not just recurring payments.
+Recovery Router combines Adyen-style ML retry optimization with active multi-channel customer outreach. When silent retries fail, Recovery Router doesn't stop - it escalates to contextual email, SMS, or WhatsApp based on the customer's predicted channel preference. It also covers cart abandonment and invoices, not just recurring payments.
 
 ---
 
@@ -163,11 +163,11 @@ Cashfree Payments launched **Relay**, a suite of AI agents designed to automate 
 
 Unlike conventional automation tools that flag tasks for merchants, Relay executes actions directly using merchant transaction data.
 
-Sources: [Business Standard — Cashfree rolls out AI agents](https://www.business-standard.com/companies/news/cashfree-rolls-out-ai-agents-for-merchants-to-automate-payment-operations-126083000455_1.html), [IBS Intelligence — Cashfree Relay](https://ibsintelligence.com/ibsi-news/cashfrees-relay-brings-ai-agents-to-smb-payment-operations/)
+Sources: [Business Standard - Cashfree rolls out AI agents](https://www.business-standard.com/companies/news/cashfree-rolls-out-ai-agents-for-merchants-to-automate-payment-operations-126083000455_1.html), [IBS Intelligence - Cashfree Relay](https://ibsintelligence.com/ibsi-news/cashfrees-relay-brings-ai-agents-to-smb-payment-operations/)
 
 ### Technical approach
 
-Cashfree describes Relay as "AI super agents" using agentic AI to automate end-to-end payment operations. The agents use merchant transaction data to make decisions and execute actions autonomously. Specific ML architecture details are not publicly available — the product is still early-stage (launched mid-2026).
+Cashfree describes Relay as "AI super agents" using agentic AI to automate end-to-end payment operations. The agents use merchant transaction data to make decisions and execute actions autonomously. Specific ML architecture details are not publicly available - the product is still early-stage (launched mid-2026).
 
 ### Claimed recovery rates
 
@@ -179,10 +179,10 @@ Source: [Cashfree newsroom](https://www.cashfree.com/news-room/cashfree-payments
 
 ### Limitations
 
-1. **Very new product** — Beta since May 2026, no proven track record or independent benchmarks.
-2. **India-focused** — Primarily serves Indian merchants; limited global presence.
-3. **SMB-targeted** — Relay is positioned for small and medium businesses; enterprise features may be limited.
-4. **No published ML specifics** — "AI agents" is a broad marketing claim without detailed technical architecture disclosure.
+1. **Very new product** - Beta since May 2026, no proven track record or independent benchmarks.
+2. **India-focused** - Primarily serves Indian merchants; limited global presence.
+3. **SMB-targeted** - Relay is positioned for small and medium businesses; enterprise features may be limited.
+4. **No published ML specifics** - "AI agents" is a broad marketing claim without detailed technical architecture disclosure.
 
 ### How Recovery Router differs
 
@@ -202,18 +202,18 @@ Juspay's smart retry capabilities:
 - Analysis of error categories to determine retry eligibility
 - Support for India's complex payment landscape (UPI, cards, wallets, net banking, EMI, recurring mandates)
 
-Source: [Juspay — Smart Payment Retries: Which Declines Should Be Retried?](https://juspay.io/blog/smart-payment-retries-which-declines-should-be-retried)
+Source: [Juspay - Smart Payment Retries: Which Declines Should Be Retried?](https://juspay.io/blog/smart-payment-retries-which-declines-should-be-retried)
 
 ### Technical approach
 
 Juspay evaluates retries across four "surfaces":
 
-1. **Route adjustment** — Cascading failed transactions to alternate payment processors
-2. **Credential updates** — Refreshing network tokens or payment data before retry
-3. **Timing optimization** — Aligning retries with payday cycles and card network retry windows (e.g., Mastercard's MAC 24–30 windows)
-4. **Customer engagement** — Offering backup payment methods when silent retries are exhausted
+1. **Route adjustment** - Cascading failed transactions to alternate payment processors
+2. **Credential updates** - Refreshing network tokens or payment data before retry
+3. **Timing optimization** - Aligning retries with payday cycles and card network retry windows (e.g., Mastercard's MAC 24–30 windows)
+4. **Customer engagement** - Offering backup payment methods when silent retries are exhausted
 
-Juspay strictly distinguishes soft declines (insufficient funds, issuer timeouts, generic "do not honor") from hard declines (closed accounts, stolen cards, cardholder-cancelled mandates). Hard declines are never retried — Visa and Mastercard now charge per-attempt penalty fees for retrying them.
+Juspay strictly distinguishes soft declines (insufficient funds, issuer timeouts, generic "do not honor") from hard declines (closed accounts, stolen cards, cardholder-cancelled mandates). Hard declines are never retried - Visa and Mastercard now charge per-attempt penalty fees for retrying them.
 
 Source: [Juspay blog](https://juspay.io/blog/smart-payment-retries-which-declines-should-be-retried)
 
@@ -223,14 +223,14 @@ Source: [Juspay blog](https://juspay.io/blog/smart-payment-retries-which-decline
 
 ### Limitations
 
-1. **Orchestration layer, not a recovery engine** — Juspay optimizes payment routing and retries as part of broader payment orchestration. It doesn't provide dunning workflows, customer outreach, or recovery-specific analytics.
-2. **No cart abandonment or invoice recovery** — Focused entirely on payment transaction success rates.
-3. **No multi-channel dunning** — Does not send emails, SMS, or WhatsApp messages to customers about failed payments.
-4. **No recovery attribution** — Doesn't distinguish between payments that would have succeeded on retry anyway vs. those genuinely recovered by its intelligence.
+1. **Orchestration layer, not a recovery engine** - Juspay optimizes payment routing and retries as part of broader payment orchestration. It doesn't provide dunning workflows, customer outreach, or recovery-specific analytics.
+2. **No cart abandonment or invoice recovery** - Focused entirely on payment transaction success rates.
+3. **No multi-channel dunning** - Does not send emails, SMS, or WhatsApp messages to customers about failed payments.
+4. **No recovery attribution** - Doesn't distinguish between payments that would have succeeded on retry anyway vs. those genuinely recovered by its intelligence.
 
 ### How Recovery Router differs
 
-Juspay is an excellent payment orchestration layer, but it's solving a different (adjacent) problem. Recovery Router sits downstream — after the payment has failed through the processor — and handles the recovery journey across multiple channels and leak types. The two could theoretically be complementary: Juspay optimizes the initial payment attempt, Recovery Router handles what happens when it fails.
+Juspay is an excellent payment orchestration layer, but it's solving a different (adjacent) problem. Recovery Router sits downstream - after the payment has failed through the processor - and handles the recovery journey across multiple channels and leak types. The two could theoretically be complementary: Juspay optimizes the initial payment attempt, Recovery Router handles what happens when it fails.
 
 ---
 
@@ -240,40 +240,40 @@ Juspay is an excellent payment orchestration layer, but it's solving a different
 
 Chargebee is a subscription billing platform with built-in recovery tools:
 
-- **Smart retry logic** — Configurable retry schedules for failed payments
-- **Card Account Updater** — Automatic card refresh via Visa/Mastercard networks
-- **Dunning sequences** — Configurable multi-step email sequences for failed payments
-- **Multi-gateway routing** — Route retries through different payment gateways to improve authorization rates
-- **Chargebee Receivables** (add-on) — ML-optimized retry, multi-step dunning sequences, proactive failure alerts, and recovery analytics
+- **Smart retry logic** - Configurable retry schedules for failed payments
+- **Card Account Updater** - Automatic card refresh via Visa/Mastercard networks
+- **Dunning sequences** - Configurable multi-step email sequences for failed payments
+- **Multi-gateway routing** - Route retries through different payment gateways to improve authorization rates
+- **Chargebee Receivables** (add-on) - ML-optimized retry, multi-step dunning sequences, proactive failure alerts, and recovery analytics
 
-Source: [Chargebee — Dunning Management for SaaS](https://www.chargebee.com/blog/dunning-management-for-saas-business/)
+Source: [Chargebee - Dunning Management for SaaS](https://www.chargebee.com/blog/dunning-management-for-saas-business/)
 
 ### Technical approach
 
 Chargebee's native retry uses configurable rules-based logic. The Chargebee Receivables add-on layers machine learning on top for optimized retry timing. AI smart dunning delivers 20–50% higher recovery rates than traditional rules-based systems according to Chargebee merchant data from 2025.
 
-Source: [Slicker — AI smart dunning Chargebee results](https://www.slickerhq.com/resources/blog/ai-smart-dunning-worth-it-chargebee-users-share-2025-results)
+Source: [Slicker - AI smart dunning Chargebee results](https://www.slickerhq.com/resources/blog/ai-smart-dunning-worth-it-chargebee-users-share-2025-results)
 
 ### Claimed recovery rates
 
 - **Native recovery: 30–35%** typical failed-payment recovery rate for Chargebee merchants.
 - **Median merchants: 38–52%** of failed charges recovered within 14 days.
 - **With third-party AI layered on: up to 70%** of failed payments recovered.
-- **Case study — Bark:** 12% save rate and 27.8% automated dunning success rate — a 224% improvement over their previous self-built solution.
-- **Case study — Zenchef:** Recovered 60% of formerly unpaid accounts after moving to Chargebee.
+- **Case study - Bark:** 12% save rate and 27.8% automated dunning success rate - a 224% improvement over their previous self-built solution.
+- **Case study - Zenchef:** Recovered 60% of formerly unpaid accounts after moving to Chargebee.
 
-Sources: [Slicker — Chargebee recovery benchmarks](https://www.slickerhq.com/resources/blog/chargebee-recovery-benchmarks-2025-ai-engines-slicker-double-industry-average), [Revatto — Chargebee recovery](https://revatto.com/integrations/chargebee)
+Sources: [Slicker - Chargebee recovery benchmarks](https://www.slickerhq.com/resources/blog/chargebee-recovery-benchmarks-2025-ai-engines-slicker-double-industry-average), [Revatto - Chargebee recovery](https://revatto.com/integrations/chargebee)
 
 ### Limitations
 
-1. **Subscription-only** — Chargebee is a subscription billing platform. It does not handle one-time payment failures, cart abandonment, or invoice recovery.
-2. **Email-only dunning natively** — No native SMS, phone, or WhatsApp outreach. Dunning alone recovers approximately 20%.
-3. **ML requires add-on** — The intelligent retry features require Chargebee Receivables, a separate paid add-on. The base product uses rules-based logic.
-4. **No cross-leak-type intelligence** — Each recovery pathway is independent; there's no unified AI that reasons across different types of revenue leakage.
+1. **Subscription-only** - Chargebee is a subscription billing platform. It does not handle one-time payment failures, cart abandonment, or invoice recovery.
+2. **Email-only dunning natively** - No native SMS, phone, or WhatsApp outreach. Dunning alone recovers approximately 20%.
+3. **ML requires add-on** - The intelligent retry features require Chargebee Receivables, a separate paid add-on. The base product uses rules-based logic.
+4. **No cross-leak-type intelligence** - Each recovery pathway is independent; there's no unified AI that reasons across different types of revenue leakage.
 
 ### How Recovery Router differs
 
-Recovery Router covers all three leak types (payment failures, cart abandonment, invoices) in one pipeline, includes multi-channel outreach natively, and applies AI classification to every failure — not just subscription charges that go through an optional add-on.
+Recovery Router covers all three leak types (payment failures, cart abandonment, invoices) in one pipeline, includes multi-channel outreach natively, and applies AI classification to every failure - not just subscription charges that go through an optional add-on.
 
 ---
 
@@ -283,12 +283,12 @@ Recovery Router covers all three leak types (payment failures, cart abandonment,
 
 Recurly is a subscription management platform that has built its brand heavily around payment recovery. Their recovery stack includes:
 
-- **Intelligent retries** — ML-optimized retry timing and frequency
-- **Account Updater** — Pre-dunning card refresh service
-- **Dunning campaigns** — Configurable multi-step email sequences
-- **Revenue Optimization Engine** — Their umbrella term for the combined recovery system
+- **Intelligent retries** - ML-optimized retry timing and frequency
+- **Account Updater** - Pre-dunning card refresh service
+- **Dunning campaigns** - Configurable multi-step email sequences
+- **Revenue Optimization Engine** - Their umbrella term for the combined recovery system
 
-Source: [Recurly — Failed Payment Recovery: What the Data Shows](https://recurly.com/blog/failed-payment-recovery-data-based-strategy/)
+Source: [Recurly - Failed Payment Recovery: What the Data Shows](https://recurly.com/blog/failed-payment-recovery-data-based-strategy/)
 
 ### Technical approach
 
@@ -296,19 +296,19 @@ Recurly trains its retry models on transaction data across its merchant network.
 
 ### Claimed recovery rates
 
-- **Optimized recovery: 53% to 71%** — Recurly's enterprise transaction data shows optimized retry strategies improve recovery from approximately 53% to 71%.
-- **70%+ of failed transactions recovered** — Recurly claims to have helped subscription businesses recover over 70% of failed transactions and reduce involuntary churn rates to as low as 1%.
-- **Enterprise target: high 60s to low 70s** — Recurly recommends enterprises target this range with proper optimization, representing a 10–20 percentage point improvement over baseline.
+- **Optimized recovery: 53% to 71%** - Recurly's enterprise transaction data shows optimized retry strategies improve recovery from approximately 53% to 71%.
+- **70%+ of failed transactions recovered** - Recurly claims to have helped subscription businesses recover over 70% of failed transactions and reduce involuntary churn rates to as low as 1%.
+- **Enterprise target: high 60s to low 70s** - Recurly recommends enterprises target this range with proper optimization, representing a 10–20 percentage point improvement over baseline.
 - **Case studies:** An enterprise membership retailer recovered an estimated $1.9M over two months ($11.6M annualized). A food delivery platform projected $3.6M recovered over two months ($21.6M annualized).
 
-Sources: [Recurly blog](https://recurly.com/blog/failed-payment-recovery-data-based-strategy/), [Recurly — Minimize churn](https://recurly.com/resources/guide/minimize-churn-maximize-revenue/)
+Sources: [Recurly blog](https://recurly.com/blog/failed-payment-recovery-data-based-strategy/), [Recurly - Minimize churn](https://recurly.com/resources/guide/minimize-churn-maximize-revenue/)
 
 ### Limitations
 
-1. **Subscription-only** — Like Chargebee, Recurly is purpose-built for subscription billing. No cart abandonment or invoice recovery.
-2. **Email-only dunning** — Dunning campaigns are email-based. No native SMS or WhatsApp integration.
-3. **Recovery rates are optimistic** — The 70%+ claim likely includes payments that would have succeeded on any retry (organic recoveries). Without separating organic from AI-attributed recoveries, the true impact of Recurly's intelligence is unclear.
-4. **Closed ecosystem** — Recovery intelligence is tied to Recurly's billing platform. Merchants on other billing systems can't use Recurly's recovery tools alone.
+1. **Subscription-only** - Like Chargebee, Recurly is purpose-built for subscription billing. No cart abandonment or invoice recovery.
+2. **Email-only dunning** - Dunning campaigns are email-based. No native SMS or WhatsApp integration.
+3. **Recovery rates are optimistic** - The 70%+ claim likely includes payments that would have succeeded on any retry (organic recoveries). Without separating organic from AI-attributed recoveries, the true impact of Recurly's intelligence is unclear.
+4. **Closed ecosystem** - Recovery intelligence is tied to Recurly's billing platform. Merchants on other billing systems can't use Recurly's recovery tools alone.
 
 ### How Recovery Router differs
 
@@ -322,11 +322,11 @@ Recovery Router's honest metrics framework explicitly separates organic recoveri
 
 Zuora offers **Zuora Collect**, a payment recovery module within its enterprise subscription billing platform:
 
-- **Configurable Payment Retry** — Custom retry logic or AI-driven smart retry, configurable per customer segment and gateway response code
-- **Dunning workflows** — Automated email and SMS communications attached to retry schedules
-- **Smart retry logic** — AI-driven algorithms to optimize retry timing and maximize collections
+- **Configurable Payment Retry** - Custom retry logic or AI-driven smart retry, configurable per customer segment and gateway response code
+- **Dunning workflows** - Automated email and SMS communications attached to retry schedules
+- **Smart retry logic** - AI-driven algorithms to optimize retry timing and maximize collections
 
-Source: [Zuora — Payment Retry documentation](https://docs.zuora.com/en/zuora-payments/payment-orchestration/payment-retry)
+Source: [Zuora - Payment Retry documentation](https://docs.zuora.com/en/zuora-payments/payment-orchestration/payment-retry)
 
 ### Technical approach
 
@@ -334,14 +334,14 @@ Zuora's smart retry uses AI-driven algorithms (specific architecture undisclosed
 
 ### Claimed recovery rates
 
-**No specific recovery rate percentages published by Zuora.** Their marketing materials focus on "reducing payment failures" and "improving customer retention" without quantifying recovery rates. **Unverified — no source found for specific claims.**
+**No specific recovery rate percentages published by Zuora.** Their marketing materials focus on "reducing payment failures" and "improving customer retention" without quantifying recovery rates. **Unverified - no source found for specific claims.**
 
 ### Limitations
 
-1. **Enterprise-only** — Zuora targets large enterprise subscription businesses. Pricing and complexity are prohibitive for SMBs.
-2. **Subscription-only** — No cart abandonment or one-time payment recovery.
-3. **Complex setup** — Zuora's configurability comes at the cost of complexity. Setting up optimal retry rules requires significant operational investment.
-4. **No multi-channel beyond email/SMS** — While Zuora supports email and SMS (more than Stripe/Chargebee natively), it doesn't integrate WhatsApp or in-app messaging.
+1. **Enterprise-only** - Zuora targets large enterprise subscription businesses. Pricing and complexity are prohibitive for SMBs.
+2. **Subscription-only** - No cart abandonment or one-time payment recovery.
+3. **Complex setup** - Zuora's configurability comes at the cost of complexity. Setting up optimal retry rules requires significant operational investment.
+4. **No multi-channel beyond email/SMS** - While Zuora supports email and SMS (more than Stripe/Chargebee natively), it doesn't integrate WhatsApp or in-app messaging.
 
 ### How Recovery Router differs
 
@@ -355,12 +355,12 @@ Recovery Router provides the multi-channel outreach and AI classification out of
 
 Lemon Squeezy is a merchant of record platform popular with indie developers and small SaaS creators. It includes built-in recovery and dunning:
 
-- **Automatic retry** — 4 retries over 2 weeks after a failed subscription payment
-- **Email notifications** — Customer is emailed after each failed attempt with a link to update billing info
-- **Dunning emails** — If all retries fail, a configurable dunning email sequence is sent over a specified period
-- **Abandoned cart recovery** — Built-in cart recovery features (included free)
+- **Automatic retry** - 4 retries over 2 weeks after a failed subscription payment
+- **Email notifications** - Customer is emailed after each failed attempt with a link to update billing info
+- **Dunning emails** - If all retries fail, a configurable dunning email sequence is sent over a specified period
+- **Abandoned cart recovery** - Built-in cart recovery features (included free)
 
-Source: [Lemon Squeezy — Recovery and Dunning docs](https://docs.lemonsqueezy.com/help/online-store/recovery-dunning)
+Source: [Lemon Squeezy - Recovery and Dunning docs](https://docs.lemonsqueezy.com/help/online-store/recovery-dunning)
 
 ### Technical approach
 
@@ -368,18 +368,18 @@ No ML. Lemon Squeezy uses a fixed retry schedule (4 attempts over 14 days) with 
 
 ### Claimed recovery rates
 
-**No specific recovery rate percentages published.** Lemon Squeezy does not make public claims about recovery effectiveness. **Unverified — no source found.**
+**No specific recovery rate percentages published.** Lemon Squeezy does not make public claims about recovery effectiveness. **Unverified - no source found.**
 
 ### Limitations
 
-1. **No ML or intelligence** — Fixed retry schedule with no adaptive timing or scoring.
-2. **Email-only** — No SMS, WhatsApp, or push notification support.
-3. **Simple dunning** — Good enough for indie projects but lacks the sophistication needed for businesses with meaningful failed-payment volume.
-4. **No invoice recovery** — Covers subscription failures and cart abandonment, but not B2B invoice follow-up.
+1. **No ML or intelligence** - Fixed retry schedule with no adaptive timing or scoring.
+2. **Email-only** - No SMS, WhatsApp, or push notification support.
+3. **Simple dunning** - Good enough for indie projects but lacks the sophistication needed for businesses with meaningful failed-payment volume.
+4. **No invoice recovery** - Covers subscription failures and cart abandonment, but not B2B invoice follow-up.
 
 ### How Recovery Router differs
 
-Recovery Router applies AI classification and dynamic retry budgets where Lemon Squeezy uses fixed schedules. For indie developers and small SaaS, Lemon Squeezy's simplicity is actually a feature — Recovery Router targets merchants with enough volume to benefit from ML optimization.
+Recovery Router applies AI classification and dynamic retry budgets where Lemon Squeezy uses fixed schedules. For indie developers and small SaaS, Lemon Squeezy's simplicity is actually a feature - Recovery Router targets merchants with enough volume to benefit from ML optimization.
 
 ---
 
@@ -389,11 +389,11 @@ Recovery Router applies AI classification and dynamic retry budgets where Lemon 
 
 Square offers basic automatic payment retry for its subscription and invoice products:
 
-- **Subscription retries** — After a failed payment, Square retries on day 3, day 6, and day 9 (every 3 days for 9 days total)
-- **Invoice retries** — Similar fixed retry schedule for unpaid invoices
-- **Squarespace integration** — For Squarespace subscriptions, 2 additional retries within 10 days; if all 3 attempts fail, the membership is canceled
+- **Subscription retries** - After a failed payment, Square retries on day 3, day 6, and day 9 (every 3 days for 9 days total)
+- **Invoice retries** - Similar fixed retry schedule for unpaid invoices
+- **Squarespace integration** - For Squarespace subscriptions, 2 additional retries within 10 days; if all 3 attempts fail, the membership is canceled
 
-Source: [Square Community — Automatic Payment Retries](https://community.squareup.com/t5/Archived-Articles-Read-Only/New-Automatic-Payment-Retries-with-Square-Subscriptions/ba-p/343646)
+Source: [Square Community - Automatic Payment Retries](https://community.squareup.com/t5/Archived-Articles-Read-Only/New-Automatic-Payment-Retries-with-Square-Subscriptions/ba-p/343646)
 
 ### Technical approach
 
@@ -401,15 +401,15 @@ No ML. Fixed 3-day retry intervals with no adaptive logic, no decline-reason dif
 
 ### Claimed recovery rates
 
-**No specific recovery rate percentages published.** Square does not publicly disclose recovery metrics. **Unverified — no source found.**
+**No specific recovery rate percentages published.** Square does not publicly disclose recovery metrics. **Unverified - no source found.**
 
 ### Limitations
 
-1. **Most basic recovery available** — Fixed 3-day intervals with no intelligence whatsoever.
-2. **No dunning** — No automated customer outreach for failed payments.
-3. **No ML** — No adaptive retry timing or decline-code analysis.
-4. **No cart abandonment recovery** — Retry-only for subscriptions and invoices.
-5. **No multi-channel** — No email, SMS, or any other customer communication about failures.
+1. **Most basic recovery available** - Fixed 3-day intervals with no intelligence whatsoever.
+2. **No dunning** - No automated customer outreach for failed payments.
+3. **No ML** - No adaptive retry timing or decline-code analysis.
+4. **No cart abandonment recovery** - Retry-only for subscriptions and invoices.
+5. **No multi-channel** - No email, SMS, or any other customer communication about failures.
 
 ### How Recovery Router differs
 
@@ -423,10 +423,10 @@ Square represents the floor of what payment recovery can be. Recovery Router pro
 
 Butter Payments is a dedicated failed-payment recovery platform (not a billing system) that sits on top of existing payment processors like Stripe and Recharge:
 
-- **Recover** — Failed payment optimization using per-transaction ML analysis
-- **Outreach** — Consolidated retry communications to customers
-- **PaymentScore** — Recoverability assessment that scores each failed payment's likelihood of recovery
-- **Dispute** — Chargeback reduction
+- **Recover** - Failed payment optimization using per-transaction ML analysis
+- **Outreach** - Consolidated retry communications to customers
+- **PaymentScore** - Recoverability assessment that scores each failed payment's likelihood of recovery
+- **Dispute** - Chargeback reduction
 
 Source: [Butter Payments](https://www.butterpayments.com/)
 
@@ -440,14 +440,14 @@ Butter uses customized ML models that process each failed payment individually (
 - Claims to deliver **10%+ ARR growth** for clients
 - Revenue-share business model (no retainer fees)
 
-Source: [BusinessWire — Butter Payments](https://www.businesswire.com/news/home/20260129364045/en/Butter-Payments-Drives-56-More-Recurring-Revenue-for-Subscription-Brands-Powering-Sustainable-Growth-Through-Failed-Payment-Recovery)
+Source: [BusinessWire - Butter Payments](https://www.businesswire.com/news/home/20260129364045/en/Butter-Payments-Drives-56-More-Recurring-Revenue-for-Subscription-Brands-Powering-Sustainable-Growth-Through-Failed-Payment-Recovery)
 
 ### Limitations
 
-1. **Subscription-only** — No cart abandonment or invoice recovery.
-2. **Dependent on underlying processor** — Works on top of Stripe/Recharge; limited to what the underlying processor supports.
-3. **No multi-channel dunning natively** — "Outreach" is a newer product (launched 2026); details on channel support are limited.
-4. **Revenue-share pricing** — Costs scale with recovered revenue, which can become expensive for high-volume merchants.
+1. **Subscription-only** - No cart abandonment or invoice recovery.
+2. **Dependent on underlying processor** - Works on top of Stripe/Recharge; limited to what the underlying processor supports.
+3. **No multi-channel dunning natively** - "Outreach" is a newer product (launched 2026); details on channel support are limited.
+4. **Revenue-share pricing** - Costs scale with recovered revenue, which can become expensive for high-volume merchants.
 
 ### How Recovery Router differs
 
@@ -474,17 +474,17 @@ Primarily rules-based with optimized defaults. Churn Buster focuses on communica
 
 ### Claimed recovery rates
 
-**No specific platform-wide recovery rate published.** Churn Buster positions itself on reducing passive churn but doesn't publish a headline recovery percentage. **Unverified — no source found for specific rate claims.**
+**No specific platform-wide recovery rate published.** Churn Buster positions itself on reducing passive churn but doesn't publish a headline recovery percentage. **Unverified - no source found for specific rate claims.**
 
 ### Limitations
 
-1. **Dunning-only** — Does not handle payment retries at all; relies on the underlying billing platform (Stripe, etc.) for retry logic.
-2. **No cart abandonment or invoice recovery** — Subscription dunning only.
-3. **No ML for retry optimization** — The intelligence is in communication, not payment processing.
+1. **Dunning-only** - Does not handle payment retries at all; relies on the underlying billing platform (Stripe, etc.) for retry logic.
+2. **No cart abandonment or invoice recovery** - Subscription dunning only.
+3. **No ML for retry optimization** - The intelligence is in communication, not payment processing.
 
 ### How Recovery Router differs
 
-Recovery Router combines both sides — intelligent retry AND multi-channel dunning — in one system. Churn Buster addresses only the communication half and relies on Stripe/Chargebee for the retry half.
+Recovery Router combines both sides - intelligent retry AND multi-channel dunning - in one system. Churn Buster addresses only the communication half and relies on Stripe/Chargebee for the retry half.
 
 ---
 
@@ -492,7 +492,7 @@ Recovery Router combines both sides — intelligent retry AND multi-channel dunn
 
 ### What they do
 
-Gravy is a human-driven recovery service that uses live agents to reach out to customers after failed payments. They use personalized email, SMS, and sometimes phone calls. This is a managed service model — Gravy's team handles the outreach, not the merchant's.
+Gravy is a human-driven recovery service that uses live agents to reach out to customers after failed payments. They use personalized email, SMS, and sometimes phone calls. This is a managed service model - Gravy's team handles the outreach, not the merchant's.
 
 Source: [Gravy Solutions](https://www.gravysolutions.io/post/gravy-vs-churn-buster)
 
@@ -502,14 +502,14 @@ Human-first, not ML-first. Gravy employs retention specialists who manually cont
 
 ### Claimed recovery rates
 
-**No specific rates verified via web search.** Gravy's marketing emphasizes recovered revenue in dollar terms for specific clients rather than percentage recovery rates. **Unverified — no source found for specific rate claims.**
+**No specific rates verified via web search.** Gravy's marketing emphasizes recovered revenue in dollar terms for specific clients rather than percentage recovery rates. **Unverified - no source found for specific rate claims.**
 
 ### Limitations
 
-1. **Not scalable** — Human agents don't scale the way ML does.
-2. **Expensive** — Managed service pricing is significantly higher than automated tools.
-3. **Subscription-only** — Focused on subscription payment failures.
-4. **Slow** — Human outreach introduces latency that ML-powered systems avoid.
+1. **Not scalable** - Human agents don't scale the way ML does.
+2. **Expensive** - Managed service pricing is significantly higher than automated tools.
+3. **Subscription-only** - Focused on subscription payment failures.
+4. **Slow** - Human outreach introduces latency that ML-powered systems avoid.
 
 ### How Recovery Router differs
 
@@ -519,7 +519,7 @@ Recovery Router achieves the personalization benefit of human outreach (contextu
 
 ## Global Gap Analysis
 
-The table below compares which competitors cover each dimension of payment recovery. This is what makes Recovery Router's positioning clear — no existing solution covers all dimensions.
+The table below compares which competitors cover each dimension of payment recovery. This is what makes Recovery Router's positioning clear - no existing solution covers all dimensions.
 
 | Capability | Stripe | PayPal | Adyen | Cashfree | Juspay | Chargebee | Recurly | Zuora | Lemon Squeezy | Square | Butter | Recovery Router |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -559,7 +559,7 @@ Every major payment processor treats payment failure recovery, cart abandonment,
 
 ### Multi-channel is the exception, not the norm
 
-Most solutions are email-only for dunning (Stripe, Chargebee, Recurly, Lemon Squeezy). Zuora adds SMS. WhatsApp — which has 98% open rates in India and much of the developing world — is not natively supported by any major payment recovery solution found in this research.
+Most solutions are email-only for dunning (Stripe, Chargebee, Recurly, Lemon Squeezy). Zuora adds SMS. WhatsApp - which has 98% open rates in India and much of the developing world - is not natively supported by any major payment recovery solution found in this research.
 
 ### Published recovery rates are inflated
 
@@ -567,41 +567,41 @@ Stripe's 55% includes B2B accounts that naturally recover at higher rates. Recur
 
 ### Retry and dunning are treated as separate concerns
 
-Stripe's Smart Retries and dunning emails are independent systems. Chargebee's smart retry is a separate add-on from its dunning. Adyen does retry-only with no dunning at all. No competitor found in this research treats retry timing and customer outreach as a unified decision — except Recovery Router.
+Stripe's Smart Retries and dunning emails are independent systems. Chargebee's smart retry is a separate add-on from its dunning. Adyen does retry-only with no dunning at all. No competitor found in this research treats retry timing and customer outreach as a unified decision - except Recovery Router.
 
 ### India is underserved
 
-Cashfree Relay and Juspay's orchestration are the only India-specific solutions, and neither has a mature, proven recovery product. The Indian market — with its UPI, multi-bank, multi-method complexity — needs recovery solutions built for its payment landscape, not adapted from US/EU card-centric models.
+Cashfree Relay and Juspay's orchestration are the only India-specific solutions, and neither has a mature, proven recovery product. The Indian market - with its UPI, multi-bank, multi-method complexity - needs recovery solutions built for its payment landscape, not adapted from US/EU card-centric models.
 
 ---
 
 ## Sources
 
-- [Stripe — How we built Smart Retries](https://stripe.com/blog/how-we-built-it-smart-retries)
+- [Stripe - How we built Smart Retries](https://stripe.com/blog/how-we-built-it-smart-retries)
 - [Stripe Billing](https://stripe.com/billing)
-- [Redux Payments — Stripe Smart Retries explained](https://www.reduxpayments.com/blog/stripe-smart-retries-explained)
-- [Churn Buster — Stripe dunning guide](https://churnbuster.io/articles/stripe-dunning)
-- [PayPal Developer — Payment failure retry](https://developer.paypal.com/docs/subscriptions/customize/payment-failure-retry/)
-- [PayPal — Recover declined payments](https://www.paypal.com/us/brc/article/recover-declined-payments)
-- [Adyen — Auto Rescue docs](https://docs.adyen.com/online-payments/auto-rescue/)
-- [Adyen — Contextual multi-armed bandits](https://www.adyen.com/knowledge-hub/rescuing-failed-subscription-payments-using-contextual-multi-armed-bandits)
-- [Adyen — Auto Rescue knowledge hub](https://www.adyen.com/knowledge-hub/auto-rescue-making-subscriptions-unstoppable)
-- [Adyen — Contextual Bandits in Payment Processing (arXiv)](https://arxiv.org/html/2412.00569v1)
-- [Business Standard — Cashfree Relay](https://www.business-standard.com/companies/news/cashfree-rolls-out-ai-agents-for-merchants-to-automate-payment-operations-126083000455_1.html)
-- [IBS Intelligence — Cashfree Relay](https://ibsintelligence.com/ibsi-news/cashfrees-relay-brings-ai-agents-to-smb-payment-operations/)
-- [Juspay — Smart Payment Retries](https://juspay.io/blog/smart-payment-retries-which-declines-should-be-retried)
-- [Juspay — Payment Orchestration](https://juspay.io/payment-orchestration)
-- [Chargebee — Dunning Management](https://www.chargebee.com/blog/dunning-management-for-saas-business/)
-- [Slicker — Chargebee AI dunning results](https://www.slickerhq.com/resources/blog/ai-smart-dunning-worth-it-chargebee-users-share-2025-results)
-- [Slicker — Chargebee recovery benchmarks](https://www.slickerhq.com/resources/blog/chargebee-recovery-benchmarks-2025-ai-engines-slicker-double-industry-average)
-- [Recurly — Failed Payment Recovery data](https://recurly.com/blog/failed-payment-recovery-data-based-strategy/)
-- [Recurly — Minimize churn guide](https://recurly.com/resources/guide/minimize-churn-maximize-revenue/)
-- [Zuora — Payment Retry docs](https://docs.zuora.com/en/zuora-payments/payment-orchestration/payment-retry)
-- [Lemon Squeezy — Recovery and Dunning](https://docs.lemonsqueezy.com/help/online-store/recovery-dunning)
-- [Square Community — Automatic Payment Retries](https://community.squareup.com/t5/Archived-Articles-Read-Only/New-Automatic-Payment-Retries-with-Square-Subscriptions/ba-p/343646)
+- [Redux Payments - Stripe Smart Retries explained](https://www.reduxpayments.com/blog/stripe-smart-retries-explained)
+- [Churn Buster - Stripe dunning guide](https://churnbuster.io/articles/stripe-dunning)
+- [PayPal Developer - Payment failure retry](https://developer.paypal.com/docs/subscriptions/customize/payment-failure-retry/)
+- [PayPal - Recover declined payments](https://www.paypal.com/us/brc/article/recover-declined-payments)
+- [Adyen - Auto Rescue docs](https://docs.adyen.com/online-payments/auto-rescue/)
+- [Adyen - Contextual multi-armed bandits](https://www.adyen.com/knowledge-hub/rescuing-failed-subscription-payments-using-contextual-multi-armed-bandits)
+- [Adyen - Auto Rescue knowledge hub](https://www.adyen.com/knowledge-hub/auto-rescue-making-subscriptions-unstoppable)
+- [Adyen - Contextual Bandits in Payment Processing (arXiv)](https://arxiv.org/html/2412.00569v1)
+- [Business Standard - Cashfree Relay](https://www.business-standard.com/companies/news/cashfree-rolls-out-ai-agents-for-merchants-to-automate-payment-operations-126083000455_1.html)
+- [IBS Intelligence - Cashfree Relay](https://ibsintelligence.com/ibsi-news/cashfrees-relay-brings-ai-agents-to-smb-payment-operations/)
+- [Juspay - Smart Payment Retries](https://juspay.io/blog/smart-payment-retries-which-declines-should-be-retried)
+- [Juspay - Payment Orchestration](https://juspay.io/payment-orchestration)
+- [Chargebee - Dunning Management](https://www.chargebee.com/blog/dunning-management-for-saas-business/)
+- [Slicker - Chargebee AI dunning results](https://www.slickerhq.com/resources/blog/ai-smart-dunning-worth-it-chargebee-users-share-2025-results)
+- [Slicker - Chargebee recovery benchmarks](https://www.slickerhq.com/resources/blog/chargebee-recovery-benchmarks-2025-ai-engines-slicker-double-industry-average)
+- [Recurly - Failed Payment Recovery data](https://recurly.com/blog/failed-payment-recovery-data-based-strategy/)
+- [Recurly - Minimize churn guide](https://recurly.com/resources/guide/minimize-churn-maximize-revenue/)
+- [Zuora - Payment Retry docs](https://docs.zuora.com/en/zuora-payments/payment-orchestration/payment-retry)
+- [Lemon Squeezy - Recovery and Dunning](https://docs.lemonsqueezy.com/help/online-store/recovery-dunning)
+- [Square Community - Automatic Payment Retries](https://community.squareup.com/t5/Archived-Articles-Read-Only/New-Automatic-Payment-Retries-with-Square-Subscriptions/ba-p/343646)
 - [Butter Payments](https://www.butterpayments.com/)
-- [BusinessWire — Butter Payments 56% more revenue](https://www.businesswire.com/news/home/20260129364045/en/Butter-Payments-Drives-56-More-Recurring-Revenue-for-Subscription-Brands-Powering-Sustainable-Growth-Through-Failed-Payment-Recovery)
+- [BusinessWire - Butter Payments 56% more revenue](https://www.businesswire.com/news/home/20260129364045/en/Butter-Payments-Drives-56-More-Recurring-Revenue-for-Subscription-Brands-Powering-Sustainable-Growth-Through-Failed-Payment-Recovery)
 - [Churn Buster](https://churnbuster.io/articles/best-dunning-management-software/)
 - [Gravy Solutions](https://www.gravysolutions.io/post/gravy-vs-churn-buster)
-- [Stripe customer story — Make](https://stripe.com/nl/customers/make)
-- [FlyCode — Smart Payment Orchestration](https://www.flycode.com/blog/smart-payment-orchestration-from-simple-rules-to-ai-unlocking-failed-payment-boost-with-multi-processor-strategy)
+- [Stripe customer story - Make](https://stripe.com/nl/customers/make)
+- [FlyCode - Smart Payment Orchestration](https://www.flycode.com/blog/smart-payment-orchestration-from-simple-rules-to-ai-unlocking-failed-payment-boost-with-multi-processor-strategy)

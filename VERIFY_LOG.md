@@ -1,4 +1,4 @@
-# Recovery Router — Build Verification Log
+# Recovery Router - Build Verification Log
 
 **Purpose:** Track every step, verify every claim, catch every issue BEFORE it becomes a bug.  
 **Rule:** No assumptions. Only trust results from real API calls with real credentials.
@@ -7,19 +7,19 @@
 
 ## Pre-Build Checklist
 
-### Credential Verification (Real API calls — verified 2026-08-26)
-- [x] Razorpay API — PASS (200 OK, GET /v1/payments works, 0 payments in test mode)
-- [x] Razorpay Invoices API — PASS (200 OK, 0 invoices in test mode)
-- [x] OpenAI API — PASS (model=gpt-4o-mini-2024-07-18, responded correctly)
-- [x] Supabase — PASS (40 events in recovery_events, 74 attempts)
-- [x] Upstash Redis — PASS (PING=True, SET/GET works)
-- [x] Celery Broker — PASS (connects to Upstash Redis via rediss://)
-- [x] Twilio — PASS (account="My First Twilio Account", status=active)
-- [x] Resend — PASS (API key works, restricted to sending only — that's fine)
-- [ ] SendGrid — not tested yet (fallback, lower priority)
+### Credential Verification (Real API calls - verified 2026-08-26)
+- [x] Razorpay API - PASS (200 OK, GET /v1/payments works, 0 payments in test mode)
+- [x] Razorpay Invoices API - PASS (200 OK, 0 invoices in test mode)
+- [x] OpenAI API - PASS (model=gpt-4o-mini-2024-07-18, responded correctly)
+- [x] Supabase - PASS (40 events in recovery_events, 74 attempts)
+- [x] Upstash Redis - PASS (PING=True, SET/GET works)
+- [x] Celery Broker - PASS (connects to Upstash Redis via rediss://)
+- [x] Twilio - PASS (account="My First Twilio Account", status=active)
+- [x] Resend - PASS (API key works, restricted to sending only - that's fine)
+- [ ] SendGrid - not tested yet (fallback, lower priority)
 
 ### Environment Setup (verified 2026-08-26)
-- [x] Python 3.14.3 — WARNING: very new, but packages install fine
+- [x] Python 3.14.3 - WARNING: very new, but packages install fine
 - [x] Node.js v24.15.0
 - [x] npm 11.12.1
 - [x] pip 25.3
@@ -31,7 +31,7 @@
 - [ ] pending_captures table: DOES NOT EXIST (need to create)
 - [x] Status breakdown: pending=2, recovered=2, exhausted=36
 
-## CRITICAL FINDINGS — Must Address Before Building
+## CRITICAL FINDINGS - Must Address Before Building
 
 ### Finding 1: OpenAI Model Name
 - BUILD_PLAN says "GPT-5 Mini" but actual model is `gpt-4o-mini` (model ID: gpt-4o-mini-2024-07-18)
@@ -41,17 +41,17 @@
 ### Finding 2: Database Schema Mismatch (11 columns MISSING)
 The BUILD_PLAN assumes 41+ columns. Actual schema has only 30 columns.
 **Missing columns (not in Supabase):**
-- `error_code` — needed for classification + fallback rules
-- `error_description` — useful context for AI
-- `method` — payment method (upi/card/netbanking/wallet)
-- `cart_value` — for cart abandonment events
-- `items_in_cart` — for cart abandonment events
-- `days_overdue` — for invoice overdue events
-- `alternative_action` — AI classification output
-- `skip_reason` — for no-action events
-- `source` — track origin (api/n8n/simulator)
-- `razorpay_raw` — flag for raw webhook format
-- `fallback_classification` — flag for rule-based fallback
+- `error_code` - needed for classification + fallback rules
+- `error_description` - useful context for AI
+- `method` - payment method (upi/card/netbanking/wallet)
+- `cart_value` - for cart abandonment events
+- `items_in_cart` - for cart abandonment events
+- `days_overdue` - for invoice overdue events
+- `alternative_action` - AI classification output
+- `skip_reason` - for no-action events
+- `source` - track origin (api/n8n/simulator)
+- `razorpay_raw` - flag for raw webhook format
+- `fallback_classification` - flag for rule-based fallback
 **Action:** Add these columns via ALTER TABLE before building.
 
 ### Finding 3: ID Type is INT, not UUID
@@ -75,37 +75,37 @@ The BUILD_PLAN assumes 41+ columns. Actual schema has only 30 columns.
 
 ### Phase 1: Backend Core
 - [x] Project scaffold created
-- [x] celery_app.py — Celery connects to Upstash Redis (VERIFIED: worker starts, tasks register)
-- [x] config.py — all env vars loaded
-- [x] database.py — Supabase client works (VERIFIED: health check returns ok)
-- [x] redis_client.py — direct Redis works (VERIFIED: health check returns ok)
-- [x] models.py — Pydantic models defined
-- [x] normalizer.py — handles raw Razorpay + custom format
-- [x] dedup.py — Redis SET NX works
-- [x] webhooks.py — POST /webhook/recovery-router endpoint (VERIFIED: 200 OK)
+- [x] celery_app.py - Celery connects to Upstash Redis (VERIFIED: worker starts, tasks register)
+- [x] config.py - all env vars loaded
+- [x] database.py - Supabase client works (VERIFIED: health check returns ok)
+- [x] redis_client.py - direct Redis works (VERIFIED: health check returns ok)
+- [x] models.py - Pydantic models defined
+- [x] normalizer.py - handles raw Razorpay + custom format
+- [x] dedup.py - Redis SET NX works
+- [x] webhooks.py - POST /webhook/recovery-router endpoint (VERIFIED: 200 OK)
 
 ### Phase 2: Classification + Routing
-- [x] classifier.py — OpenAI structured output (VERIFIED: correctly classified upi_timeout)
-- [x] classifier fallback — rule-based (coded, not yet triggered)
-- [x] router.py — deterministic routing
-- [x] tasks/recovery.py — process_recovery_event Celery task (VERIFIED: E2E works)
-- [x] rate_limiter.py — Redis sliding window
+- [x] classifier.py - OpenAI structured output (VERIFIED: correctly classified upi_timeout)
+- [x] classifier fallback - rule-based (coded, not yet triggered)
+- [x] router.py - deterministic routing
+- [x] tasks/recovery.py - process_recovery_event Celery task (VERIFIED: E2E works)
+- [x] rate_limiter.py - Redis sliding window
 
 ### Phase 3: Message Delivery
-- [x] payment_links.py — Razorpay API (VERIFIED: real payment link created, HTTP 200)
-- [x] messenger.py — Resend email (coded)
-- [x] messenger.py — Twilio WhatsApp/SMS (WhatsApp needs ContentSid, falls back to SMS)
-- [x] messenger.py — SendGrid fallback (coded)
+- [x] payment_links.py - Razorpay API (VERIFIED: real payment link created, HTTP 200)
+- [x] messenger.py - Resend email (coded)
+- [x] messenger.py - Twilio WhatsApp/SMS (WhatsApp needs ContentSid, falls back to SMS)
+- [x] messenger.py - SendGrid fallback (coded)
 
 ### Phase 4: Escalation + Scanner
-- [x] escalation.py — AI decision + asyncio.gather()
-- [x] tasks/escalation.py — Celery Beat task
-- [x] invoice_scanner.py — Razorpay invoice API (VERIFIED: 0 invoices in test mode)
-- [x] tasks/invoice_scan.py — Celery Beat task
-- [x] recovery_tracker.py — ghost recovery fix (attempt_count > 0)
+- [x] escalation.py - AI decision + asyncio.gather()
+- [x] tasks/escalation.py - Celery Beat task
+- [x] invoice_scanner.py - Razorpay invoice API (VERIFIED: 0 invoices in test mode)
+- [x] tasks/invoice_scan.py - Celery Beat task
+- [x] recovery_tracker.py - ghost recovery fix (attempt_count > 0)
 
 ### Phase 5: Analytics + API
-- [x] analytics.py — compute metrics (VERIFIED: returns correct data)
+- [x] analytics.py - compute metrics (VERIFIED: returns correct data)
 - [x] GET /api/analytics (VERIFIED: 200 OK)
 - [x] GET /api/events (VERIFIED: 200 OK, returns events)
 - [x] POST /api/simulate (VERIFIED: queues task, worker processes)
@@ -143,7 +143,7 @@ The BUILD_PLAN assumes 41+ columns. Actual schema has only 30 columns.
 
 ---
 
-## Phase 6 — Frontend Verification (2026-08-26)
+## Phase 6 - Frontend Verification (2026-08-26)
 
 All checks below were run against the live stack (FastAPI :8000, Celery solo worker,
 Upstash Redis, Supabase, real Razorpay/OpenAI/Resend/Twilio credentials).
@@ -151,21 +151,21 @@ Upstash Redis, Supabase, real Razorpay/OpenAI/Resend/Twilio credentials).
 | # | Check | Method | Result |
 |---|-------|--------|--------|
 | F1 | Vite dev server boots | `preview_start` frontend :5173 | PASS |
-| F2 | Dashboard renders all 7 components | browser `read_page` accessibility tree | PASS — StatTiles, AILift, ChannelRanking, RecoveryByType, LiveFeed, SimulatorPanel, HealthBadge all present |
-| F3 | No console errors | `read_console_messages onlyErrors` | PASS — none |
-| F4 | `/api/analytics` reachable via Vite proxy | `curl localhost:5173/api/analytics` | PASS — real totals returned |
-| F5 | `/api/health` reports all services | `curl localhost:5173/api/health` | PASS — supabase ok, redis ok, celery ok |
-| F6 | Simulator button drives the real pipeline | clicked "Card Expired" in browser, then queried DB | PASS — event id=2 created |
-| F7 | AI classified the simulated event correctly | inspected row | PASS — `failure_category=card_expired`, `recovery_probability=0.5`, routed to `email` |
-| F8 | Razorpay payment link actually created | `recovery_attempts.metadata` | PASS — `plink_TUJWVFIjXIn8m8`, `https://rzp.io/rzp/xlgA21Y` |
-| F9 | Email actually delivered | `recovery_attempts.outcome` | PASS — `sent`, Resend id `5f16101f-…` |
-| F10 | Channel degradation whatsapp -> email | direct `send_message()` call with cooldowns cleared | PASS — `degraded_from=whatsapp`, `channel_used=email`, Resend id `3348ddd5-…` |
+| F2 | Dashboard renders all 7 components | browser `read_page` accessibility tree | PASS - StatTiles, AILift, ChannelRanking, RecoveryByType, LiveFeed, SimulatorPanel, HealthBadge all present |
+| F3 | No console errors | `read_console_messages onlyErrors` | PASS - none |
+| F4 | `/api/analytics` reachable via Vite proxy | `curl localhost:5173/api/analytics` | PASS - real totals returned |
+| F5 | `/api/health` reports all services | `curl localhost:5173/api/health` | PASS - supabase ok, redis ok, celery ok |
+| F6 | Simulator button drives the real pipeline | clicked "Card Expired" in browser, then queried DB | PASS - event id=2 created |
+| F7 | AI classified the simulated event correctly | inspected row | PASS - `failure_category=card_expired`, `recovery_probability=0.5`, routed to `email` |
+| F8 | Razorpay payment link actually created | `recovery_attempts.metadata` | PASS - `plink_TUJWVFIjXIn8m8`, `https://rzp.io/rzp/xlgA21Y` |
+| F9 | Email actually delivered | `recovery_attempts.outcome` | PASS - `sent`, Resend id `5f16101f-…` |
+| F10 | Channel degradation whatsapp -> email | direct `send_message()` call with cooldowns cleared | PASS - `degraded_from=whatsapp`, `channel_used=email`, Resend id `3348ddd5-…` |
 
-### Known limitation (documented, not hidden — Rule 11)
+### Known limitation (documented, not hidden - Rule 11)
 Twilio **trial** accounts cannot send free-form WhatsApp *or* SMS to Indian numbers;
 India's DLT rules require pre-registered templates. Recovery Router handles this by
 degrading the channel to email rather than burning a recovery attempt. On a paid
-Twilio account with registered templates, the WhatsApp/SMS path works unchanged —
+Twilio account with registered templates, the WhatsApp/SMS path works unchanged -
 the routing logic and the analytics are already channel-agnostic.
 
 ---
@@ -173,7 +173,7 @@ the routing logic and the analytics are already channel-agnostic.
 ## Rules I Must Follow (from project-spec + strategy)
 1. One rupee recovered > ten features built
 2. Think like Razorpay, not like a hackathon participant
-3. Smarter than doing nothing — know when NOT to act
+3. Smarter than doing nothing - know when NOT to act
 4. Measurable or it didn't happen
 5. Honest about what doesn't work
 6. One engine, not three products
@@ -188,4 +188,4 @@ the routing logic and the analytics are already channel-agnostic.
 15. Ghost recovery: only mark recovered if attempt_count > 0
 16. Concurrent OpenAI calls via asyncio.gather() in escalation
 17. Single Celery task process_recovery_event for merged pipeline
-18. Celery + Upstash Redis (rediss:// SSL) — NO Docker
+18. Celery + Upstash Redis (rediss:// SSL) - NO Docker

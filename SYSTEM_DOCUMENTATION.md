@@ -1,6 +1,6 @@
-# Recovery Router — Complete System Documentation
+# Recovery Router - Complete System Documentation
 
-> **Razorpay AI Buildathon — Track 3: Intelligent Revenue Recovery**
+> **Razorpay AI Buildathon - Track 3: Intelligent Revenue Recovery**
 > Built by Albert Abishek I (study1only2@gmail.com)
 
 ---
@@ -11,7 +11,7 @@ Recovery Router is an **AI-powered revenue recovery engine** that plugs into Raz
 
 **The Problem:** Indian merchants lose 15-20% of revenue to payment failures, cart abandonment, and overdue invoices. Manual recovery is slow, generic, and misses the optimal timing window.
 
-**The Solution:** Recovery Router uses GPT-4o-mini to classify each revenue leak, determine the best recovery channel (WhatsApp/Email/SMS), optimal timing, and probability of recovery — then executes the recovery action automatically with Razorpay Payment Links.
+**The Solution:** Recovery Router uses GPT-4o-mini to classify each revenue leak, determine the best recovery channel (WhatsApp/Email/SMS), optimal timing, and probability of recovery - then executes the recovery action automatically with Razorpay Payment Links.
 
 ---
 
@@ -82,12 +82,12 @@ We prototyped the entire pipeline in n8n first, then rebuilt everything as produ
 
 ### Why We Moved from n8n to Code
 
-1. **Rate limiting & dedup** — n8n has no built-in Redis-backed sliding window rate limiter or deduplication
-2. **Channel degradation** — If WhatsApp fails (Twilio trial restrictions), automatically fall back to email. This multi-step fallback logic is complex in n8n
-3. **Concurrent AI calls** — Escalation uses `asyncio.gather()` to classify multiple events in parallel
-4. **Per-resource cooldowns** — Don't message the same phone/email within 1 hour (Redis-backed)
-5. **Ghost recovery prevention** — Only mark an event as "recovered" if `attempt_count > 0`; otherwise mark as "organic_recovery"
-6. **Production reliability** — Celery with `acks_late`, `max_retries=3`, distributed locking
+1. **Rate limiting & dedup** - n8n has no built-in Redis-backed sliding window rate limiter or deduplication
+2. **Channel degradation** - If WhatsApp fails (Twilio trial restrictions), automatically fall back to email. This multi-step fallback logic is complex in n8n
+3. **Concurrent AI calls** - Escalation uses `asyncio.gather()` to classify multiple events in parallel
+4. **Per-resource cooldowns** - Don't message the same phone/email within 1 hour (Redis-backed)
+5. **Ghost recovery prevention** - Only mark an event as "recovered" if `attempt_count > 0`; otherwise mark as "organic_recovery"
+6. **Production reliability** - Celery with `acks_late`, `max_retries=3`, distributed locking
 
 ### n8n Workflows Are Still in the Repo
 
@@ -95,7 +95,7 @@ The 5 n8n workflow JSON files are kept in `n8n_workflow/` as reference/documenta
 
 ---
 
-## 4. Complete Pipeline — How the System Works
+## 4. Complete Pipeline - How the System Works
 
 ### Stage 1: Event Ingestion
 
@@ -103,9 +103,9 @@ The 5 n8n workflow JSON files are kept in `n8n_workflow/` as reference/documenta
 
 The system accepts 3 types of events:
 
-1. **Razorpay `payment.failed` webhooks** — native Razorpay format, auto-normalized
-2. **Cart abandonment events** — from merchant's frontend/backend
-3. **Invoice overdue events** — from the Invoice Scanner or merchant API
+1. **Razorpay `payment.failed` webhooks** - native Razorpay format, auto-normalized
+2. **Cart abandonment events** - from merchant's frontend/backend
+3. **Invoice overdue events** - from the Invoice Scanner or merchant API
 
 **Processing:**
 1. Rate limit check (100 req/min per endpoint)
@@ -139,12 +139,12 @@ The AI (via OpenRouter's 3-model chain: Claude Haiku 4.5 → Gemini 3.7 Flash �
 | `gateway_error` | Payment Failure | 80-90% | WhatsApp | 5 min |
 | `card_expired` | Payment Failure | 40-60% | Email | Immediate |
 | `insufficient_funds` | Payment Failure | 30-50% | SMS | 4 hours |
-| `unrecoverable_decline` | Payment Failure | 0% | None | — |
+| `unrecoverable_decline` | Payment Failure | 0% | None | - |
 | `high_intent_abandonment` | Cart Abandonment | 30-50% | WhatsApp | 1 hour |
-| `browse_only_abandonment` | Cart Abandonment | 5-10% | None | — |
+| `browse_only_abandonment` | Cart Abandonment | 5-10% | None | - |
 | `recently_overdue` | Invoice Overdue | 60-80% | WhatsApp | Immediate |
 | `moderately_overdue` | Invoice Overdue | 30-50% | Email | Immediate |
-| `long_overdue` | Invoice Overdue | 10-20% | Email | — |
+| `long_overdue` | Invoice Overdue | 10-20% | Email | - |
 
 ### Stage 3: Action Routing
 
@@ -204,12 +204,12 @@ Every provider attempt is logged in the `degradation_path` array for full audit 
 
 Every action is logged to Supabase:
 
-- **`recovery_events` table** — master record with status, classification, attempts
-- **`recovery_attempts` table** — each attempt with channel, outcome, message_id, payment link
+- **`recovery_events` table** - master record with status, classification, attempts
+- **`recovery_attempts` table** - each attempt with channel, outcome, message_id, payment link
 
 ### Stage 7: Escalation Agent (Periodic)
 
-**Task:** `tasks/escalation.py` — runs every 5 minutes via Celery Beat
+**Task:** `tasks/escalation.py` - runs every 5 minutes via Celery Beat
 
 1. Acquires distributed Redis lock (prevents duplicate runs)
 2. Queries Supabase for events where `status = "pending"` AND `next_action_at <= now`
@@ -243,7 +243,7 @@ When a customer pays via the recovery link, Razorpay sends `payment.captured` or
 
 ### Stage 9: Invoice Scanner (Periodic)
 
-**Task:** `tasks/invoice_scan.py` — runs every 6 hours via Celery Beat
+**Task:** `tasks/invoice_scan.py` - runs every 6 hours via Celery Beat
 
 1. Calls Razorpay Invoices API (`GET /v1/invoices?status=issued`)
 2. Calculates `days_overdue` from due_date
@@ -267,7 +267,7 @@ When a customer pays via the recovery link, Razorpay sends `payment.captured` or
    - recovery_probability: 0.82
    - recommended_channel: "whatsapp"
    - recommended_timing: "immediate"
-   - reasoning: "UPI timeout during standard hours — high retry success rate"
+   - reasoning: "UPI timeout during standard hours - high retry success rate"
 5. Router: action = "send_now", channel = "whatsapp"
 6. Payment Link: Razorpay creates https://rzp.io/i/abc123 (₹2,999, expires in 72h)
 7. Messenger: Twilio sends WhatsApp to Ravi:
@@ -284,7 +284,7 @@ When a customer pays via the recovery link, Razorpay sends `payment.captured` or
 
 ### Example 2: Card Expired → Email → Escalation
 
-**Scenario:** Customer Priya's card expired. She tries to pay ₹5,999 — payment fails.
+**Scenario:** Customer Priya's card expired. She tries to pay ₹5,999 - payment fails.
 
 ```
 1. Webhook received: error_code=CARD_EXPIRED, amount=₹5,999
@@ -293,7 +293,7 @@ When a customer pays via the recovery link, Razorpay sends `payment.captured` or
    - recovery_probability: 0.52
    - recommended_channel: "email"
    - recommended_timing: "immediate"
-   - reasoning: "Expired card — customer needs to update card details"
+   - reasoning: "Expired card - customer needs to update card details"
 3. Payment Link generated: https://rzp.io/i/def456
 4. Email sent via Resend to priya@email.com:
    "Hi Priya, your payment of INR 5,999.00 didn't go through..."
@@ -358,7 +358,7 @@ When a customer pays via the recovery link, Razorpay sends `payment.captured` or
 
 **Result:** ₹12,999 cart recovered via WhatsApp after strategic 1-hour delay.
 
-### Example 4: Fraud Decline — No Action (Intelligent Skip)
+### Example 4: Fraud Decline - No Action (Intelligent Skip)
 
 **Scenario:** A stolen card is used to attempt a ₹24,999 payment. Razorpay declines it.
 
@@ -369,7 +369,7 @@ When a customer pays via the recovery link, Razorpay sends `payment.captured` or
    - recovery_probability: 0.0
    - recommended_channel: "none"
    - recommended_action: "flag_and_block"
-   - skip_reason: "Fraud suspected — do not attempt recovery"
+   - skip_reason: "Fraud suspected - do not attempt recovery"
 3. Router: action = "no_action"
 4. Event saved: status = "no_action_needed"
 5. No payment link generated, no message sent
@@ -550,11 +550,11 @@ When a customer pays via the recovery link, Razorpay sends `payment.captured` or
    - Shows: channel used, outcome, message_id, payment link, send errors, degraded_from
 
 ### Global Features
-- **Date Range Picker** — Presets (Today, Yesterday, Last 7 Days, Last 30 Days, All Time) + custom range, applied across Overview, Events, and Audit Logs
-- **Loading Bar** — Animated gradient progress bar at top during all API calls, reference-counted for concurrent fetches
-- **Responsive Tables** — Horizontal scroll on all data tables, no column crunching
-- **Supabase Realtime** — Live event updates via WebSocket, auto-refreshes on INSERT/UPDATE
-- **No full-page reloads** — Loading bar replaces full-page loading spinners
+- **Date Range Picker** - Presets (Today, Yesterday, Last 7 Days, Last 30 Days, All Time) + custom range, applied across Overview, Events, and Audit Logs
+- **Loading Bar** - Animated gradient progress bar at top during all API calls, reference-counted for concurrent fetches
+- **Responsive Tables** - Horizontal scroll on all data tables, no column crunching
+- **Supabase Realtime** - Live event updates via WebSocket, auto-refreshes on INSERT/UPDATE
+- **No full-page reloads** - Loading bar replaces full-page loading spinners
 
 ### Responsive Design
 - Desktop: sidebar + content layout (240px sidebar)

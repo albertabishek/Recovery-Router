@@ -1,4 +1,4 @@
-# Recovery Router — Complete Feature Inventory
+# Recovery Router - Complete Feature Inventory
 
 Built by Albert Abishek I for the Razorpay AI Buildathon 2026, Track 3.
 
@@ -8,15 +8,15 @@ This document covers every feature in the codebase, verified against the actual 
 
 ## 1. Core Pipeline
 
-The pipeline handles three types of revenue leaks: payment failures, cart abandonment, and overdue invoices. Every event goes through the same sequence — classify, route, generate payment link, send message, track outcome.
+The pipeline handles three types of revenue leaks: payment failures, cart abandonment, and overdue invoices. Every event goes through the same sequence - classify, route, generate payment link, send message, track outcome.
 
 ### 1.1 Revenue Leak Types
 
 Defined in the `RecoveryEventInput` model (`backend/app/models.py`, line 9):
 
-- **payment_failure** — A customer's payment attempt failed (UPI timeout, card expired, bank downtime, etc.)
-- **cart_abandonment** — A customer added items to cart but left without paying
-- **invoice_overdue** — A merchant's invoice hasn't been paid past its due date
+- **payment_failure** - A customer's payment attempt failed (UPI timeout, card expired, bank downtime, etc.)
+- **cart_abandonment** - A customer added items to cart but left without paying
+- **invoice_overdue** - A merchant's invoice hasn't been paid past its due date
 
 Each type carries different fields. Payment failures have `error_code`, `error_description`, `method`. Cart abandonments have `cart_value`, `items_in_cart`. Invoice overdues have `days_overdue`.
 
@@ -26,18 +26,18 @@ File: `backend/app/services/classifier.py`
 
 The classifier uses OpenRouter's multi-model AI to analyze each event and assign a failure category. The 12 categories (lines 80-86):
 
-1. **upi_timeout** — UPI payment timed out, likely network congestion. High recovery chance.
-2. **bank_downtime** — Bank server temporarily unavailable. Wait and retry.
-3. **card_expired** — Card has expired, customer needs to update details.
-4. **insufficient_funds** — Not enough balance. Give time to transfer money.
-5. **gateway_error** — Payment gateway technical error. Immediate retry likely works.
-6. **user_cancelled** — Customer actively chose to cancel. Wait before re-engaging.
-7. **unrecoverable_decline** — Fraud, stolen card, permanently blocked. No recovery action.
-8. **high_intent_abandonment** — High-value cart with multiple items. Worth pursuing.
-9. **browse_only_abandonment** — Low-value browsing session. Not worth the cost.
-10. **recently_overdue** — Invoice 1-7 days late. Friendly reminder usually works.
-11. **moderately_overdue** — Invoice 2-4 weeks late. Formal approach needed.
-12. **long_overdue** — Invoice 30+ days late. Escalation notice required.
+1. **upi_timeout** - UPI payment timed out, likely network congestion. High recovery chance.
+2. **bank_downtime** - Bank server temporarily unavailable. Wait and retry.
+3. **card_expired** - Card has expired, customer needs to update details.
+4. **insufficient_funds** - Not enough balance. Give time to transfer money.
+5. **gateway_error** - Payment gateway technical error. Immediate retry likely works.
+6. **user_cancelled** - Customer actively chose to cancel. Wait before re-engaging.
+7. **unrecoverable_decline** - Fraud, stolen card, permanently blocked. No recovery action.
+8. **high_intent_abandonment** - High-value cart with multiple items. Worth pursuing.
+9. **browse_only_abandonment** - Low-value browsing session. Not worth the cost.
+10. **recently_overdue** - Invoice 1-7 days late. Friendly reminder usually works.
+11. **moderately_overdue** - Invoice 2-4 weeks late. Formal approach needed.
+12. **long_overdue** - Invoice 30+ days late. Escalation notice required.
 
 The AI receives the full event context (error description, amount, payment method, customer name, etc.) and returns a JSON object with the category, recovery probability (0.0-1.0), recommended channel, recommended timing, reasoning, alternative action, and a personalization hint. The system prompt (lines 16-70) guides the AI to think about _why_ the payment failed, consider amount thresholds for channel selection, detect user-initiated cancellations, and estimate recovery probability honestly.
 
@@ -49,13 +49,13 @@ File: `backend/app/services/ai_client.py`
 
 The AI client uses OpenRouter with three models in sequence (lines 18-37):
 
-1. **Claude Haiku 4.5** (`anthropic/claude-haiku-4.5`) — 12s timeout, 1 retry
-2. **Gemini 3.7 Flash** (`google/gemini-3.7-flash`) — 10s timeout, 1 retry
-3. **GPT-4o-mini** (`openai/gpt-4o-mini`) — 12s timeout, 1 retry
+1. **Claude Haiku 4.5** (`anthropic/claude-haiku-4.5`) - 12s timeout, 1 retry
+2. **Gemini 3.7 Flash** (`google/gemini-3.7-flash`) - 10s timeout, 1 retry
+3. **GPT-4o-mini** (`openai/gpt-4o-mini`) - 12s timeout, 1 retry
 
 Each model gets up to 2 attempts (1 + 1 retry). If a model returns HTTP 429 (rate limited), it moves to the next model immediately. If all six attempts across three models fail, `ai_call` returns `None` and the caller falls back to rules.
 
-The client validates AI responses against a schema (`_validate_fields`, line 168) — if the AI returns a channel not in the allowed list, it gets replaced with the default. Float fields are clamped to min/max ranges. The JSON parser (`_parse_json`, line 153) strips markdown code fences if the AI wraps its response in them.
+The client validates AI responses against a schema (`_validate_fields`, line 168) - if the AI returns a channel not in the allowed list, it gets replaced with the default. Float fields are clamped to min/max ranges. The JSON parser (`_parse_json`, line 153) strips markdown code fences if the AI wraps its response in them.
 
 A shared `httpx.Client` (thread-safe via lock) is reused across calls for connection pooling.
 
@@ -63,7 +63,7 @@ A shared `httpx.Client` (thread-safe via lock) is reused across calls for connec
 
 File: `backend/app/services/router.py`, function `compute_max_attempts` (line 13)
 
-The system dynamically calculates how many recovery messages each event deserves based on three factors:
+Recovery Router dynamically calculates how many recovery messages each event deserves based on three factors:
 
 - **Unrecoverable decline or browse-only abandonment**: 0 attempts (no action taken)
 - **User cancelled**: 2 attempts max (they cancelled for a reason)
@@ -82,20 +82,20 @@ File: `backend/app/services/messenger.py`
 Three channels with multi-provider fallback chains:
 
 **WhatsApp chain** (lines 72-101):
-1. Green API (personalized text message) — primary
-2. Twilio WhatsApp (content template) — fallback if Green API fails
-3. Email via Resend — final fallback if no phone or both WhatsApp providers fail
+1. Green API (personalized text message) - primary
+2. Twilio WhatsApp (content template) - fallback if Green API fails
+3. Email via Resend - final fallback if no phone or both WhatsApp providers fail
 
 **SMS chain** (lines 104-138):
-1. Twilio SMS — primary
-2. Green API WhatsApp — first fallback
-3. Twilio WhatsApp — second fallback
-4. Email via Resend — final fallback
+1. Twilio SMS - primary
+2. Green API WhatsApp - first fallback
+3. Twilio WhatsApp - second fallback
+4. Email via Resend - final fallback
 
 **Email chain** (lines 141-156):
-1. Resend — the only provider (with AI-personalized HTML content)
+1. Resend - the only provider (with AI-personalized HTML content)
 
-Every channel checks per-resource cooldowns before sending (5-minute cooldown per phone number or email address). If a cooldown is active, the system degrades to the next channel in the chain. The full degradation path is recorded in attempt metadata so you can trace exactly which providers were tried and why.
+Every channel checks per-resource cooldowns before sending (5-minute cooldown per phone number or email address). If a cooldown is active, Recovery Router degrades to the next channel in the chain. The full degradation path is recorded in attempt metadata so you can trace exactly which providers were tried and why.
 
 ### 1.6 AI-Personalized Messages
 
@@ -153,12 +153,12 @@ File: `backend/app/tasks/escalation.py` (Celery Beat task) + `backend/app/servic
 
 File: `backend/app/services/recovery_tracker.py`
 
-When a payment is captured (via `payment.captured` or `payment_link.paid` webhook), the system matches it back to the recovery event that triggered it. Four matching strategies, tried in order (lines 89-108):
+When a payment is captured (via `payment.captured` or `payment_link.paid` webhook), Recovery Router matches it back to the recovery event that triggered it. Four matching strategies, tried in order (lines 89-108):
 
-1. **notes.recovery_event_id** — Set when the payment link was generated. Most reliable.
-2. **payment_link reference_id** — The original order_id stored as the payment link's reference_id.
-3. **order_id** — Direct match on the recovery event's order_id (skips fake TEST_ IDs).
-4. **payment_id** — Match on the recovery event's payment_id (skips fake TEST_ IDs).
+1. **notes.recovery_event_id** - Set when the payment link was generated. Most reliable.
+2. **payment_link reference_id** - The original order_id stored as the payment link's reference_id.
+3. **order_id** - Direct match on the recovery event's order_id (skips fake TEST_ IDs).
+4. **payment_id** - Match on the recovery event's payment_id (skips fake TEST_ IDs).
 
 Before attributing, three reconciliation checks must pass (lines 46-128):
 - Payment entity status must be "captured" (not authorized, failed, etc.)
@@ -170,10 +170,10 @@ Before attributing, three reconciliation checks must pass (lines 46-128):
 
 File: `backend/app/services/recovery_tracker.py`, lines 146-173
 
-When a payment is captured and matched to a recovery event, the system checks whether the recovery _actually_ caused the payment:
+When a payment is captured and matched to a recovery event, Recovery Router checks whether the recovery _actually_ caused the payment:
 
-- If `attempt_count == 0` AND no successful outreach attempt exists in the database, the payment is marked as **organic_recovery** — the customer paid on their own without any recovery message reaching them.
-- If there was at least one successfully sent recovery message, the payment is attributed as **recovered** — the outreach drove the payment.
+- If `attempt_count == 0` AND no successful outreach attempt exists in the database, the payment is marked as **organic_recovery** - the customer paid on their own without any recovery message reaching them.
+- If there was at least one successfully sent recovery message, the payment is attributed as **recovered** - the outreach drove the payment.
 
 This prevents inflating recovery metrics with payments that would have happened anyway. The two statuses are tracked separately in analytics.
 
@@ -181,11 +181,11 @@ This prevents inflating recovery metrics with payments that would have happened 
 
 File: `backend/app/services/payment_links.py`
 
-Instead of using Razorpay's Payment Links API (which has a 30-link limit in test mode), the system uses the **Orders API** to create orders, then builds a hosted checkout page URL.
+Instead of using Razorpay's Payment Links API (which has a 30-link limit in test mode), I use the **Orders API** to create orders, then build a hosted checkout page URL.
 
 The flow (lines 42-105):
 1. Create a Razorpay order via `POST /v1/orders` with the amount, currency, and notes containing the recovery_event_id and failure_category
-2. Store customer PII (name, email, phone) in Redis with a random token (24-byte URL-safe, 24-hour TTL) — the PII never appears in the URL
+2. Store customer PII (name, email, phone) in Redis with a random token (24-byte URL-safe, 24-hour TTL) - the PII never appears in the URL
 3. Return `{API_BASE_URL}/pay/{order_id}?t={token}` as the checkout URL
 
 The checkout page (`backend/app/routers/checkout.py`) is a self-contained HTML page that loads Razorpay's Standard Checkout SDK, pre-fills customer details from the Redis token, and auto-opens the checkout modal 500ms after page load.
@@ -204,9 +204,9 @@ The home dashboard shows:
 
 - **Hero stat card**: Total revenue recovered (amount + count of recovered payments)
 - **Three summary cards**: At Risk (total amount at risk + event count), Pending (pending amount + count in pipeline), Stopped (exhausted count + skipped count). Each card is clickable and navigates to the Events page.
-- **Recovery vs Industry Baseline**: Side-by-side comparison of the system's recovery rate against a 15% industry baseline, with improvement in percentage points and additional revenue recovered shown.
+- **Recovery vs Industry Baseline**: Side-by-side comparison of Recovery Router's recovery rate against a 15% industry baseline, with improvement in percentage points and additional revenue recovered shown.
 - **Channel Performance**: Ranked list of channels (WhatsApp, Email, SMS) by recovery rate, with progress bars.
-- **Recovery by Type**: Three cards for payment failures, cart abandonment, and invoice overdue — each showing event count, total amount, recovered count, and recovery rate.
+- **Recovery by Type**: Three cards for payment failures, cart abandonment, and invoice overdue - each showing event count, total amount, recovered count, and recovery rate.
 - **Recent Events table**: Last 8 events with type badge, amount, failure category, channel, status badge, and relative time. Clicking a row navigates to the Events page with that event selected.
 
 ### 2.2 Recovery Events Page
@@ -215,7 +215,7 @@ File: `frontend/src/components/EventsPage.jsx`
 
 A full event management interface with:
 
-**Status tabs** (line 9): All Events, In Progress, On Hold, Paid, Gave Up, Cancelled, Skipped — each showing a count badge. Switching tabs resets to page 1.
+**Status tabs** (line 9): All Events, In Progress, On Hold, Paid, Gave Up, Cancelled, Skipped - each showing a count badge. Switching tabs resets to page 1.
 
 **Event table**: Columns for ID, Type, Amount, Category, Channel, Messages (sent/limit), Status, and Next/Created time. Pending events show "in Xh Ym" until next attempt; others show relative time. Paginated with 25 events per page, full pagination controls (First, Prev, numbered pages, Next, Last).
 
@@ -260,20 +260,20 @@ File: `frontend/src/components/SimulatorPage.jsx`
 **10 built-in scenarios** organized in three groups (lines 7-18):
 
 Payment Failure group:
-1. **UPI Timeout** — Retryable, high recovery odds (amount range 499-4,999)
-2. **Card Expired** — Needs new card details (1,999-8,999)
-3. **Insufficient Funds** — Delayed retry works best (2,499-12,999)
-4. **Bank Downtime** — Retry after outage clears (999-4,999)
-5. **Gateway Error** — Immediate retry likely to succeed (799-3,999)
-6. **Fraud Decline** — Unrecoverable, system skips action (9,999-24,999)
+1. **UPI Timeout** - Retryable, high recovery odds (amount range 499-4,999)
+2. **Card Expired** - Needs new card details (1,999-8,999)
+3. **Insufficient Funds** - Delayed retry works best (2,499-12,999)
+4. **Bank Downtime** - Retry after outage clears (999-4,999)
+5. **Gateway Error** - Immediate retry likely to succeed (799-3,999)
+6. **Fraud Decline** - Unrecoverable, system skips action (9,999-24,999)
 
 Cart Abandonment group:
-7. **High-Value Cart** — Worth chasing, email + link (2,999-14,999)
-8. **Low-Value Cart** — Below action threshold, no spend (99-199)
+7. **High-Value Cart** - Worth chasing, email + link (2,999-14,999)
+8. **Low-Value Cart** - Below action threshold, no spend (99-199)
 
 Invoice Overdue group:
-9. **Recent Invoice** — Friendly nudge, high recovery (5,000-50,000)
-10. **Old Invoice** — Escalated tone, lower odds (15,000-75,000)
+9. **Recent Invoice** - Friendly nudge, high recovery (5,000-50,000)
+10. **Old Invoice** - Escalated tone, lower odds (15,000-75,000)
 
 Each scenario is a clickable card showing the label, description, and randomized amount range. Clicking fires a real event through the live pipeline.
 
@@ -294,7 +294,7 @@ A special section within the Simulator page bordered in Razorpay blue:
 - **"Open Razorpay Checkout" button**: Creates a real Razorpay test-mode order via `POST /api/live-checkout`, then opens the Razorpay Standard Checkout modal in the browser
 - **Test card helper text**: Tells you to use `4111 1111 1111 1111` with any future expiry
 
-When the checkout succeeds, the Razorpay webhook fires `payment.captured` which flows through the recovery tracker and marks the event as recovered. When it fails, the `payment.failed` webhook triggers the recovery pipeline — creating a new recovery event, classifying it, and sending recovery messages.
+When the checkout succeeds, the Razorpay webhook fires `payment.captured` which flows through the recovery tracker and marks the event as recovered. When it fails, the `payment.failed` webhook triggers the recovery pipeline - creating a new recovery event, classifying it, and sending recovery messages.
 
 **Backend endpoint** (`backend/app/routers/events.py`, line 334, `create_live_checkout`):
 - Rate limited to 5 requests per minute
@@ -319,7 +319,7 @@ Shows every recovery attempt with full provider chain detail:
 **Trace Panel** (line 63): Clicking any row opens a 520px fixed slide-in panel showing the full event trace. The panel shows:
 - Event details (type, amount, category, channel, status, probability, customer info)
 - AI reasoning
-- Pipeline steps — each attempt with outcome badge, channel, time, message ID, degradation info, errors, payment link URL, and full provider chain (each provider shown as a step with colored left border and dot: green for sent, red for failed, yellow for skipped)
+- Pipeline steps - each attempt with outcome badge, channel, time, message ID, degradation info, errors, payment link URL, and full provider chain (each provider shown as a step with colored left border and dot: green for sent, red for failed, yellow for skipped)
 - Timeline (created, last attempt, next action, window closes, recovered)
 
 ---
@@ -330,7 +330,7 @@ File: `backend/app/routers/webhooks.py`
 
 ### 3.1 Recovery Router Webhook
 
-`POST /webhook/recovery-router` — Entry point for all recovery events. Public (no auth), but requires a valid Razorpay webhook signature.
+`POST /webhook/recovery-router` - Entry point for all recovery events. Public (no auth), but requires a valid Razorpay webhook signature.
 
 Flow:
 1. Rate limit check (100 requests/60 seconds)
@@ -338,18 +338,18 @@ Flow:
 3. HMAC-SHA256 signature verification against `RAZORPAY_WEBHOOK_SECRET`
 4. Redis-based deduplication (1-hour TTL)
 5. Payload normalization (handles both raw Razorpay `payment.failed` format and custom format)
-6. If the failed payment came from a recovery link we sent (detected via notes or order_id matching in `recovery_attempts`), log it as a retry failure on the parent event instead of creating a duplicate
+6. If the failed payment came from a recovery link Recovery Router sent (detected via notes or order_id matching in `recovery_attempts`), log it as a retry failure on the parent event instead of creating a duplicate
 7. Otherwise, dispatch `process_recovery_event` Celery task
 
 ### 3.2 Recovery Tracker Webhook
 
-`POST /webhook/recovery-tracker` — Feedback loop for payment success. Same signature verification.
+`POST /webhook/recovery-tracker` - Feedback loop for payment success. Same signature verification.
 
 Handles `payment.captured` and `payment_link.paid` events. Calls `process_payment_captured` to match the payment to a recovery event and mark it as recovered or organic_recovery.
 
 ### 3.3 Recovery Retry Failure Tracking
 
-When a customer clicks a recovery link but their payment _fails again_ (e.g., wrong UPI PIN on retry), the system detects this via the `_find_parent_recovery_event` function (line 116). It looks up the order_id in `recovery_attempts` metadata. If found, it dispatches `handle_recovery_retry_failure` (in `backend/app/tasks/recovery.py`, line 315) which logs the failure as a `payment_link` channel attempt on the parent event, rather than creating a new recovery event.
+When a customer clicks a recovery link but their payment _fails again_ (e.g., wrong UPI PIN on retry), Recovery Router detects this via the `_find_parent_recovery_event` function (line 116). It looks up the order_id in `recovery_attempts` metadata. If found, it dispatches `handle_recovery_retry_failure` (in `backend/app/tasks/recovery.py`, line 315) which logs the failure as a `payment_link` channel attempt on the parent event, rather than creating a new recovery event.
 
 The task also detects user-initiated cancellations by checking for keywords like "cancelled", "canceled", "user aborted" in the error description.
 
@@ -361,13 +361,13 @@ The task also detects user-initiated cancellations by checking for keywords like
 
 File: `backend/app/routers/events.py`, `control_event` endpoint (line 384)
 
-`PATCH /api/events/{event_id}/control` — Authenticated.
+`PATCH /api/events/{event_id}/control` - Authenticated.
 
 - **Pause** (only pending -> paused): Clears `next_action_at`, sets strategy to "merchant_paused". The escalation engine won't pick it up.
 - **Resume** (only paused -> pending): Sets `next_action_at` to now (so escalation picks it up immediately), sets strategy to "resumed".
 - **Cancel** (pending/paused/exhausted -> cancelled): Sets status to "cancelled", clears next_action_at and recovery_window_ends, sets skip_reason to "Cancelled by merchant". Cannot cancel events already in terminal states (recovered, organic_recovery, cancelled).
 
-All three use optimistic concurrency — the update includes a status check in the WHERE clause, and if the status changed between the read and the write, it returns 409 Conflict.
+All three use optimistic concurrency - the update includes a status check in the WHERE clause, and if the status changed between the read and the write, it returns 409 Conflict.
 
 ### 4.2 Event Detail Panel
 
@@ -375,14 +375,14 @@ See Section 2.2 above. The 420px slide-in panel shows the complete lifecycle of 
 
 ### 4.3 Event Trace API
 
-`GET /api/events/{event_id}/trace` (line 206) — Returns the event, all its attempts, and a structured timeline.
+`GET /api/events/{event_id}/trace` (line 206) - Returns the event, all its attempts, and a structured timeline.
 
 The timeline (`_build_trace_timeline`, line 231) builds an ordered list of steps:
-- `event_received` — When the event was created
-- `classified` — AI classification results
-- `payment_link_created` — For each attempt that generated a payment link
-- `outreach_attempt` — Each message send attempt with channel, outcome, reasoning, degradation path
-- `recovered` / `exhausted` / `cancelled` / `next_action_scheduled` — Terminal or current state
+- `event_received` - When the event was created
+- `classified` - AI classification results
+- `payment_link_created` - For each attempt that generated a payment link
+- `outreach_attempt` - Each message send attempt with channel, outcome, reasoning, degradation path
+- `recovered` / `exhausted` / `cancelled` / `next_action_scheduled` - Terminal or current state
 
 ---
 
@@ -390,13 +390,13 @@ The timeline (`_build_trace_timeline`, line 231) builds an ordered list of steps
 
 ### 5.1 Three-Layer Give-Up Prevention
 
-The system has three layers preventing premature abandonment of recovery events:
+Recovery Router has three layers preventing premature abandonment of recovery events:
 
-**Layer 1 — AI override in escalation** (`backend/app/services/escalation.py`, line 310): If the AI says "give_up" but `attempt_count < max_attempts`, and either (a) not all outreach attempts truly failed, or (b) it's the first escalation, the system overrides to "send" and picks a different channel.
+**Layer 1 - AI override in escalation** (`backend/app/services/escalation.py`, line 310): If the AI says "give_up" but `attempt_count < max_attempts`, and either (a) not all outreach attempts truly failed, or (b) it's the first escalation, Recovery Router overrides to "send" and picks a different channel.
 
-**Layer 2 — Direct budget check in run_escalation** (`backend/app/services/escalation.py`, line 139): Even after the AI decision, if give_up is returned and `attempt_count < max_attempts`, it forces a send with a safety override message.
+**Layer 2 - Direct budget check in run_escalation** (`backend/app/services/escalation.py`, line 139): Even after the AI decision, if give_up is returned and `attempt_count < max_attempts`, it forces a send with a safety override message.
 
-**Layer 3 — Database trigger in escalation task** (`backend/app/tasks/escalation.py`, lines 75-125): The `_mark_window_expired` function (line 75) checks before marking an event as exhausted: if `attempt_count == 0` and `max_attempts > 0`, it extends the recovery window by 24 hours instead of giving up. Similarly, `_mark_attempts_exhausted` (line 106) skips exhaustion if `attempt_count == 0` even when max_attempts is technically reached.
+**Layer 3 - Database trigger in escalation task** (`backend/app/tasks/escalation.py`, lines 75-125): The `_mark_window_expired` function (line 75) checks before marking an event as exhausted: if `attempt_count == 0` and `max_attempts > 0`, it extends the recovery window by 24 hours instead of giving up. Similarly, `_mark_attempts_exhausted` (line 106) skips exhaustion if `attempt_count == 0` even when max_attempts is technically reached.
 
 ### 5.2 Quiet Hours
 
@@ -448,14 +448,14 @@ Sliding window rate limiter using Redis sorted sets. Each API endpoint has its o
 
 File: `backend/app/routers/health.py`
 
-`GET /api/health` — Public (no auth required). Returns overall status and individual service statuses.
+`GET /api/health` - Public (no auth required). Returns overall status and individual service statuses.
 
 Checks three components:
 - **Redis**: `ping()` command
 - **Celery**: `inspect().ping()` with a 5-second timeout (runs in thread pool to avoid blocking the async event loop)
 - **Supabase**: `select count from recovery_events limit 0`
 
-Overall status is "ok" if Redis and Supabase are both ok. Celery can be "no workers" or "timeout" without degrading the overall status to "degraded" — only Redis and Supabase failures cause degradation.
+Overall status is "ok" if Redis and Supabase are both ok. Celery can be "no workers" or "timeout" without degrading the overall status to "degraded" - only Redis and Supabase failures cause degradation.
 
 Response model (`HealthResponse` in `models.py`, line 118):
 ```
@@ -468,7 +468,7 @@ File: `frontend/src/components/HealthBadge.jsx`
 
 A component that polls the health endpoint every 30 seconds and shows a colored dot (green for ok, red for degraded/down) with a label ("all systems operational", "X services degraded", or "backend unreachable"). Each service name appears as a small badge. Hovering shows the raw service statuses as a tooltip.
 
-_Note: This component exists but is not currently wired into the Layout — it was likely an earlier version of the health display._
+_Note: This component exists but is not currently wired into the Layout - it was likely an earlier version of the health display._
 
 ### 6.3 Audit Logs with Auto-Refresh
 
@@ -476,7 +476,7 @@ The audit logs page refreshes every 15 seconds (see Section 2.6). The backend en
 
 ### 6.4 Recovery Retry Failure Tracking
 
-When a customer clicks a recovery link and their payment fails, the system logs it as a `payment_link` channel attempt on the parent recovery event (see Section 3.3). This creates a complete trace of customer interaction attempts visible in the event detail panel and audit logs.
+When a customer clicks a recovery link and their payment fails, Recovery Router logs it as a `payment_link` channel attempt on the parent recovery event (see Section 3.3). This creates a complete trace of customer interaction attempts visible in the event detail panel and audit logs.
 
 ---
 
@@ -507,19 +507,19 @@ In the Simulator page, there's a collapsible "Customer Details" panel that lets 
 
 Two debug endpoints exist for troubleshooting (lines 554-600 in `events.py`):
 
-- `POST /api/debug/escalate/{event_id}` — Manually triggers escalation for a single event and returns the before/after state plus all attempts.
-- `POST /api/debug/test-update/{event_id}` — Tests if Supabase updates persist by writing, reading immediately, reading after 500ms, and reading after 2500ms.
+- `POST /api/debug/escalate/{event_id}` - Manually triggers escalation for a single event and returns the before/after state plus all attempts.
+- `POST /api/debug/test-update/{event_id}` - Tests if Supabase updates persist by writing, reading immediately, reading after 500ms, and reading after 2500ms.
 
 ### 7.5 Data Reset
 
-`DELETE /api/reset/all-data?confirm=yes-delete-everything` (line 603) — Deletes all recovery events and attempts, resets ID sequences to start from 1. Requires the exact confirmation string.
+`DELETE /api/reset/all-data?confirm=yes-delete-everything` (line 603) - Deletes all recovery events and attempts, resets ID sequences to start from 1. Requires the exact confirmation string.
 
 ### 7.6 Migration Endpoints
 
 Two one-time migration endpoints for fixing data issues:
 
-- `POST /api/migrate/fix-exhausted` (line 442) — Backfills missing `skip_reason` on old exhausted events and clears stale `next_action_at` and `recovery_window_ends` fields.
-- `POST /api/migrate/fix-premature-exhaustion` (line 495) — Fixes events that were prematurely exhausted because cooldown blocks were counted as real failures. Reclassifies "failed" attempts with "Cooldown active" error as "blocked" and reopens the events.
+- `POST /api/migrate/fix-exhausted` (line 442) - Backfills missing `skip_reason` on old exhausted events and clears stale `next_action_at` and `recovery_window_ends` fields.
+- `POST /api/migrate/fix-premature-exhaustion` (line 495) - Fixes events that were prematurely exhausted because cooldown blocks were counted as real failures. Reclassifies "failed" attempts with "Cooldown active" error as "blocked" and reopens the events.
 
 ---
 
@@ -574,7 +574,7 @@ The frontend closely follows Razorpay's dashboard design language:
 - **Sidebar**: White background, 240px width, with section dividers and icon-labeled navigation items
 - **Typography**: Inter font family, consistent weight hierarchy (400/500/600/700)
 - **Color palette**: Razorpay blue (`#528FF0`), navy (`#1B1F36`), surface grey (`#F7F8FA`), border grey (`#E8EAED`)
-- **Status badges**: Color-coded pill badges — green for Paid, amber for In Progress, red for Gave Up, blue for On Hold, grey for Skipped
+- **Status badges**: Color-coded pill badges - green for Paid, amber for In Progress, red for Gave Up, blue for On Hold, grey for Skipped
 - **Type badges**: Red background for Payment, amber for Cart, blue for Invoice
 - **Cards**: White with 1px border and 8px border radius
 - **Tables**: Alternating hover states, sticky headers, horizontal scroll for responsive
@@ -594,7 +594,7 @@ Additional mobile adjustments at 480px: tighter navbar padding, smaller logo.
 
 File: `frontend/src/components/LoadingBar.jsx`
 
-A thin (3px) animated loading bar at the very top of the viewport. Uses a gradient animation that sweeps left-to-right and a growth animation that goes from 0% to 95% width over 8 seconds. The loading state is managed via React context — `setLoadingHooks` in `api.js` wires every API call to trigger the bar.
+A thin (3px) animated loading bar at the very top of the viewport. Uses a gradient animation that sweeps left-to-right and a growth animation that goes from 0% to 95% width over 8 seconds. The loading state is managed via React context - `setLoadingHooks` in `api.js` wires every API call to trigger the bar.
 
 ### 9.5 Date Range Picker
 
@@ -636,14 +636,14 @@ Celery configuration:
 ### 10.2 Celery Beat Schedule
 
 Two periodic tasks:
-- **Escalation cycle**: Every 300 seconds (5 minutes) — `app.tasks.escalation.run_escalation_cycle`
-- **Invoice scan**: Every 21600 seconds (6 hours) — `app.tasks.invoice_scan.scan_overdue_invoices`
+- **Escalation cycle**: Every 300 seconds (5 minutes) - `app.tasks.escalation.run_escalation_cycle`
+- **Invoice scan**: Every 21600 seconds (6 hours) - `app.tasks.invoice_scan.scan_overdue_invoices`
 
 ### 10.3 Invoice Scanner
 
 File: `backend/app/services/invoice_scanner.py`
 
-Every 6 hours, the system polls the Razorpay Invoices API (`GET /v1/invoices?type=invoice&status=issued`) for issued invoices that are past their due date. For each overdue invoice not already tracked in the database, it creates a recovery event with the invoice details and dispatches it through the standard pipeline.
+Every 6 hours, Recovery Router polls the Razorpay Invoices API (`GET /v1/invoices?type=invoice&status=issued`) for issued invoices that are past their due date. For each overdue invoice not already tracked in the database, it creates a recovery event with the invoice details and dispatches it through the standard pipeline.
 
 The scanner paginates through all invoices (100 per page), calculates days overdue, and batch-checks which invoice IDs are already tracked to avoid duplicates.
 
@@ -670,9 +670,9 @@ Handles two payload formats:
 ### 11.3 Concurrency Control
 
 Redis-based distributed locks are used throughout:
-- **Event-level lock** (`lock:event:{id}`, 300s TTL) in escalation — prevents two escalation cycles from processing the same event simultaneously.
-- **Escalation cycle lock** (`lock:escalation`, 240s TTL) — prevents overlapping escalation cycles.
-- **Delayed send lock** (`lock:event:{id}`, 300s TTL) — prevents race between delayed send and escalation.
+- **Event-level lock** (`lock:event:{id}`, 300s TTL) in escalation - prevents two escalation cycles from processing the same event simultaneously.
+- **Escalation cycle lock** (`lock:escalation`, 240s TTL) - prevents overlapping escalation cycles.
+- **Delayed send lock** (`lock:event:{id}`, 300s TTL) - prevents race between delayed send and escalation.
 
 ### 11.4 Analytics Caching
 
@@ -682,7 +682,7 @@ Analytics queries are cached in Redis for 120 seconds (line 9). The cache key in
 
 - Summary: total events, recovered/pending/exhausted/no-action counts, recovery rate, total/recovered/pending amounts, average attempts to recover, average recovery time in hours
 - AI Lift: comparison against a 15% industry baseline (sourced from Razorpay blog data), improvement in percentage points, lift multiplier, additional revenue recovered
-- Breakdowns: by event type, by channel, by failure category — each with event count, amount, recovered count, and recovery rate
+- Breakdowns: by event type, by channel, by failure category - each with event count, amount, recovered count, and recovery rate
 - Channel ranking: sorted by recovery rate
 
 ---
@@ -720,7 +720,7 @@ Body size is capped at 256KB to prevent abuse.
 
 There are no TODO/FIXME comments in the codebase. The project is functionally complete for the buildathon. A few areas that are designed but not fully implemented:
 
-- **Account & Settings page**: The sidebar shows an "Account & Settings" item (`Layout.jsx`, line 77) but clicking it does nothing — there's no settings page component.
+- **Account & Settings page**: The sidebar shows an "Account & Settings" item (`Layout.jsx`, line 77) but clicking it does nothing - there's no settings page component.
 - **Supabase Realtime**: The `LiveFeed.jsx` component and the Simulator page's "Pipeline Results" section reference "Live from Supabase" but the frontend uses polling (30-second intervals) rather than Supabase Realtime WebSocket subscriptions. The data stays current through polling.
-- **HealthBadge component**: Exists (`frontend/src/components/HealthBadge.jsx`) but is not rendered in the current Layout — it was likely replaced by simpler health indicators.
+- **HealthBadge component**: Exists (`frontend/src/components/HealthBadge.jsx`) but is not rendered in the current Layout - it was likely replaced by simpler health indicators.
 - **StatTiles, ChannelRanking, RecoveryByType, SimulatorPanel, AILift components**: These files exist in `frontend/src/components/` but appear to be earlier versions of what's now built directly into OverviewPage and AnalyticsPage. They're not imported anywhere in the current app.

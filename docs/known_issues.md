@@ -4,7 +4,7 @@
 > Built by Albert Abishek I
 > Last updated: 2026-08-31
 
-This document is an honest inventory of everything that is incomplete, fragile, or limited in the current system. It exists so we know exactly what is not done.
+This is an honest inventory of everything that is incomplete, fragile, or limited in the current system. It exists so I know exactly what is not done.
 
 ---
 
@@ -99,12 +99,12 @@ The tracker checks that the captured payment's currency matches the event's curr
 
 ### 4.3 Matching relies on notes and order_id linkage
 The reconciliation waterfall is:
-1. `notes.recovery_event_id` (most reliable -- set by our payment link generation)
-2. `payment_link.reference_id` (our order_id stored as reference_id)
+1. `notes.recovery_event_id` (most reliable -- set by my payment link generation)
+2. `payment_link.reference_id` (my order_id stored as reference_id)
 3. `order_id` match
 4. `payment_id` match
 
-For real Razorpay webhooks where the customer pays through a different channel (e.g., they get our WhatsApp but pay through the merchant's original checkout instead of our link), matching falls to order_id/payment_id, which may not match if the merchant's checkout generates new IDs.
+For real Razorpay webhooks where the customer pays through a different channel (e.g., they get my WhatsApp but pay through the merchant's original checkout instead of my link), matching falls to order_id/payment_id, which may not match if the merchant's checkout generates new IDs.
 
 ### 4.4 Ghost recovery protection
 The system correctly distinguishes organic recoveries (customer paid on their own, attempt_count == 0 and no successful outreach) from system-assisted recoveries. However, the check queries `recovery_attempts` for any `outcome == "sent"` row, which includes payment_link channel attempts that are customer retry failures, not outreach.

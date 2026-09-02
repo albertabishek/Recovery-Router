@@ -1,10 +1,10 @@
-# Recovery Router — Codebase Audit
+# Recovery Router - Codebase Audit
 
 **Razorpay AI Buildathon Track 3** | Audited 2026-08-27 | 55 files (35 backend + 20 frontend)
 
 **STATUS: ALL 31 FINDINGS FIXED** (Completed 2026-08-27 in 7 batches, each verified)
 
-**Last updated:** 2026-08-27 — Verified messenger fallback chains, cooldowns, AI client, and frontend components.
+**Last updated:** 2026-08-27 - Verified messenger fallback chains, cooldowns, AI client, and frontend components.
 
 ## Summary
 
@@ -13,7 +13,7 @@
 | Critical | 8 | 8 |
 | Warning | 12 | 12 |
 | Info | 11 | 11 |
-| Working Well | 10 | — |
+| Working Well | 10 | - |
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@
 
 ## 1. Security
 
-### S1 — No Razorpay webhook signature verification `CRITICAL`
+### S1 - No Razorpay webhook signature verification `CRITICAL`
 
 **File:** `backend/app/routers/webhooks.py:15–43`
 
@@ -39,7 +39,7 @@ Both `/webhook/recovery-router` and `/webhook/recovery-tracker` accept any POST 
 
 ---
 
-### S2 — XSS via unescaped `order_id` in checkout JS `CRITICAL`
+### S2 - XSS via unescaped `order_id` in checkout JS `CRITICAL`
 
 **File:** `backend/app/routers/checkout.py:89`
 
@@ -49,7 +49,7 @@ The `order_id` path parameter is interpolated raw into JavaScript: `order_id: '{
 
 ---
 
-### S3 — Incomplete JS escaping allows XSS `CRITICAL`
+### S3 - Incomplete JS escaping allows XSS `CRITICAL`
 
 **File:** `backend/app/routers/checkout.py:129–130`
 
@@ -59,7 +59,7 @@ The `order_id` path parameter is interpolated raw into JavaScript: `order_id: '{
 
 ---
 
-### S4 — No authentication on any endpoint `CRITICAL`
+### S4 - No authentication on any endpoint `CRITICAL`
 
 **File:** `backend/app/main.py:30–34` (all routers)
 
@@ -69,17 +69,17 @@ No API key, JWT, or any auth middleware protects any endpoint. `/api/simulate` t
 
 ---
 
-### S5 — HTML email template XSS `WARNING`
+### S5 - HTML email template XSS `WARNING`
 
 **File:** `backend/app/utils/templates.py:17, 48–49, 85`
 
-`{customer_name}`, `{payment_link_url}`, and `{amount}` are interpolated directly into HTML email templates with no escaping. A customer name like `<img src=x onerror=alert(1)>` would execute in email clients that render HTML. Also, `{payment_link_url}` on line 22 goes into an `href` — a `javascript:` URL would be clickable.
+`{customer_name}`, `{payment_link_url}`, and `{amount}` are interpolated directly into HTML email templates with no escaping. A customer name like `<img src=x onerror=alert(1)>` would execute in email clients that render HTML. Also, `{payment_link_url}` on line 22 goes into an `href` - a `javascript:` URL would be clickable.
 
 **Fix:** HTML-escape all interpolated values. For `href`, validate that the URL starts with `http://` or `https://`.
 
 ---
 
-### S6 — SSL certificate validation disabled for Redis `WARNING`
+### S6 - SSL certificate validation disabled for Redis `WARNING`
 
 **File:** `backend/app/celery_app.py:12–13`
 
@@ -89,7 +89,7 @@ No API key, JWT, or any auth middleware protects any endpoint. `/api/simulate` t
 
 ---
 
-### S7 — Prompt injection risk in AI classifier `WARNING`
+### S7 - Prompt injection risk in AI classifier `WARNING`
 
 **File:** `backend/app/services/classifier.py:78–89`
 
@@ -99,7 +99,7 @@ User-supplied event data (`error_code`, `error_description`, `customer_name`) is
 
 ---
 
-### S8 — Error details leaked to clients `INFO`
+### S8 - Error details leaked to clients `INFO`
 
 **File:** `backend/app/routers/webhooks.py:30`
 
@@ -109,7 +109,7 @@ User-supplied event data (`error_code`, `error_description`, `customer_name`) is
 
 ---
 
-### S9 — CORS allows credentials with wildcard methods/headers `INFO`
+### S9 - CORS allows credentials with wildcard methods/headers `INFO`
 
 **File:** `backend/app/main.py:18–28`
 
@@ -121,7 +121,7 @@ User-supplied event data (`error_code`, `error_description`, `customer_name`) is
 
 ## 2. Race Conditions
 
-### R1 — Recovery tracker double-recovery race `CRITICAL`
+### R1 - Recovery tracker double-recovery race `CRITICAL`
 
 **File:** `backend/app/services/recovery_tracker.py:37–71`
 
@@ -131,7 +131,7 @@ Between reading the event (`select...eq("status","pending")`, line 38) and updat
 
 ---
 
-### R2 — Escalation can process same event twice `WARNING`
+### R2 - Escalation can process same event twice `WARNING`
 
 **File:** `backend/app/services/escalation.py:40–98`, `backend/app/tasks/escalation.py:27–33`
 
@@ -141,7 +141,7 @@ The Redis lock (`LOCK_KEY`) prevents concurrent escalation cycles, but doesn't p
 
 ---
 
-### R3 — Singleton initialization race in database/redis clients `INFO`
+### R3 - Singleton initialization race in database/redis clients `INFO`
 
 **File:** `backend/app/database.py:4–11`, `backend/app/redis_client.py:4–14`
 
@@ -153,7 +153,7 @@ Both `get_supabase()` and `get_redis()` use a global variable with no thread loc
 
 ## 3. Celery & Redis
 
-### C1 — Delayed events bypass original classification `WARNING`
+### C1 - Delayed events bypass original classification `WARNING`
 
 **File:** `backend/app/tasks/recovery.py:74–85`
 
@@ -163,7 +163,7 @@ When `action.delay_seconds > 0` (e.g., bank_downtime: 30 min), the task returns 
 
 ---
 
-### C2 — Flat retry with no exponential backoff `WARNING`
+### C2 - Flat retry with no exponential backoff `WARNING`
 
 **File:** `backend/app/tasks/recovery.py:14, 150`
 
@@ -173,7 +173,7 @@ When `action.delay_seconds > 0` (e.g., bank_downtime: 30 min), the task returns 
 
 ---
 
-### C3 — New OpenAI client created per escalation event `WARNING`
+### C3 - New OpenAI client created per escalation event `WARNING`
 
 **File:** `backend/app/services/escalation.py:123`
 
@@ -183,7 +183,7 @@ When `action.delay_seconds > 0` (e.g., bank_downtime: 30 min), the task returns 
 
 ---
 
-### C4 — Escalation limited to 20 events per cycle `INFO`
+### C4 - Escalation limited to 20 events per cycle `INFO`
 
 **File:** `backend/app/tasks/escalation.py:33`
 
@@ -193,39 +193,39 @@ When `action.delay_seconds > 0` (e.g., bank_downtime: 30 min), the task returns 
 
 ---
 
-### C5 — Inconsistent metadata serialization `INFO`
+### C5 - Inconsistent metadata serialization `INFO`
 
 **File:** `backend/app/tasks/recovery.py:122–129` vs `backend/app/services/escalation.py:173`
 
 `recovery.py` stores metadata as a Python dict (Supabase auto-serializes to JSONB). But `escalation.py:173` calls `json.dumps()` explicitly, creating a double-encoded JSON string in the database. When read back, the recovery.py entries are dicts but the escalation.py entries are strings that need `json.loads()`.
 
-**Fix:** Remove `json.dumps()` in `escalation.py:173` — pass the dict directly like `recovery.py` does.
+**Fix:** Remove `json.dumps()` in `escalation.py:173` - pass the dict directly like `recovery.py` does.
 
 ---
 
 ## 4. Error Handling
 
-### E1 — Cart abandonment always gets a dummy payment link `CRITICAL`
+### E1 - Cart abandonment always gets a dummy payment link `CRITICAL`
 
 **File:** `backend/app/routers/events.py:59`, `backend/app/services/payment_links.py:33–35`
 
-Cart abandonment scenarios set `"amount": 0` (events.py:59). Then `generate_payment_link()` skips link creation when `amount <= 0` (payment_links.py:33) and returns `FALLBACK_URL = "https://rzp.io/i/recovery"` — a non-existent URL. The recovery message sent to the customer contains this broken link.
+Cart abandonment scenarios set `"amount": 0` (events.py:59). Then `generate_payment_link()` skips link creation when `amount <= 0` (payment_links.py:33) and returns `FALLBACK_URL = "https://rzp.io/i/recovery"` - a non-existent URL. The recovery message sent to the customer contains this broken link.
 
 **Fix:** Use `cart_value` as the amount for cart abandonment events. In `recovery.py:87–88`, pass `amount=event.cart_value or event.amount`. Or handle cart abandonment differently (no payment link, just a reminder message).
 
 ---
 
-### E2 — Dedup skipped when no identifier exists `WARNING`
+### E2 - Dedup skipped when no identifier exists `WARNING`
 
 **File:** `backend/app/utils/dedup.py:21`, `backend/app/routers/webhooks.py:23`
 
-`get_dedup_identifier()` returns `""` when none of payment_id, order_id, invoice_id exist. Then `webhooks.py:23` checks `if identifier and is_duplicate(...)` — empty string is falsy, so dedup is completely bypassed. Replaying such a request creates duplicate events.
+`get_dedup_identifier()` returns `""` when none of payment_id, order_id, invoice_id exist. Then `webhooks.py:23` checks `if identifier and is_duplicate(...)` - empty string is falsy, so dedup is completely bypassed. Replaying such a request creates duplicate events.
 
 **Fix:** Generate a hash of the full payload as a fallback identifier. Or reject events with no identifiers at all.
 
 ---
 
-### E3 — `_fallback` attribute never set on ClassificationResult `WARNING`
+### E3 - `_fallback` attribute never set on ClassificationResult `WARNING`
 
 **File:** `backend/app/tasks/recovery.py:57`
 
@@ -235,7 +235,7 @@ Cart abandonment scenarios set `"amount": 0` (events.py:59). Then `generate_paym
 
 ---
 
-### E4 — `pending_captures` table may not exist `INFO`
+### E4 - `pending_captures` table may not exist `INFO`
 
 **File:** `backend/app/services/recovery_tracker.py:82–95`
 
@@ -245,7 +245,7 @@ Cart abandonment scenarios set `"amount": 0` (events.py:59). Then `generate_paym
 
 ---
 
-### E5 — Supabase insert failure causes IndexError `INFO`
+### E5 - Supabase insert failure causes IndexError `INFO`
 
 **File:** `backend/app/tasks/recovery.py:60–61`
 
@@ -257,7 +257,7 @@ If the Supabase insert on line 60 returns an empty `res.data` list (e.g., RLS po
 
 ## 5. Performance & Scalability
 
-### P1 — Analytics loads ALL events from Supabase `CRITICAL`
+### P1 - Analytics loads ALL events from Supabase `CRITICAL`
 
 **File:** `backend/app/services/analytics.py:23`
 
@@ -267,7 +267,7 @@ If the Supabase insert on line 60 returns an empty `res.data` list (e.g., RLS po
 
 ---
 
-### P2 — Invoice scanner runs N+1 queries `WARNING`
+### P2 - Invoice scanner runs N+1 queries `WARNING`
 
 **File:** `backend/app/services/invoice_scanner.py:30–31, 62–68`
 
@@ -277,7 +277,7 @@ If the Supabase insert on line 60 returns an empty `res.data` list (e.g., RLS po
 
 ---
 
-### P3 — Health check blocks on Celery inspect `WARNING`
+### P3 - Health check blocks on Celery inspect `WARNING`
 
 **File:** `backend/app/routers/health.py:31–32`
 
@@ -287,7 +287,7 @@ If the Supabase insert on line 60 returns an empty `res.data` list (e.g., RLS po
 
 ---
 
-### P4 — Frontend double-polls with realtime subscription `INFO`
+### P4 - Frontend double-polls with realtime subscription `INFO`
 
 **File:** `frontend/src/App.jsx:33, 36–48`
 
@@ -299,7 +299,7 @@ The frontend polls `/api/analytics` and `/api/events` every 15 seconds (line 33)
 
 ## 6. Code Quality
 
-### Q1 — Hardcoded customer details in simulator `INFO`
+### Q1 - Hardcoded customer details in simulator `INFO`
 
 **File:** `backend/app/routers/events.py:125–127`
 
@@ -309,7 +309,7 @@ Simulator always sends to `include1iostream2@gmail.com` and `+919042824369`. The
 
 ---
 
-### Q2 — Unused `SCENARIO_NAMES` variable `INFO`
+### Q2 - Unused `SCENARIO_NAMES` variable `INFO`
 
 **File:** `backend/app/routers/events.py:80`
 
@@ -319,7 +319,7 @@ Simulator always sends to `include1iostream2@gmail.com` and `+919042824369`. The
 
 ---
 
-### Q3 — Hardcoded SendGrid from-email `INFO`
+### Q3 - Hardcoded SendGrid from-email `INFO`
 
 **File:** `backend/app/services/messenger.py:343`
 
@@ -329,7 +329,7 @@ Simulator always sends to `include1iostream2@gmail.com` and `+919042824369`. The
 
 ---
 
-### Q4 — Supabase anon key exposed in frontend config `INFO`
+### Q4 - Supabase anon key exposed in frontend config `INFO`
 
 **File:** `frontend/src/lib/supabase.js:3–4`
 
@@ -339,7 +339,7 @@ The Supabase anon key (`VITE_SUPABASE_ANON_KEY`) is bundled into the frontend JS
 
 ---
 
-### Q5 — Frontend API base URL defaults to empty string `INFO`
+### Q5 - Frontend API base URL defaults to empty string `INFO`
 
 **File:** `frontend/src/lib/api.js:1`
 
@@ -351,22 +351,22 @@ The Supabase anon key (`VITE_SUPABASE_ANON_KEY`) is bundled into the frontend JS
 
 ## 7. What's Working Well
 
-- `.gitignore` correctly excludes `.env`, `.env.*`, `Credentials_for_you/`, `*.pem`, `*.key` — verified at root `.gitignore:1–8`
-- Multi-provider messenger hierarchy with full degradation path logging — `services/messenger.py`:
+- `.gitignore` correctly excludes `.env`, `.env.*`, `Credentials_for_you/`, `*.pem`, `*.key` - verified at root `.gitignore:1–8`
+- Multi-provider messenger hierarchy with full degradation path logging - `services/messenger.py`:
   - WhatsApp chain: Green API (personalized text) → Twilio WhatsApp (template) → Email
   - SMS chain: Twilio SMS → Green API WhatsApp → Twilio WhatsApp → Email
   - Email: Resend with AI-personalized HTML
-- AI-personalized messages via `services/message_generator.py` — AI generates channel-appropriate content; template fallback when AI is unavailable
-- Deduplication with Redis-backed TTL — `utils/dedup.py`, 1-hour window prevents duplicate processing
-- Per-resource cooldowns prevent message spam — `utils/rate_limiter.py:25–31`, WhatsApp 5min, SMS 5min, Email 5min
-- Ghost recovery prevention — `services/recovery_tracker.py:55–64`, correctly distinguishes organic recoveries (0 attempts) from AI-driven ones
-- Escalation distributed lock — `tasks/escalation.py:19`, Redis `SETNX` lock prevents concurrent escalation cycles
-- Pydantic validation on all inputs — `models.py`, `RecoveryEventInput` with Literal types, `ClassificationResult` with bounded probability
-- 3-model AI fallback chain via OpenRouter — `services/ai_client.py`: Claude Haiku 4.5 → Gemini 3.7 Flash → GPT-4o-mini, with automatic retry and rate limit handling
-- Rule-based fallback when all AI models unavailable — `services/classifier.py:172–210`, with probability discount (0.7x) and `fallback_used=True` flag
-- Server-side pagination on all list endpoints — `.range()` with `count="exact"` for Events, Audit Logs
-- Global date range filtering — `from_date`/`to_date` query params on Events, Analytics, and Audit Logs endpoints
-- Frontend LoadingBar — reference-counted global loading indicator for all API calls (`components/LoadingBar.jsx`)
-- Responsive table scroll — `overflowX: auto` on all data tables to prevent column crunching
-- Recovery window expiry — `tasks/escalation.py:44–49`, events auto-expire after 72 hours
-- Supabase realtime subscription for live UI updates — `frontend/src/App.jsx:36–48`, instant event/status updates without polling
+- AI-personalized messages via `services/message_generator.py` - AI generates channel-appropriate content; template fallback when AI is unavailable
+- Deduplication with Redis-backed TTL - `utils/dedup.py`, 1-hour window prevents duplicate processing
+- Per-resource cooldowns prevent message spam - `utils/rate_limiter.py:25–31`, WhatsApp 5min, SMS 5min, Email 5min
+- Ghost recovery prevention - `services/recovery_tracker.py:55–64`, correctly distinguishes organic recoveries (0 attempts) from AI-driven ones
+- Escalation distributed lock - `tasks/escalation.py:19`, Redis `SETNX` lock prevents concurrent escalation cycles
+- Pydantic validation on all inputs - `models.py`, `RecoveryEventInput` with Literal types, `ClassificationResult` with bounded probability
+- 3-model AI fallback chain via OpenRouter - `services/ai_client.py`: Claude Haiku 4.5 → Gemini 3.7 Flash → GPT-4o-mini, with automatic retry and rate limit handling
+- Rule-based fallback when all AI models unavailable - `services/classifier.py:172–210`, with probability discount (0.7x) and `fallback_used=True` flag
+- Server-side pagination on all list endpoints - `.range()` with `count="exact"` for Events, Audit Logs
+- Global date range filtering - `from_date`/`to_date` query params on Events, Analytics, and Audit Logs endpoints
+- Frontend LoadingBar - reference-counted global loading indicator for all API calls (`components/LoadingBar.jsx`)
+- Responsive table scroll - `overflowX: auto` on all data tables to prevent column crunching
+- Recovery window expiry - `tasks/escalation.py:44–49`, events auto-expire after 72 hours
+- Supabase realtime subscription for live UI updates - `frontend/src/App.jsx:36–48`, instant event/status updates without polling

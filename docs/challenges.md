@@ -367,7 +367,7 @@ Before final submission, I ran a thorough security and accuracy audit of the ent
 
 Fix: Added three reconciliation checks -- reject if entity status isn't `"captured"`, reject if `payment_id` is missing, and reject if the captured amount doesn't match the event amount within a Rs 0.01 (1 paisa) tolerance. Currency matching was also added.
 
-**2. Inflated baseline rate (P1).** The analytics code was using 17.5% as the industry baseline recovery rate. The actual figure from Razorpay's published data is 15-20% for automated retries. I was using the midpoint, which felt dishonest when our system was being compared against it.
+**2. Inflated baseline rate (P1).** The analytics code was using 17.5% as the industry baseline recovery rate. The actual figure from Razorpay's published data is 15-20% for automated retries. I was using the midpoint, which felt dishonest when my system was being compared against it.
 
 Fix: Changed to 15.0% across backend analytics, frontend dashboard, and n8n workflows, with an honest disclaimer that this is from Razorpay's published figures.
 
