@@ -54,6 +54,11 @@ def run_escalation_cycle() -> dict:
             if (e.get("attempt_count", 0) or 0) >= (e.get("max_attempts") if e.get("max_attempts") is not None else 5):
                 _mark_attempts_exhausted(sb, e)
                 continue
+            dfc = (e.get("delivery_failure_count", 0) or 0)
+            max_att = e.get("max_attempts") if e.get("max_attempts") is not None else 5
+            if dfc > max_att:
+                _mark_delivery_failures_exhausted(sb, e)
+                continue
             if e.get("failure_category") == "unrecoverable_decline":
                 continue
             if (e.get("recovery_probability") or 0) == 0:
@@ -123,3 +128,19 @@ def _mark_attempts_exhausted(sb, event):
         logger.info("Event %d: max attempts (%d) exhausted", event["id"], max_att)
     else:
         logger.warning("Event %d: exhaustion skipped — status already changed", event["id"])
+
+
+def _mark_delivery_failures_exhausted(sb, event):
+    dfc = (event.get("delivery_failure_count", 0) or 0)
+    res = sb.table("recovery_events").update({
+        "status": "exhausted",
+        "current_strategy": "all_deliveries_failed",
+        "skip_reason": f"All delivery attempts failed ({dfc} consecutive failures, no message ever delivered)",
+        "next_action_at": None,
+        "recovery_window_ends": None,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }).eq("id", event["id"]).eq("status", "pending").execute()
+    if res.data:
+        logger.info("Event %d: exhausted — %d delivery failures, contact unreachable", event["id"], dfc)
+    else:
+        logger.warning("Event %d: delivery failure exhaustion skipped — status already changed", event["id"])

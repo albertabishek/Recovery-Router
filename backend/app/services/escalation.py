@@ -110,7 +110,7 @@ def run_escalation(events: list[dict]) -> list[dict]:
 
         try:
             fresh = sb.table("recovery_events").select(
-                "status,attempt_count,max_attempts,escalation_level"
+                "status,attempt_count,max_attempts,escalation_level,delivery_failure_count"
             ).eq("id", event["id"]).limit(1).execute()
             if not fresh.data or fresh.data[0].get("status") != "pending":
                 logger.warning(
@@ -127,6 +127,27 @@ def run_escalation(events: list[dict]) -> list[dict]:
                 event["id"], event.get("attempt_count", 0),
                 event.get("max_attempts", 5), len(attempts),
             )
+
+            dfc = (event.get("delivery_failure_count", 0) or 0)
+            max_att = event.get("max_attempts") if event.get("max_attempts") is not None else 5
+            if dfc > max_att:
+                has_any_sent = any(
+                    a.get("outcome") == "sent"
+                    for a in attempts
+                    if a.get("channel_used") not in ("payment_link", "system")
+                )
+                if not has_any_sent:
+                    logger.warning(
+                        "Event %d: delivery_failure_count=%d > max_attempts=%d, no successful sends — exhausting",
+                        event["id"], dfc, max_att,
+                    )
+                    _mark_exhausted(
+                        sb, event,
+                        f"All delivery attempts failed ({dfc} consecutive failures, no message ever delivered)",
+                    )
+                    results.append({"event_id": event["id"], "action": "exhausted_unreachable"})
+                    continue
+
             decision = _get_escalation_decision(event, attempts)
             logger.info(
                 "Event %d: AI decision=%s channel=%s reasoning=%s",
@@ -232,11 +253,19 @@ def run_escalation(events: list[dict]) -> list[dict]:
             if send_result.get("success", False):
                 _update_event_state(sb, event, decision)
             else:
+                is_hard_failure = send_result.get("error") != "Cooldown active"
                 now = datetime.now(timezone.utc)
-                sb.table("recovery_events").update({
+                fail_update = {
                     "next_action_at": (now + timedelta(minutes=15)).isoformat(),
                     "updated_at": now.isoformat(),
-                }).eq("id", event["id"]).eq("status", "pending").execute()
+                }
+                if is_hard_failure:
+                    fail_update["delivery_failure_count"] = (
+                        (event.get("delivery_failure_count", 0) or 0) + 1
+                    )
+                sb.table("recovery_events").update(
+                    fail_update
+                ).eq("id", event["id"]).eq("status", "pending").execute()
 
             results.append({
                 "event_id": event["id"],

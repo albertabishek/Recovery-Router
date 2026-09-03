@@ -290,12 +290,15 @@ def process_recovery_event(self, event_data: dict) -> dict:
                     "updated_at": now.isoformat(),
                 }
         else:
+            is_hard_failure = send_result.get("error") != "Cooldown active"
             retry_minutes = 15
             update_data = {
                 "current_strategy": "first_contact_failed",
                 "next_action_at": (now + timedelta(minutes=retry_minutes)).isoformat(),
                 "updated_at": now.isoformat(),
             }
+            if is_hard_failure:
+                update_data["delivery_failure_count"] = 1
 
         sb.table("recovery_events").update(update_data).eq("id", event_id).eq("status", "pending").execute()
 
@@ -578,11 +581,17 @@ def _send_delayed(self, event_id: int, channel: str, event_data: dict):
                         "updated_at": now.isoformat(),
                     }).eq("id", event_id).eq("status", "pending").execute()
             else:
-                sb.table("recovery_events").update({
+                is_hard_failure = send_result.get("error") != "Cooldown active"
+                delayed_fail_update = {
                     "current_strategy": "first_contact_failed",
                     "next_action_at": (now + timedelta(minutes=15)).isoformat(),
                     "updated_at": now.isoformat(),
-                }).eq("id", event_id).eq("status", "pending").execute()
+                }
+                if is_hard_failure:
+                    delayed_fail_update["delivery_failure_count"] = 1
+                sb.table("recovery_events").update(
+                    delayed_fail_update
+                ).eq("id", event_id).eq("status", "pending").execute()
 
             return {
                 "status": "sent" if send_succeeded else "send_failed",
