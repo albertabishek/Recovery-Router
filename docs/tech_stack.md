@@ -12,7 +12,7 @@ Built by **Albert Abishek I** for the Razorpay AI Buildathon 2026, Track 3 (Redu
 | Web framework | FastAPI | >=0.141.1 | Async API server |
 | Task queue | Celery | >=5.6.3 (with redis extra) | Background recovery tasks, periodic beats |
 | Broker / cache | Redis | >=5.3.0 (client); managed instance on Railway | Celery broker, result backend, cache, rate limiter, dedup store, cooldown tracker, checkout-token store |
-| Database | Supabase (PostgreSQL) | supabase-py >=2.31.0 | Persistent storage, Realtime subscriptions to frontend |
+| Database | Supabase (PostgreSQL) | supabase-py >=2.31.0 | Persistent storage, RLS, REST API |
 | Frontend framework | React | 19.2.8 | Dashboard SPA |
 | Build tool | Vite | 8.2.2 | Dev server with HMR, production bundler |
 | CSS | Tailwind CSS | 4.3.3 (via @tailwindcss/vite plugin) | Utility-first styling |
@@ -126,9 +126,7 @@ The connection pool is lazily initialized with thread-safe double-checked lockin
 
 **Why Supabase over raw PostgreSQL or SQLAlchemy:**
 
-1. **Realtime subscriptions.** The frontend dashboard subscribes to the `recovery_events` table via Supabase Realtime. When a new recovery event is created or its status changes, the dashboard updates instantly without polling. With raw PostgreSQL, you would need to set up LISTEN/NOTIFY plus a WebSocket layer -- Supabase provides this out of the box.
-
-2. **Managed infrastructure.** No need to provision, backup, or patch a PostgreSQL instance. Supabase handles it.
+1. **Managed infrastructure.** No need to provision, backup, or patch a PostgreSQL instance. Supabase handles it. The frontend keeps the dashboard current by polling the backend REST API at 15-30 second intervals.
 
 3. **Row-level security.** Supabase's RLS policies can restrict what the frontend (using the anon key) can read. The backend uses the service key to bypass RLS for write operations.
 
@@ -161,8 +159,7 @@ This is a single-page dashboard application with five views (Overview, Events, A
 
 React 19 was chosen because:
 - The ecosystem is the largest, which matters when you are building under buildathon time pressure.
-- Supabase's JavaScript SDK has first-class React examples and hooks.
-- React 19's automatic batching and concurrent features handle the real-time event feed without manual optimization.
+- React 19's automatic batching handles the polling-based event feed without manual optimization.
 
 Vue or Svelte would work fine here but offer no specific advantage. Next.js would add server-side rendering complexity that a dashboard does not need -- there is no SEO requirement and no public-facing content.
 
@@ -177,7 +174,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     host: true,
-    allowedHosts: ['app.albertabishek.com', 'localhost'],
+    allowedHosts: ['razorpay.albertabishek.com', 'app.albertabishek.com', 'localhost'],
     proxy: {
       '/api': 'http://localhost:8000',
       '/webhook': 'http://localhost:8000',
@@ -200,7 +197,7 @@ Why Tailwind: rapid UI development without writing custom CSS files. Every compo
 |---------|---------|---------|
 | `react` | ^19.2.8 | UI framework |
 | `react-dom` | ^19.2.8 | React DOM renderer |
-| `@supabase/supabase-js` | ^2.112.4 | Supabase client -- used for Realtime subscriptions to the `recovery_events` table |
+| `@supabase/supabase-js` | ^2.112.4 | Supabase client -- included but not actively used; all data flows through the backend REST API |
 | `tailwindcss` | ^4.3.3 | Utility-first CSS |
 | `@tailwindcss/vite` | ^4.3.3 | Vite plugin for Tailwind 4 |
 | `@vitejs/plugin-react` | ^6.1.0 | React Fast Refresh for Vite |
@@ -219,7 +216,7 @@ export const supabase = SUPABASE_URL && SUPABASE_ANON_KEY
   : null
 ```
 
-The client uses the anon key (not the service key) and gracefully degrades to `null` if the environment variables are missing -- the realtime feed just will not work, but the rest of the dashboard still functions via the REST API.
+The client uses the anon key (not the service key) and gracefully degrades to `null` if the environment variables are missing. It is currently unused -- the dashboard fetches all data via the backend REST API with 15-30 second polling intervals.
 
 ---
 
@@ -372,7 +369,6 @@ Redis is provisioned as a managed add-on on Railway. The `REDIS_URL` environment
 
 Supabase provides the managed PostgreSQL database with:
 - Automatic backups
-- Realtime engine (WebSocket-based change subscriptions)
 - Dashboard for data inspection
 - Row-level security policies
 - REST API auto-generated from the schema
@@ -453,7 +449,7 @@ All configuration is via environment variables (loaded from `.env` in developmen
 
 | Criterion | Supabase | Raw PostgreSQL | Firebase |
 |-----------|----------|---------------|----------|
-| Realtime | Built-in WebSocket subscriptions | Manual LISTEN/NOTIFY + custom WebSocket | Built-in |
+| Realtime (available) | Built-in WebSocket subscriptions (not used in current build) | Manual LISTEN/NOTIFY + custom WebSocket | Built-in |
 | SQL support | Full PostgreSQL | Full PostgreSQL | NoSQL only |
 | Row-level security | Built-in | Manual policies | Security rules (different model) |
 | Hosting | Managed | Self-managed or managed | Managed |
@@ -525,7 +521,7 @@ All configuration is via environment variables (loaded from `.env` in developmen
 
 3. **Railway compute.** Celery workers are always-on processes. At scale, you need more workers with higher concurrency. Railway charges per vCPU-hour. A 2-worker deployment might cost $10-20/month; scaling to 10 workers could be $50-100/month.
 
-4. **Supabase.** The free tier covers development and small-scale production. At scale (>500MB database, >50K MAU), the Pro plan is $25/month. With high Realtime usage, costs grow with concurrent connections.
+4. **Supabase.** The free tier covers development and small-scale production. At scale (>500MB database, >50K MAU), the Pro plan is $25/month.
 
 5. **Redis memory.** All seven Redis roles share one instance. At scale, the dedup keys (1-hour TTL), rate limit sorted sets, and checkout tokens (24-hour TTL) accumulate. A dedicated Redis instance with more memory would be needed -- Railway's Redis add-on scales with memory usage.
 
@@ -535,7 +531,7 @@ All configuration is via environment variables (loaded from `.env` in developmen
 
 The tech stack was chosen for **speed of development** (buildathon constraint) and **operational simplicity** (single-developer deployment). Every choice prioritizes fewer moving parts:
 
-- One database service (Supabase) instead of PostgreSQL + a separate Realtime engine
+- One database service (Supabase) instead of PostgreSQL + separate hosting
 - One cache/broker (Redis) instead of Redis + RabbitMQ
 - One AI gateway (OpenRouter) instead of three separate model SDKs
 - One hosting platform per layer (Railway for backend, Vercel for frontend)

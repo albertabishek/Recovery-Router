@@ -448,9 +448,9 @@
     </p>
 
     <div class="btn-group">
-      <a href="https://app.albertabishek.com" target="_blank" class="btn btn-primary">Live Dashboard →</a>
+      <a href="https://razorpay.albertabishek.com" target="_blank" class="btn btn-primary">Live Dashboard →</a>
       <a href="https://api.albertabishek.com/docs" target="_blank" class="btn btn-outline">API Docs</a>
-      <a href="https://github.com/albertabishek/Recovery-Router" target="_blank" class="btn btn-outline">GitHub</a>
+      <a href="https://github.com/albertabishek/Recovery-Router-" target="_blank" class="btn btn-outline">GitHub</a>
     </div>
 
   </div>
@@ -566,12 +566,12 @@
       <div class="card">
         <div class="card-icon" style="background:var(--red-dim);color:var(--red);">⛨</div>
         <div class="card-title">I treat this like financial software, not a hackathon project</div>
-        <div class="card-text">HMAC-SHA256 webhooks, XSS prevention, AI input sanitization, distributed locks, 3-layer give-up prevention, database-level trigger as my last line of defense. Because this handles real money.</div>
+        <div class="card-text">HMAC-SHA256 webhooks, XSS prevention, AI input sanitization, distributed locks, action reservation with idempotency keys, 3-layer give-up prevention, delivery failure detection, database-level trigger as my last line of defense. 18 defense layers deep. Because this handles real money.</div>
       </div>
       <div class="card">
         <div class="card-icon" style="background:var(--teal-dim);color:var(--teal);">⚙</div>
         <div class="card-title">I built production patterns, not demo patterns</div>
-        <div class="card-text"><code style="color:var(--teal);">acks_late=True</code>, <code style="color:var(--teal);">reject_on_worker_lost=True</code>, exponential backoff, distributed locks, conditional DB updates. If Razorpay shipped this tomorrow, the architecture wouldn't need rewriting.</div>
+        <div class="card-text"><code style="color:var(--teal);">acks_late=True</code>, <code style="color:var(--teal);">reject_on_worker_lost=True</code>, exponential backoff, distributed locks, conditional DB updates, and a reserve-before-send pattern with idempotency keys that prevents double-sends on worker crashes. If Razorpay shipped this tomorrow, the architecture wouldn't need rewriting.</div>
       </div>
     </div>
   </div>
@@ -712,14 +712,14 @@
           <tr><td style="font-weight:600;">SMS</td><td>Twilio</td><td>Industry standard, trial limits restrict testing</td></tr>
           <tr><td style="font-weight:600;">Email</td><td>Resend</td><td>AI-personalized HTML with branded template</td></tr>
           <tr><td style="font-weight:600;">Frontend</td><td>React 19 + Vite 8 + Tailwind 4</td><td>Fast HMR, Razorpay UI clone</td></tr>
-          <tr><td style="font-weight:600;">Realtime</td><td>Supabase Realtime</td><td>WebSocket live event updates on dashboard</td></tr>
+          <tr><td style="font-weight:600;">Live Updates</td><td>Auto-polling + Supabase</td><td>Dashboard auto-refreshes every 15-30s for live event tracking</td></tr>
           <tr><td style="font-weight:600;">Cache/Locks</td><td>Redis (6 roles)</td><td>Broker, cache, dedup, rate limit, locks, PII store</td></tr>
         </tbody>
       </table>
     </div>
 
     <!-- Security -->
-    <h3 style="font-size:20px;font-weight:700;margin-bottom:20px;">Security Architecture -11 Defense Layers</h3>
+    <h3 style="font-size:20px;font-weight:700;margin-bottom:20px;">Security Architecture - 18 Defense Layers</h3>
     <div class="card-grid card-grid-3">
       <div class="card"><div class="card-title" style="font-size:14px;">Webhook HMAC-SHA256</div><div class="card-text">Timing-safe <code style="color:var(--teal);">hmac.compare_digest()</code></div></div>
       <div class="card"><div class="card-title" style="font-size:14px;">Body Size Limit</div><div class="card-text">256 KB max payload</div></div>
@@ -732,6 +732,7 @@
       <div class="card"><div class="card-title" style="font-size:14px;">3-Layer Give-Up Prevention</div><div class="card-text">Schema default → AI override → hard guard</div></div>
       <div class="card"><div class="card-title" style="font-size:14px;">Database Trigger</div><div class="card-text">PostgreSQL blocks premature exhaustion from ANY writer</div></div>
       <div class="card"><div class="card-title" style="font-size:14px;">Race-Safe State</div><div class="card-text">Conditional <code style="color:var(--teal);">.eq("status","pending")</code> on every update</div></div>
+      <div class="card"><div class="card-title" style="font-size:14px;">Delivery Failure Detection</div><div class="card-text">Separate <code style="color:var(--teal);">delivery_failure_count</code> stops infinite retries on unreachable contacts</div></div>
     </div>
   </div>
 </section>
@@ -891,6 +892,29 @@
         </div>
       </div>
 
+      <div class="card war-story" style="border-color:var(--red);">
+        <div class="war-num" style="color:var(--red);border-color:var(--red);">06</div>
+        <div>
+          <div class="card-title">The Infinite Retry Loop</div>
+          <div class="card-text" style="margin-bottom:4px;">Event #36 had fake contact info — the system kept retrying forever with no way to stop</div>
+          <div class="war-broke">What broke</div>
+          <ul class="card-list">
+            <li>A test event had invalid phone/email — every send attempt was rejected by the provider</li>
+            <li><code style="color:var(--teal);">attempt_count</code> only increments on successful sends — provider rejections left it at 0</li>
+            <li>The safety guard (<code style="color:var(--teal);">attempt_count &lt; max_attempts</code>) always passed — the event could never exhaust</li>
+            <li>Deadlock: the counter that stops retries only moves when you succeed, but you can never succeed</li>
+          </ul>
+          <div class="war-fix">How I fixed it</div>
+          <ul class="card-list">
+            <li>Added <code style="color:var(--teal);">delivery_failure_count</code> — a separate counter for hard provider rejections</li>
+            <li>Doesn't count cooldowns or quiet hours — only real failures (provider says "this contact is unreachable")</li>
+            <li>Gate: <code style="color:var(--teal);">delivery_failure_count &gt; max_attempts</code> → mark exhausted with <code style="color:var(--teal);">skip_reason</code></li>
+            <li>Bypass: if any past attempt ever succeeded (<code style="color:var(--teal);">has_any_sent</code>), skip the gate — the contact works</li>
+            <li>Wired into all 3 send paths: initial, delayed, and escalation</li>
+          </ul>
+        </div>
+      </div>
+
     </div>
   </div>
 </section>
@@ -967,9 +991,10 @@
           <tr><td style="font-family:'JetBrains Mono',monospace;color:var(--rzp-blue);white-space:nowrap;">0:30–2:30</td><td><strong>Live Payment Demo</strong> - real Razorpay test-mode checkout, payment fails, webhook triggers full pipeline</td></tr>
           <tr><td style="font-family:'JetBrains Mono',monospace;color:var(--rzp-blue);white-space:nowrap;">2:30–3:10</td><td>Simulated Cart Abandonment - different classification, budget, and tone</td></tr>
           <tr><td style="font-family:'JetBrains Mono',monospace;color:var(--rzp-blue);white-space:nowrap;">3:10–3:40</td><td>Honest tracking - organic vs outreach-driven, provider acceptance</td></tr>
-          <tr><td style="font-family:'JetBrains Mono',monospace;color:var(--rzp-blue);white-space:nowrap;">3:40–4:05</td><td>Safety proofs - dedup, escalation, 3-layer give-up prevention</td></tr>
-          <tr><td style="font-family:'JetBrains Mono',monospace;color:var(--rzp-blue);white-space:nowrap;">4:05–4:25</td><td>The Ghost Writer bug - best war story, database-level safety net</td></tr>
-          <tr><td style="font-family:'JetBrains Mono',monospace;color:var(--rzp-blue);white-space:nowrap;">4:25–5:00</td><td>Limitations, open items, and close</td></tr>
+          <tr><td style="font-family:'JetBrains Mono',monospace;color:var(--rzp-blue);white-space:nowrap;">3:40–4:05</td><td>Safety proofs - dedup, reserve-before-send pattern, idempotency keys, 3-layer give-up prevention, 18 defense layers</td></tr>
+          <tr><td style="font-family:'JetBrains Mono',monospace;color:var(--rzp-blue);white-space:nowrap;">4:05–4:25</td><td>The Ghost Writer bug - database-level safety net</td></tr>
+          <tr><td style="font-family:'JetBrains Mono',monospace;color:var(--rzp-blue);white-space:nowrap;">4:25–4:40</td><td>The Infinite Retry Loop - fake contacts, deadlocked counters, delivery failure detection fix</td></tr>
+          <tr><td style="font-family:'JetBrains Mono',monospace;color:var(--rzp-blue);white-space:nowrap;">4:40–5:00</td><td>Limitations, open items, and close</td></tr>
         </tbody>
       </table>
     </div>
@@ -984,24 +1009,44 @@
 <section id="testing">
   <div class="container">
     <div class="section-label">09 - Testing</div>
-    <h2 class="section-title">114 Tests. Zero Mocks. All Real.</h2>
-    <p class="section-subtitle">Every test hits my live server - real Redis, real Supabase, real AI classification. No mocked approximations. If it passes here, it works in production.</p>
+    <h2 class="section-title">368+ Tests. Two Tiers. Every Function Covered.</h2>
+    <p class="section-subtitle">Split into <strong>unit</strong> (244 offline, no credentials) and <strong>live</strong> (124 integration, real services). Unit tests verify every backend function anywhere. Live tests hit real Redis, real Supabase, real AI. If it passes here, it works in production.</p>
 
     <div class="card" style="margin-bottom:0;">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;">
         <div>
-          <div class="war-broke" style="margin-top:0;">Security -20 tests</div>
+          <div class="war-broke" style="margin-top:0;">Unit Tests - 244 offline tests</div>
           <ul class="card-list">
-            <li>SQL injection -3 attack vectors</li>
-            <li>XSS -3 attack vectors</li>
-            <li>CORS -3 origin checks</li>
-            <li>Webhook signature verification</li>
-            <li>Input validation -5 edge cases</li>
-            <li>Path traversal -2 vectors</li>
+            <li>Classifier - 28 tests (AI orchestration + all 12 fallback categories)</li>
+            <li>Messenger - 30 tests (3 degradation chains, 4 provider guards)</li>
+            <li>Escalation - 25 tests (channel rotation, AI decisions, state updates)</li>
+            <li>Router logic - 15 tests for budgets + channel routing</li>
+            <li>Models - 18 tests (all 10 Pydantic models validated)</li>
+            <li>Recovery task - 13 tests (durable dedup, quiet hours)</li>
+            <li>Message generator - 12 tests (AI fallback, XSS prevention)</li>
+            <li>Reconciliation - 10 tests (amount, currency, duplicates)</li>
+            <li>Dedup - 10 tests (hash determinism, identifier priority)</li>
+            <li>Quiet hours - 10 tests (IST boundary conditions)</li>
+            <li>Invoice scanner - 8 tests (API pagination, tracking)</li>
+            <li>Rate limiter - 6 tests (sliding window + cooldown)</li>
+            <li>Payment links, idempotency keys, stale reservations, delivery failure gate</li>
           </ul>
         </div>
         <div>
-          <div class="war-broke" style="margin-top:0;">Pipeline -15 tests</div>
+          <div class="war-broke" style="margin-top:0;">Security - 20 live tests</div>
+          <ul class="card-list">
+            <li>SQL injection - 3 attack vectors</li>
+            <li>XSS - 3 attack vectors</li>
+            <li>CORS - 3 origin checks</li>
+            <li>Webhook signature verification</li>
+            <li>Input validation - 5 edge cases</li>
+            <li>Path traversal - 2 vectors</li>
+          </ul>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:24px;">
+        <div>
+          <div class="war-broke" style="margin-top:0;">Pipeline - 15 live tests</div>
           <ul class="card-list">
             <li>All 10 failure scenarios classified correctly</li>
             <li>AI fallback chain (Haiku → Gemini → GPT)</li>
@@ -1010,18 +1055,11 @@
             <li>Race condition guards</li>
           </ul>
         </div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:24px;">
         <div>
-          <div class="war-broke" style="margin-top:0;">API & Error Handling -51 tests</div>
+          <div class="war-broke" style="margin-top:0;">API, E2E & Load - 88 tests</div>
           <ul class="card-list">
             <li>38 endpoint tests across all routes</li>
             <li>13 error scenarios - timeouts, bad input, server faults</li>
-          </ul>
-        </div>
-        <div>
-          <div class="war-broke" style="margin-top:0;">E2E & Load -37 tests</div>
-          <ul class="card-list">
             <li>31 standalone end-to-end flows</li>
             <li>6 concurrency and load tests</li>
           </ul>
@@ -1283,7 +1321,7 @@
     <h2 class="section-title">Links &amp; Downloads</h2>
 
     <div class="card-grid card-grid-2" style="margin-bottom:32px;">
-      <a href="https://app.albertabishek.com" target="_blank" class="card" style="text-decoration:none;">
+      <a href="https://razorpay.albertabishek.com" target="_blank" class="card" style="text-decoration:none;">
         <div class="card-title" style="color:var(--rzp-blue);">Live Dashboard →</div>
         <div class="card-text">Full Recovery Router dashboard with live data, simulator, and analytics.</div>
       </a>
@@ -1291,7 +1329,7 @@
         <div class="card-title" style="color:var(--rzp-blue);">API Documentation →</div>
         <div class="card-text">Interactive Swagger UI with all endpoints, models, and example payloads.</div>
       </a>
-      <a href="https://github.com/albertabishek/Recovery-Router" target="_blank" class="card" style="text-decoration:none;">
+      <a href="https://github.com/albertabishek/Recovery-Router-" target="_blank" class="card" style="text-decoration:none;">
         <div class="card-title" style="color:var(--rzp-blue);">GitHub Repository →</div>
         <div class="card-text">Full source code - backend, frontend, tests, migrations, n8n workflows, documentation.</div>
       </a>

@@ -2,7 +2,7 @@
 
 > Recovery Router -- Razorpay AI Buildathon 2026 (Track 3)
 > Built by Albert Abishek I
-> Last updated: 2026-08-31
+> Last updated: 2026-09-03
 
 This is an honest inventory of everything that is incomplete, fragile, or limited in the current system. It exists so I know exactly what is not done.
 
@@ -151,8 +151,8 @@ The system uses "update where status = X" as a poor man's optimistic lock for st
 - The Redis locks have a TTL (60-300 seconds). If a task hangs, the lock expires and another task can process the same event.
 - There is no database-level row locking (`FOR UPDATE SKIP LOCKED` was considered but not implemented).
 
-### 6.2 Recovery attempts table has no unique constraint on idempotency_key
-The `idempotency_key` field is set on recovery_attempts (format: `{event_id}:initial:1` or `{event_id}:escalation:{n}`) but there is no database unique constraint enforcing it. A retry of the same Celery task could insert duplicate attempts.
+### 6.2 Recovery attempts table idempotency
+~~The `idempotency_key` field previously had no unique constraint.~~ **FIXED** in migration 005 — a unique partial index now enforces idempotency. The action reservation pattern (INSERT "reserved" BEFORE send) combined with `APIError` code 23505 catch prevents duplicate sends on worker retries.
 
 ### 6.3 Event counts endpoint is approximate
 `GET /api/events/counts` fetches all events matching the date filter and counts statuses in Python. It uses `count="exact"` from Supabase but then iterates over `res.data` to count by status. For large datasets, this loads all rows into memory just to count them.
@@ -204,7 +204,20 @@ The `_is_quiet_hours()` and `_next_permitted_time()` functions are duplicated be
 
 ---
 
-## 10. What Works Well
+## 10. Recently Fixed Issues
+
+### 10.1 Infinite retry on unreachable contacts (FIXED)
+Previously, events with invalid contact details (fake email, wrong phone) would retry forever because `attempt_count` only increments on success and safety overrides prevent give_up when `attempt_count < max_attempts`. **Fixed** with `delivery_failure_count` — a separate counter tracking consecutive hard delivery failures. When `delivery_failure_count > max_attempts`, the event is exhausted with reason "All delivery attempts failed." See migration 006.
+
+### 10.2 Missing idempotency keys on delayed/retry paths (FIXED)
+Previously, delayed send and retry-failure paths inserted `recovery_attempts` rows without idempotency keys. **Fixed** — all send paths now have structured keys: `{event_id}:initial:1`, `{event_id}:delayed:{n}`, `{event_id}:escalation:{n}`, `{event_id}:retry_failure:{n}`.
+
+### 10.3 Post-send DB insert (double-send risk) (FIXED)
+Previously, all three send paths inserted the DB row AFTER `send_message()`. A worker crash between send and insert meant the message was re-sent on retry. **Fixed** with the action reservation pattern: INSERT "reserved" BEFORE send, UPDATE outcome AFTER. Unique constraint catches retries.
+
+---
+
+## 11. What Works Well
 
 For an honest assessment:
 
@@ -220,11 +233,15 @@ For an honest assessment:
 
 - **Rate limiting and cooldowns are properly Redis-backed.** Sliding window rate limits and per-resource cooldowns prevent message spam.
 
+- **Unreachable contact detection works.** The `delivery_failure_count` circuit breaker stops infinite retries when all messaging providers reject a customer's contact details, without weakening the safety overrides that prevent premature abandonment.
+
+- **Action reservation prevents double-sends.** The reserve-before-send pattern with idempotency keys ensures that worker crashes between send and DB insert don't cause duplicate messages.
+
 - **The audit trail is comprehensive.** Every attempt, degradation path, AI reasoning, and status transition is logged in `recovery_attempts`.
 
 ---
 
-## 11. What Would Break First in Production
+## 12. What Would Break First in Production
 
 1. **The single Celery worker** would be overwhelmed with any real merchant's volume. This is the first bottleneck.
 
@@ -238,11 +255,11 @@ For an honest assessment:
 
 ---
 
-## 12. What a Razorpay Engineer Would Flag
+## 13. What a Razorpay Engineer Would Flag
 
 1. **Auth model is a demo hack.** Shared password, no sessions, password-as-token. This would be the first thing blocked in any security review.
 
-2. **No idempotency guarantees at the database level.** The Redis dedup + durable dedup is defense-in-depth, but neither has hard database constraints (unique indexes) backing them.
+2. ~~**No idempotency guarantees at the database level.**~~ **FIXED.** Unique partial indexes on `payment_id`, `order_id`, `invoice_id` (migration 003) and `idempotency_key` (migration 005) now enforce durable dedup at the database level.
 
 3. **Service key bypass of RLS.** Using `SUPABASE_SERVICE_KEY` means the application is trusted, but a compromise exposes everything. In Razorpay's infrastructure, this would need proper service accounts with scoped permissions.
 
@@ -256,7 +273,7 @@ For an honest assessment:
 
 ---
 
-## 13. Designed but Not Built
+## 14. Designed but Not Built
 
 Based on code comments, system documentation, and architecture plans:
 

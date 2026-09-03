@@ -121,7 +121,7 @@ Sources: [Twilio SMS India](https://www.twilio.com/en-us/sms/pricing/in), [Twili
 |---|---|---|---|
 | Railway | Hobby | $5/mo (includes $5 usage credit) | FastAPI server + Celery worker + Beat scheduler |
 | Vercel | Hobby (Free) | $0/mo | Frontend SPA hosting (100 GB bandwidth) |
-| Supabase | Free | $0/mo | PostgreSQL database (500 MB), Realtime subscriptions |
+| Supabase | Free | $0/mo | PostgreSQL database (500 MB), RLS, REST API |
 | Redis | Railway add-on | Included in Railway usage | Message broker, cache, rate limiter |
 
 Sources: [Railway Pricing](https://railway.com/pricing), [Vercel Pricing](https://costbench.com/software/developer-tools/vercel/), [Supabase Pricing](https://costbench.com/software/database-as-service/supabase/)

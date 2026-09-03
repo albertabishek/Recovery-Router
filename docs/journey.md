@@ -99,7 +99,7 @@ The initial commit landed at 4:06 PM IST on August 28. The decision had already 
 - **Celery Beat** for periodic scheduling - the invoice scanner (every 6h) and escalation engine (every 5 min)
 - **React Frontend** for the dashboard - cloned from Razorpay's actual UI design
 - **Redis** for caching, deduplication, distributed locks, rate limiting, and PII token storage
-- **Supabase (PostgreSQL)** for persistent storage with realtime subscriptions
+- **Supabase (PostgreSQL)** for persistent storage with RLS and REST API
 
 The guiding principle was simple: "Everything will be async. Use Celery, workers, everything - no tricks." No mocking the queue. No faking async with setTimeout. No demo shortcuts. If a Razorpay engineer reviewed this code, they should see production patterns, not hackathon patterns.
 

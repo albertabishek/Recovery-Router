@@ -93,16 +93,16 @@ Compare them. The live failed payment got more attempts because that customer wa
 
 ## 3:40-4:05, safety proofs (25 seconds)
 
-[Show Audit Logs]
+[Show Audit Logs, point to idempotency_key column on an attempt]
 
-"I'll resend the same failed payment webhook. Rejected, the system already processed it.
+"Every message send is reserved in the database before it goes out. If a worker crashes mid-send, the retry sees the reservation and skips instead of double-sending. Each attempt gets a unique idempotency key.
 
 [Show an event with multiple attempts]
-The system rechecks every five minutes whether to try a different channel. Three safety layers stop it from giving up too early. Even if the AI says to stop, if untried channels remain, it keeps going."
+The system rechecks every five minutes whether to try a different channel. Three safety layers stop it from giving up too early. 18 defense layers total, from webhook signature verification down to a database trigger."
 
 ---
 
-## 4:05-4:25, the ghost writer bug (20 seconds)
+## 4:05-4:20, the ghost writer bug (15 seconds)
 
 [Screen: War Stories section]
 
@@ -110,13 +110,21 @@ The system rechecks every five minutes whether to try a different channel. Three
 
 ---
 
-## 4:25-5:00, limitations and close (35 seconds)
+## 4:20-4:40, the infinite retry loop (20 seconds)
+
+[Screen: War Stories section, Bug #6 card]
+
+"The scariest bug. Event 36 had fake contact info. Every send attempt was rejected by the provider. But attempt_count only moves on success. So the safety guard always passed, and the system retried forever. A deadlock: the counter that stops retries only moves when you succeed, but you can never succeed. The fix: a separate delivery_failure_count that tracks provider rejections. After enough failures, the system gives up, even if it never succeeded."
+
+---
+
+## 4:40-5:00, limitations and close (20 seconds)
 
 [Screen: Impact section]
 
-"This runs on Razorpay test-mode data. There are open items: migrations need finishing, security policies need tightening, some matching edge cases need work.
+"This runs on Razorpay test-mode data. I track sent, not delivered, because I don't have delivery receipts yet. The dashboard uses a single shared password, not per-user auth.
 
-What is real: one system for three types of revenue loss, AI that always has a backup, smart budgets that know when to stop, honest tracking that separates our recoveries from customers who came back on their own, and safety rules at the database level. Thank you."
+What is real: one system for three types of revenue loss, AI that always has a backup, smart budgets that know when to stop, honest tracking that separates our recoveries from customers who came back on their own, 18 defense layers down to the database level, and 368 tests across offline and live suites. Thank you."
 
 ---
 

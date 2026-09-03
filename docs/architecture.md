@@ -17,7 +17,7 @@ Recovery Router is an async, event-driven payment recovery engine. It ingests th
 | **Celery Beat** | Periodic scheduler: escalation sweeps (5 min), invoice scans (6 h) | Celery Beat |
 | **React Frontend** | Merchant dashboard: live feed, analytics, simulator, audit logs | React 19, Vite 8, Tailwind 4 |
 | **Redis** | Message broker, task result backend, dedup cache, rate limiter, distributed locks | Redis (Railway-hosted) |
-| **Supabase PostgreSQL** | Persistent storage, Realtime subscriptions for live dashboard updates | Supabase (managed Postgres) |
+| **Supabase PostgreSQL** | Persistent storage, REST API for backend + frontend polling | Supabase (managed Postgres) |
 
 ### System Diagram
 
@@ -46,8 +46,8 @@ Recovery Router is an async, event-driven payment recovery engine. It ingests th
     | (broker +     |     |  PostgreSQL    |         |  (Vercel)      |
     |  cache +      |     |                |         |                |
     |  locks +      |<--->|  recovery_     |<------->|  Supabase      |
-    |  rate limit)  |     |  events        |Realtime |  Realtime      |
-    |               |     |  recovery_     |  Sub    |  Live Feed     |
+    |  rate limit)  |     |  events        |  REST   |  Auto-polling  |
+    |               |     |  recovery_     |  API    |  Live Feed     |
     +-------+-------+     |  attempts      |         +----------------+
             |              +----------------+
             v
@@ -397,7 +397,7 @@ All configuration via environment variables with `python-dotenv`. Key settings:
 - Razorpay API keys and webhook secret.
 - OpenRouter API key (routes to Claude/Gemini/GPT).
 - Green API (WhatsApp), Twilio (WhatsApp + SMS), Resend (email) credentials.
-- Supabase URL and keys (service key for backend, anon key for frontend Realtime).
+- Supabase URL and keys (service key for backend).
 - Redis URL.
 - Hardcoded operational constants: 72-hour recovery window, max 5 attempts default, 300-second escalation interval, 21600-second (6h) invoice scan interval.
 
@@ -715,15 +715,11 @@ When blocked, the trigger reverts status and current_strategy to their old value
 
 ### 4.5 Row Level Security
 
-RLS is enabled on both tables (migration 005). Only the `service_role` can read/write -- the frontend uses the anon key for Realtime subscriptions only, which uses Supabase's built-in Realtime permissions.
+RLS is enabled on both tables (migration 005). Only the `service_role` can read/write.
 
-### 4.6 Realtime
+### 4.6 Dashboard Data Refresh
 
-```sql
-ALTER PUBLICATION supabase_realtime ADD TABLE recovery_events;
-```
-
-The frontend subscribes to changes on `recovery_events` via Supabase Realtime (the publication is configured in migration 001). This powers the live event feed -- new events and status changes appear on the dashboard without polling.
+The frontend polls the backend REST API at 15-30 second intervals (varies by page) to keep the dashboard current. Supabase Realtime subscriptions are not used -- the `@supabase/supabase-js` client is included but only initialized as a fallback; all data flows through the FastAPI backend's REST endpoints.
 
 ---
 
@@ -734,7 +730,7 @@ The frontend subscribes to changes on `recovery_events` via Supabase Realtime (t
 - **React 19** with function components and hooks.
 - **Vite 8** for build tooling and dev server.
 - **Tailwind CSS 4** (via `@tailwindcss/vite` plugin).
-- **Supabase JS client** (`@supabase/supabase-js`) for Realtime subscriptions.
+- **Supabase JS client** (`@supabase/supabase-js`) included but not actively used for subscriptions; data is fetched via REST API polling.
 - No router library -- page state is managed via `useState('overview')` in `App.jsx`.
 
 ### 5.2 Application Structure
@@ -778,9 +774,9 @@ The frontend subscribes to changes on `recovery_events` via Supabase Realtime (t
 - Automatic 401 handling: clears token and triggers re-login.
 - Loading hooks: global `start`/`done` callbacks drive the loading bar.
 
-**`frontend/src/lib/supabase.js`** -- Supabase client for Realtime:
+**`frontend/src/lib/supabase.js`** -- Supabase client stub:
 - Created with `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
-- Only used for Realtime subscriptions, not for data queries (those go through the API).
+- Currently unused -- logs a warning if keys are missing but does not establish any subscriptions. All data is fetched via the backend REST API with polling.
 
 ### 5.6 Design System
 

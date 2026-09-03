@@ -2,7 +2,7 @@
 
 **Author:** Albert Abishek I
 **Project:** Recovery Router (Razorpay AI Buildathon 2026, Track 3)
-**Last updated:** 2026-08-31
+**Last updated:** 2026-09-03
 
 ---
 
@@ -10,26 +10,33 @@
 
 | Metric | Value |
 |---|---|
-| Total test functions | 114 |
-| Test files | 6 |
-| Pytest test files | 5 (`test_api.py`, `test_pipeline.py`, `test_security.py`, `test_errors.py`, `test_load.py`) |
+| Total test functions | 368+ |
+| Test tiers | 2 (unit + live) |
+| Unit test files | 14 (classifier, router, quiet hours, escalation, idempotency, reconciliation, delivery failure gate, stale reservations, payment links, messenger, dedup, rate limiter, invoice scanner, message generator, models, recovery task, escalation helpers) |
+| Live integration test files | 5 (`test_api.py`, `test_pipeline.py`, `test_security.py`, `test_errors.py`, `test_load.py`) |
 | Standalone test script | 1 (`e2e_test.py`) |
 | Parametrized test cases | 10 (pipeline scenario matrix) |
-| Effective test cases (with parametrize expansion) | 123 |
-| Framework | pytest (pytest files) + custom runner (e2e_test.py) |
-| Shared fixtures | `conftest.py` |
+| Framework | pytest with `unit` and `live` markers + custom runner (e2e_test.py) |
+| Shared fixtures | `conftest.py` (live), `tests/unit/conftest.py` (unit) |
 | Support scripts | `generate_test_data.py`, `process_queue.py`, `generate_and_process.py` |
 
 ### How to Run
 
 ```bash
-# Run all pytest tests (requires server + Redis + Celery running)
 cd backend
+
+# Unit tests — run anywhere, no services or credentials needed
+pytest tests/unit -v -m unit
+
+# Live integration tests (requires server + Redis + Celery running)
+pytest tests/ -v -m live
+
+# All tests (unit runs first, then live)
 pytest tests/ -v
 
 # Run a specific test file
 pytest tests/test_api.py -v
-pytest tests/test_security.py -v
+pytest tests/unit/test_classifier_logic.py -v
 
 # Run the standalone e2e suite
 python tests/e2e_test.py
@@ -41,7 +48,16 @@ python tests/generate_test_data.py
 python tests/generate_and_process.py
 ```
 
-**Prerequisites:** The server must be running at `http://localhost:8000` (or `http://127.0.0.1:8000` for e2e_test.py). Redis and Celery workers must be active for pipeline tests.
+**Unit tests:** No prerequisites. Run offline, anywhere.
+
+**Live tests:** The server must be running at `http://localhost:8000` (or `http://127.0.0.1:8000` for e2e_test.py). Redis and Celery workers must be active for pipeline tests.
+
+### Test Markers
+
+Tests are split using pytest markers defined in `backend/pytest.ini`:
+
+- `@pytest.mark.unit` — Offline logic tests. No network, no credentials, no external services.
+- `@pytest.mark.live` — Integration tests. Requires running server, Redis, Celery, and valid API keys.
 
 ---
 
@@ -343,7 +359,232 @@ python tests/generate_and_process.py
 
 ---
 
-### 2.7 `e2e_test.py` -- Standalone End-to-End Test Suite (31 tests)
+### 2.7 Unit Tests -- Offline Logic Tests (244 tests)
+
+All unit tests live in `backend/tests/unit/` and are marked with `@pytest.mark.unit`. They test pure business logic with no external dependencies -- no network calls, no credentials, no running services.
+
+**Shared fixture:** `backend/tests/unit/conftest.py` -- minimal, imports nothing external.
+
+#### 2.7.1 `test_classifier_logic.py` (14 tests)
+
+**Path:** `backend/tests/unit/test_classifier_logic.py`
+**Purpose:** Tests `_fallback_classify()` -- the rule-based classifier that activates when all AI models fail.
+
+| # | Test Function | What It Tests |
+|---|---|---|
+| 1 | `test_upi_timeout_classification` | TIMEOUT error code maps to `upi_timeout` category |
+| 2 | `test_card_expired_classification` | CARD_EXPIRED maps to `card_expired` |
+| 3 | `test_bank_downtime_classification` | BANK_DOWNTIME maps to `bank_downtime` |
+| 4 | `test_insufficient_funds_classification` | INSUFFICIENT_FUNDS maps to `insufficient_funds` |
+| 5 | `test_gateway_error_classification` | GATEWAY_ERROR maps to `gateway_error` |
+| 6 | `test_fraud_classification` | FRAUD maps to `unrecoverable_decline` |
+| 7 | `test_cancelled_classification` | CANCELLED maps to `user_cancelled` |
+| 8 | `test_unknown_error_fallback` | Unknown codes use error_description keywords |
+| 9 | `test_cart_abandonment_high_value` | High cart_value → `high_intent_abandonment` |
+| 10 | `test_cart_abandonment_low_value` | Low cart_value → `browse_only_abandonment` |
+| 11 | `test_invoice_recently_overdue` | days_overdue 1-7 → `recently_overdue` |
+| 12 | `test_invoice_moderately_overdue` | days_overdue 8-30 → `moderately_overdue` |
+| 13 | `test_invoice_long_overdue` | days_overdue 30+ → `long_overdue` |
+
+#### 2.7.2 `test_router_logic.py` (15 tests)
+
+**Path:** `backend/tests/unit/test_router_logic.py`
+**Purpose:** Tests `compute_max_attempts()` and `route_action()` -- pure routing logic.
+
+| # | Test Function | What It Tests |
+|---|---|---|
+| 1-8 | `test_compute_max_attempts_*` | Budget tiers: unrecoverable→0, browse_only→0, user_cancelled→2, high_prob_high_amount→5, mid_range→3-4, low_prob→1-2, moderate→3, default→2 |
+| 9-15 | `test_route_action_*` | Channel routing: no_action categories→none channel, immediate→send_now, delayed timing (5min, 1h, 4h), correct channel assignment |
+
+#### 2.7.3 `test_quiet_hours.py` (10 tests)
+
+**Path:** `backend/tests/unit/test_quiet_hours.py`
+**Purpose:** Tests `_is_quiet_hours()` boundary conditions using the injectable `now_utc` parameter.
+
+| # | Test Function | What It Tests |
+|---|---|---|
+| 1-10 | `test_quiet_hours_*` | IST boundary conditions: 8:59 PM (not quiet), 9:00 PM (quiet), midnight (quiet), 5 AM (quiet), 8:59 AM (quiet), 9:00 AM (not quiet), noon (not quiet), timezone edge cases |
+
+#### 2.7.4 `test_escalation_logic.py` (8 tests)
+
+**Path:** `backend/tests/unit/test_escalation_logic.py`
+**Purpose:** Tests `_pick_next_channel()` -- the channel rotation logic in escalation.
+
+| # | Test Function | What It Tests |
+|---|---|---|
+| 1-8 | `test_pick_next_channel_*` | Channel switching: whatsapp→email, email→sms, sms→whatsapp, avoid blocked channels, phone-only customer, email-only customer, all channels blocked, first attempt default |
+
+#### 2.7.5 `test_idempotency_keys.py` (6 tests)
+
+**Path:** `backend/tests/unit/test_idempotency_keys.py`
+**Purpose:** Tests idempotency key format conventions across all send paths.
+
+| # | Test Function | What It Tests |
+|---|---|---|
+| 1-6 | `test_idempotency_key_*` | Key format: initial keys match `{id}:initial:1`, delayed keys match `{id}:delayed:{n}`, escalation keys match `{id}:escalation:{n}`, retry_failure keys, cross-tag uniqueness (same event_id, different types produce different keys) |
+
+#### 2.7.6 `test_reconciliation.py` (10 tests)
+
+**Path:** `backend/tests/unit/test_reconciliation.py`
+**Purpose:** Tests `process_payment_captured()` -- the reconciliation logic that attributes payments to recovery events.
+
+| # | Test Function | What It Tests |
+|---|---|---|
+| 1-4 | `test_pre_validation_*` | Rejects non-captured status, missing status, missing payment_id, ignores no identifiers |
+| 5 | `test_rejects_currency_mismatch` | INR captured payment vs USD event → rejected |
+| 6 | `test_rejects_zero_captured_amount` | Zero-amount payment → rejected (prevents false attribution) |
+| 7 | `test_rejects_amount_mismatch` | 999 captured vs 499 event → rejected |
+| 8 | `test_accepts_matching_amount` | Exact amount match → recovered |
+| 9 | `test_blocks_duplicate_payment` | Payment already attributed → duplicate_attribution |
+| 10 | `test_marks_organic_when_zero_attempts` | No outreach sent → organic_recovery (not recovered) |
+
+#### 2.7.7 `test_delivery_failure_gate.py` (4 tests)
+
+**Path:** `backend/tests/unit/test_delivery_failure_gate.py`
+**Purpose:** Tests the delivery_failure_count exhaustion gate that stops infinite retries on unreachable contacts.
+
+| # | Test Function | What It Tests |
+|---|---|---|
+| 1 | `test_exhausts_unreachable_contact` | delivery_failure_count > max_attempts with no successful sends → exhausted |
+| 2 | `test_continues_if_some_sent` | Same failure count but at least one "sent" → continues escalation |
+| 3 | `test_no_exhaustion_below_threshold` | delivery_failure_count < max_attempts → normal escalation |
+| 4 | `test_skips_payment_link_and_system_channels` | "sent" on payment_link/system channels doesn't count |
+
+#### 2.7.8 `test_stale_reservations.py` (5 tests)
+
+**Path:** `backend/tests/unit/test_stale_reservations.py`
+**Purpose:** Tests `_cleanup_stale_reservations()` -- cleans up reservations from crashed workers.
+
+| # | Test Function | What It Tests |
+|---|---|---|
+| 1 | `test_marks_stale_rows_as_failed` | Reservations >10min old → outcome set to "failed" |
+| 2 | `test_no_stale_rows_no_error` | Empty result set → no error |
+| 3 | `test_db_error_does_not_propagate` | Database error → swallowed, no crash |
+| 4 | `test_filters_on_reserved_outcome` | Only targets outcome="reserved" rows |
+| 5 | `test_uses_created_at_cutoff` | Filters on created_at < 10-minute cutoff |
+
+#### 2.7.9 `test_payment_links.py` (6 tests)
+
+**Path:** `backend/tests/unit/test_payment_links.py`
+**Purpose:** Tests `generate_payment_link()` edge cases.
+
+| # | Test Function | What It Tests |
+|---|---|---|
+| 1-2 | `test_skips_*_amount` | Zero and negative amounts → skipped (no Razorpay API call) |
+| 3 | `test_handles_api_error_status` | HTTP 400 → returns api_error status |
+| 4 | `test_handles_network_exception` | Connection error → returns error status |
+| 5 | `test_creates_order_and_returns_url` | Success → returns order ID, checkout URL with token |
+| 6 | `test_amount_converted_to_paise` | 499.50 → 49950 paise in API call |
+
+#### 2.7.10 `test_messenger_logic.py` (30 tests)
+
+**Path:** `backend/tests/unit/test_messenger_logic.py`
+**Purpose:** Tests messenger.py — result helpers, channel routing, all 3 degradation chains, provider not-configured guards.
+
+| # | Test Function | What It Tests |
+|---|---|---|
+| 1-6 | Result helpers | `_ok`, `_fail`, `_fail_cooldown` build correct response dicts |
+| 7-10 | Channel routing | `send_message` dispatches to correct chain (whatsapp/sms/email/none) |
+| 11-17 | WhatsApp chain | Green API → Twilio WA → email degradation, no-phone fallback, cooldown handling |
+| 18-20 | SMS chain | Twilio SMS → Green API → Twilio WA degradation, no-phone fallback |
+| 21-23 | Email chain | Resend success, no-email failure, cooldown |
+| 24-30 | Provider guards | Not-configured detection for Twilio WA, Green API, Twilio SMS, Resend exceptions |
+
+#### 2.7.11 `test_classifier_orchestration.py` (28 tests)
+
+**Path:** `backend/tests/unit/test_classifier_orchestration.py`
+**Purpose:** Tests classifier.py — `_sanitize`, `_fallback_classify` (all categories), `classify_event` AI→fallback orchestration, `_ai_classify` response parsing.
+
+| # | Test Function | What It Tests |
+|---|---|---|
+| 1-6 | `_sanitize` | None, control chars, truncation, empty string |
+| 7-23 | `_fallback_classify` | All 12 failure categories, error description fallback, unknown error defaults |
+| 24-26 | `classify_event` | AI success, AI returns None → fallback, AI exception → fallback |
+| 27-28 | `_ai_classify` | Success parsing, None channel sets skip_reason, default field filling |
+
+#### 2.7.12 `test_dedup.py` (10 tests)
+
+**Path:** `backend/tests/unit/test_dedup.py`
+**Purpose:** Tests all 3 dedup functions — hash determinism, identifier extraction priority, Redis-based duplicate detection.
+
+| # | Test Function | What It Tests |
+|---|---|---|
+| 1-5 | `_hash_payload` | Deterministic, prefix format, length, different payloads differ, key order irrelevant |
+| 6-12 | `get_dedup_identifier` | payment.failed entity ID, empty ID fallback, payment_id/order_id/invoice_id priority |
+| 13-15 | `is_duplicate` | First call not duplicate, second call is duplicate, correct Redis key format |
+
+#### 2.7.13 `test_rate_limiter.py` (6 tests)
+
+**Path:** `backend/tests/unit/test_rate_limiter.py`
+**Purpose:** Tests sliding window rate limiter and per-resource cooldown.
+
+| # | Test Function | What It Tests |
+|---|---|---|
+| 1-3 | `check_rate_limit` | Under limit allowed, over limit blocked, exact limit allowed |
+| 4-6 | `check_per_resource_cooldown` | No cooldown allowed, cooldown active blocked, correct key format |
+
+#### 2.7.14 `test_invoice_scanner.py` (8 tests)
+
+**Path:** `backend/tests/unit/test_invoice_scanner.py`
+**Purpose:** Tests invoice fetching and already-tracked batch lookup.
+
+| # | Test Function | What It Tests |
+|---|---|---|
+| 1-3 | `_already_tracked_batch` | Empty list, tracked IDs returned, None data handling |
+| 4-8 | `fetch_overdue_invoices` | Successful fetch + conversion, API error, exception, already tracked skip, not-yet-overdue skip |
+
+#### 2.7.15 `test_message_generator.py` (12 tests)
+
+**Path:** `backend/tests/unit/test_message_generator.py`
+**Purpose:** Tests message personalization — URL safety, fallback templates, email rendering, AI orchestration.
+
+| # | Test Function | What It Tests |
+|---|---|---|
+| 1-6 | `_safe_url` | Valid https/http, javascript: blocked, empty blocked, HTML entity escaping |
+| 7-10 | `_fallback_messages` | First attempt vs follow-up, currency/amount formatting, greeting |
+| 11-14 | `render_email_html` | Link insertion, XSS escaping, unsafe link → #, structure |
+| 15-18 | `generate_personalized_messages` | AI success, AI unavailable → fallback, None name, first-name extraction |
+
+#### 2.7.16 `test_models.py` (18 tests)
+
+**Path:** `backend/tests/unit/test_models.py`
+**Purpose:** Tests all Pydantic model validation — required fields, type constraints, Literal enforcement, defaults.
+
+| # | Test Function | What It Tests |
+|---|---|---|
+| 1-4 | `RecoveryEventInput` | Minimal valid, all fields, invalid event_type, invoice_overdue |
+| 5-9 | `ClassificationResult` | Valid, probability bounds (>1, <0), invalid channel, invalid timing |
+| 10-13 | `ActionPlan` | send_now, send_delayed, no_action, invalid action |
+| 14-15 | `WebhookResponse` | Basic, with event_id |
+| 16-18 | Other models | AnalyticsSummary defaults, SimulateRequest validation, HealthResponse defaults |
+
+#### 2.7.17 `test_recovery_task.py` (13 tests)
+
+**Path:** `backend/tests/unit/test_recovery_task.py`
+**Purpose:** Tests `_check_durable_dedup` (DB-level dedup) and `_is_quiet_hours` (IST boundary logic).
+
+| # | Test Function | What It Tests |
+|---|---|---|
+| 1-7 | `_check_durable_dedup` | payment_id duplicate, no duplicate, TEST_ prefix skipping, order_id, invoice_id, no IDs |
+| 8-13 | `_is_quiet_hours` | 10 PM IST quiet, 3 AM quiet, 2 PM not quiet, noon not quiet, 9 AM/9 PM boundaries |
+
+#### 2.7.18 `test_escalation_helpers.py` (25 tests)
+
+**Path:** `backend/tests/unit/test_escalation_helpers.py`
+**Purpose:** Tests escalation helper functions — channel rotation, datetime parsing, exhaustion marking, attempt finalization, event state updates, AI decision logic.
+
+| # | Test Function | What It Tests |
+|---|---|---|
+| 1-8 | `_pick_next_channel` | Rotation, avoid set, phone-only, email-only, all avoided, no contact |
+| 9-13 | `_parse_datetime` | Valid ISO, None, empty, invalid format, integer |
+| 14-16 | `_mark_exhausted` | Sets exhausted status, default reason |
+| 17-20 | `_finalize_attempt` | Success, failure, cooldown blocked, exception doesn't propagate |
+| 21-22 | `_update_event_state` | Increments count, exhausts at max |
+| 23-25 | `_get_escalation_decision` | Max attempts give_up, fallback rotation, AI override |
+
+---
+
+### 2.8 `e2e_test.py` -- Standalone End-to-End Test Suite (31 tests)
 
 **Path:** `backend/tests/e2e_test.py`
 **Purpose:** Comprehensive standalone test script that exercises every endpoint and feature. Uses `requests` library with its own test runner (not pytest). Run directly with `python tests/e2e_test.py`.

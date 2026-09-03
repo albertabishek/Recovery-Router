@@ -163,7 +163,7 @@
 
 Before you record, have these ready:
 
-- [ ] Dashboard loaded and logged in at app.albertabishek.com
+- [ ] Dashboard loaded and logged in at razorpay.albertabishek.com
 - [ ] Landing page open in another browser tab
 - [ ] Simulator page ready with all 10 scenarios loaded
 - [ ] At least one event with 3+ attempts (for escalation demo in Scene 5)

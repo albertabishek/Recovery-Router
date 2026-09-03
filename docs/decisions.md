@@ -58,11 +58,11 @@ Python RQ is simpler but lacks delayed tasks and built-in periodic scheduling. D
 
 **Why this choice:** Supabase gave me three things for free that would have taken days to build:
 
-1. **Realtime subscriptions.** The frontend dashboard subscribes to the `recovery_events` table via Supabase Realtime. New events and status changes appear on the dashboard instantly without polling. With raw PostgreSQL, I'd need to set up LISTEN/NOTIFY plus a WebSocket relay -- Supabase provides this out of the box.
-2. **Managed infrastructure.** No provisioning, no backups, no patching. One fewer thing to maintain during a buildathon under time pressure.
-3. **Dual-key access model.** The backend uses `SUPABASE_SERVICE_KEY` for full table access. The frontend uses `SUPABASE_ANON_KEY` for Realtime subscriptions only. Row-level security policies restrict what the anon key can read.
+1. **Managed PostgreSQL with REST API.** No provisioning, no backups, no patching. The backend accesses data via the Supabase Python SDK, and the frontend polls the backend REST API at 15-30 second intervals for live updates. (Supabase Realtime subscriptions were originally planned but replaced with polling for simplicity and reliability.)
+2. **Row-level security.** RLS policies restrict data access at the database level, adding a defense layer beyond application-level auth.
+3. **Dual-key access model.** The backend uses `SUPABASE_SERVICE_KEY` for full table access. The frontend does not connect to Supabase directly — all data flows through the FastAPI backend.
 
-Firebase was considered but rejected: it is NoSQL-only, and Recovery Router's data model (events with foreign-key-linked attempts, partial unique indexes, PostgreSQL triggers) needs a relational database. PlanetScale would work but does not have a Realtime subscription feature.
+Firebase was considered but rejected: it is NoSQL-only, and Recovery Router's data model (events with foreign-key-linked attempts, partial unique indexes, PostgreSQL triggers) needs a relational database.
 
 **Tradeoffs accepted:** Supabase adds a platform dependency. If Supabase goes down or changes pricing, migration is straightforward because it is PostgreSQL underneath. The Python SDK (`supabase-py`) is less mature than `psycopg2` or SQLAlchemy, which means some queries are more verbose than they would be with a proper ORM.
 
@@ -224,6 +224,51 @@ The trigger fires whenever `status` is changing to `exhausted`. It blocks the tr
 This catches any writer -- the application, manual SQL queries, n8n workflows, future integrations -- that tries to prematurely exhaust an event. It is a defense-in-depth measure: the application's two safety layers should prevent it, and the trigger catches what slips through.
 
 **Tradeoffs accepted:** Database triggers are invisible to application code. A developer debugging an exhaustion issue might not realize a trigger is silently reverting their update. The trigger raises a WARNING, but you have to be looking at PostgreSQL logs to see it. This is documented in the migrations and architecture docs, but it is still a non-obvious behavior.
+
+### 1.14 Action Reservation Pattern (Reserve-Before-Send)
+
+**Decision:** Insert a `recovery_attempts` row with `outcome = "reserved"` BEFORE calling the messaging provider, then UPDATE with the real outcome after.
+
+**Alternatives considered:** Insert after send (original approach), database transaction wrapping the send, outbox pattern.
+
+**Why this choice:** The original code inserted the attempt row AFTER `send_message()` returned. If a Celery worker crashed between provider acceptance and database insert, the message was sent but never recorded. On retry (`acks_late=True` requeues the task), the worker would send the same message again with no record of the first send.
+
+The reservation pattern makes the database aware of the send attempt BEFORE it happens. Combined with the unique `idempotency_key` constraint, a retry sees the existing row and skips instead of double-sending. The key format `{event_id}:{type}:{attempt_number}` ensures uniqueness across all three send paths (initial, delayed, escalation).
+
+A database transaction wrapping the send was rejected because `send_message()` makes external HTTP calls -- holding a transaction open across network I/O risks connection pool exhaustion. The outbox pattern was over-engineered for this use case.
+
+**Tradeoffs accepted:** A "reserved" row in the database means there's a brief window where the attempt is recorded but the message hasn't been sent yet. If the worker crashes in this window, the row stays "reserved" forever. This is acceptable -- "reserved" doesn't match any existing outcome queries, and a stale reservation is far better than a double-sent message in a financial recovery system.
+
+### 1.15 Idempotency Keys on All Send Paths
+
+**Decision:** Add `idempotency_key` to every `recovery_attempts` insert across all three send paths (initial, delayed, escalation), not just the initial send.
+
+**Why this choice:** The original code only had idempotency keys on the initial send path. The delayed send and retry-failure paths inserted without keys, meaning the unique index (`WHERE idempotency_key IS NOT NULL`) gave zero protection when the key was NULL. A Celery retry on these paths could create duplicate attempt rows.
+
+### 1.16 Separate Delivery Failure Counter (Not Modifying attempt_count)
+
+**Decision:** Add a separate `delivery_failure_count` column to track hard delivery failures, rather than modifying `attempt_count` semantics or loosening safety overrides.
+
+**Alternatives considered:**
+1. Count all send attempts (success + failure) in `attempt_count` — rejected because it breaks analytics accuracy and cooldown interference would inflate the count.
+2. Loosen safety overrides to allow give_up when all sends fail — rejected because it weakens the three-layer defense that protects against premature abandonment.
+3. Add failure counting to the existing `attempt_count` logic — rejected because `attempt_count` is intentionally success-only and used throughout the system for analytics, budget checks, and recovery rate calculations.
+
+**Why this choice:** The infinite retry bug (Bug #8) was caused by a deadlock between two correct systems: `attempt_count` (success-only, for honest metrics) and safety overrides (prevent premature give_up). Neither system was wrong. The fix needed to be additive — a new circuit breaker that doesn't change either existing system.
+
+`delivery_failure_count` is independent: it only increments on hard provider rejections (not cooldowns or scheduling), it's checked before the escalation engine runs, and it's bypassed entirely if any send was ever successful. The threshold is `dfc > max_attempts` (one extra chance beyond the budget).
+
+**Tradeoffs accepted:** Two counters tracking related but different things adds complexity. A developer needs to understand that `attempt_count` = "messages delivered" and `delivery_failure_count` = "consecutive provider rejections." The code mitigates confusion by using descriptive names and keeping the gate logic close to where events are filtered.
+
+### 1.17 Unit vs Live Test Split
+
+**Decision:** Split tests into `unit` (offline, no credentials) and `live` (integration) markers, with unit tests in a separate `tests/unit/` directory.
+
+**Alternatives considered:** All integration tests (original), separate test runner for unit tests, conditional skipping based on environment.
+
+**Why this choice:** The original test suite required a running server, Redis, Celery, and valid API keys to run any test at all. Running `pytest` without services produced failures, making it impossible to verify logic changes without a full deployment. Unit tests extract the pure business logic (classifier fallback rules, router budget computation, quiet hours, escalation channel rotation) and test it offline with zero external dependencies.
+
+**Tradeoffs accepted:** Unit tests only cover the logic functions, not their integration. A passing unit test doesn't guarantee the function is called correctly from the pipeline. That's what the live integration tests are for -- the two tiers complement each other.
 
 ---
 
@@ -542,15 +587,13 @@ For the buildathon, the honest "sent" metric is sufficient. Delivery tracking is
 
 ### 4.6 No Direct Database Access from Frontend
 
-**Decision:** The frontend calls the backend API for all data operations. The only direct Supabase connection from the frontend is for Realtime subscriptions.
+**Decision:** The frontend calls the backend API for all data operations. It does not connect to Supabase directly.
 
-**Alternatives considered:** Using the Supabase client in the frontend for both reads and Realtime.
+**Alternatives considered:** Using the Supabase client in the frontend for reads and/or Realtime subscriptions.
 
 **Why not:** Direct database access from the frontend would bypass the backend's business logic, rate limiting, authentication, and logging. The backend's event listing endpoint (`GET /api/events`) adds pagination, filtering, status mapping, and access control. The analytics endpoint computes aggregate metrics and caches them.
 
-The Supabase anon key in the frontend is restricted by RLS policies to read-only access. But even so, having the frontend query the database directly would create two data access paths that could diverge.
-
-The single exception (Realtime subscriptions) is acceptable because Supabase Realtime is a push model -- the frontend subscribes and receives updates. It does not query or filter data; it just gets notified when rows change.
+The frontend keeps the dashboard current by polling the backend REST API at 15-30 second intervals. This is simpler than setting up Supabase Realtime subscriptions and avoids a second data access path that could diverge from the backend.
 
 ### 4.7 Specific Features That Were Rejected
 

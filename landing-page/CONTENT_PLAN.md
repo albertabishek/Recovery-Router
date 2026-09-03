@@ -61,7 +61,7 @@ Recovery Router    |  Problem  |  Solution  |  Architecture  |  How It Works  | 
 - Tagline: **"Vulcan routes payments. Recovery Router routes failures."**
 - One-liner paragraph: "An AI-powered engine that classifies every revenue leak - payment failures, cart abandonment, overdue invoices - routes each to the optimal recovery action, and executes through the right channel at the right time. With honest metrics that never inflate results."
 - 3 CTA buttons:
-  - **Live Dashboard** → app.albertabishek.com (primary, filled)
+  - **Live Dashboard** → razorpay.albertabishek.com (primary, filled)
   - **API Docs** → api.albertabishek.com/docs (outline)
   - **GitHub** → github.com/albertabishek/Recovery-Router- (outline)
 - Right side / below: Floating stat cards (like Page 1):
@@ -478,7 +478,7 @@ Magic Checkout  →   Vulcan (AI)    →   Recovery Router
 **Goal:** Everything in one place. Like Page 1's downloads section.
 
 **Link cards:**
-- Live Dashboard → app.albertabishek.com
+- Live Dashboard → razorpay.albertabishek.com
 - API Documentation → api.albertabishek.com/docs
 - GitHub Repository → github.com/albertabishek/Recovery-Router-
 - API Health Check → api.albertabishek.com/api/health

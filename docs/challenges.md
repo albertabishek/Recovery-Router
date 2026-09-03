@@ -426,9 +426,87 @@ Working alone meant every bug was mine. I couldn't blame a teammate's code or a 
 | #5 WhatsApp Templates | Twilio requires pre-approved templates | No AI personalization on WhatsApp | Prioritized Green API over Twilio | `messenger.py` provider hierarchy |
 | #6 Fixed Budgets | Hardcoded max_attempts=5 | Wasted effort on low-value events | Dynamic budget from amount + probability + category | `router.py` compute_max_attempts() |
 | #7 Security Audit | Multiple issues across codebase | Loose verification, leaked internals | Six fixes in one commit | Commit `32aa745`, migration 005 |
+| #8 Infinite Retry Loop | `attempt_count` success-only + safety overrides = deadlock on unreachable contacts | System retries forever, wasting resources | Separate `delivery_failure_count` tracker | `recovery.py`, `escalation.py`, migration 006 |
 
-Total bugs that could cause financial impact: 4 (bugs #1, #2, #3, #7).
-Total bugs found through systematic investigation vs. accident: 6 out of 7.
-Total lines of defense added: 3 (schema), 3 (concurrency), 1 (database trigger), 3 (reconciliation checks) = 10 independent safety mechanisms.
+Total bugs that could cause financial impact: 5 (bugs #1, #2, #3, #7, #8).
+Total bugs found through systematic investigation vs. accident: 7 out of 8.
+Total lines of defense added: 3 (schema), 3 (concurrency), 1 (database trigger), 3 (reconciliation checks), 2 (reservation + idempotency), 1 (delivery failure detection) = 13 independent safety mechanisms across 18 defense layers.
 
 The system is more robust for having broken. Every bug taught a lesson that's now encoded in the code, not just in my head.
+
+---
+
+## Bug #8: The Infinite Retry Loop
+
+**Severity:** P0 -- system retries unreachable contacts forever, wasting resources
+
+### What Happened
+
+Event #36 had a customer with fake contact details: `test@example.com` and `+919999999999`. The system classified it correctly (UPI timeout, 82% recovery probability, max_attempts=4) and tried to send a WhatsApp message. Green API rejected it. Twilio rejected it. Email to `test@example.com` bounced. All three providers failed.
+
+The escalation engine picked it up 15 minutes later and tried again. Same result -- all providers rejected. And again. And again. Four attempts over an hour, all failed. On the fourth attempt, the AI correctly said "give_up." But the safety override kicked in: `attempt_count (0) < max_attempts (4)`, so it forced another send.
+
+The problem: `attempt_count` only increments on **successful** sends. Every send failed, so `attempt_count` stayed at 0 forever. The safety override would never allow give_up because it saw "zero attempts used out of 4." Without manual intervention, this event would have retried approximately 288 times over 72+ hours until the recovery window expired.
+
+I manually cancelled it at attempt 4.
+
+### The Root Cause
+
+A design tension between two correct behaviors:
+
+1. **`attempt_count` is success-only** -- this is intentional. It tracks how many messages actually reached the customer, not how many times the system tried. This drives accurate analytics and prevents inflated outreach metrics.
+
+2. **Safety overrides prevent premature give-up** -- also intentional. Three layers of defense ensure the AI doesn't give up before the budget is spent.
+
+But when the contact is unreachable, these two correct behaviors create a deadlock: sends always fail → `attempt_count` never increments → safety overrides always fire → system retries forever.
+
+### The Fix
+
+Added a separate `delivery_failure_count` column that tracks consecutive hard delivery failures independently from `attempt_count`. The design constraints:
+
+- **Don't change `attempt_count` semantics** -- it remains success-only (preserves analytics accuracy)
+- **Don't weaken safety overrides** -- the three-layer give-up prevention stays intact
+- **Don't count cooldowns as failures** -- only actual provider rejections count
+- **Bypass if any send ever succeeded** -- if the contact was reachable once, don't use this gate
+
+Implementation across three files:
+
+**`backend/app/tasks/recovery.py`** -- Initial and delayed send paths set `delivery_failure_count = 1` on hard failure (they are always the first send for an event).
+
+**`backend/app/services/escalation.py`** -- Escalation path increments: `delivery_failure_count = current + 1` on hard failure. Also has a post-lock gate that checks `dfc > max_attempts` and queries for any successful sends before exhausting.
+
+**`backend/app/tasks/escalation.py`** -- Pre-filter gate: events where `delivery_failure_count > max_attempts` are exhausted with `current_strategy = "all_deliveries_failed"` before reaching the escalation engine.
+
+The threshold is `delivery_failure_count > max_attempts` (not `>=`), giving the system one extra chance beyond the budget. For event #36 with `max_attempts=4`, it would stop after 5 failures.
+
+**Migration:** `backend/migrations/006_delivery_failure_count.sql` adds the column. The code defaults gracefully to 0 if the column is missing.
+
+### The Lesson
+
+When two safety systems interact, test the case where the thing they're both protecting against is the thing causing them to loop. `attempt_count` protects analytics accuracy. Safety overrides protect against premature give-up. Neither is wrong in isolation. The failure mode is emergent -- it only appears when sends never succeed.
+
+The fix follows the same pattern as every other safety mechanism in the system: independent tracking, separate concerns, defense in depth. `delivery_failure_count` doesn't replace either system; it adds a circuit breaker that neither system alone could provide.
+
+---
+
+## Reliability Hardening (Post-Audit)
+
+After the initial bugs were fixed, a competitive analysis against production recovery systems (Stripe, Chargebee, Adyen) revealed three structural weaknesses. These weren't bugs -- the system worked -- but they were gaps that production systems don't have.
+
+### Fix 1: Missing Idempotency Keys on Delayed-Send and Retry Paths
+
+**The gap:** The initial send path had idempotency keys, but the delayed send (`_send_delayed`) and retry-failure paths inserted `recovery_attempts` rows with `idempotency_key = NULL`. The unique index (`WHERE idempotency_key IS NOT NULL`) provided zero protection for these paths.
+
+**The fix:** Added structured idempotency keys to all send paths: `{event_id}:delayed:{attempt_number}` and `{parent_id}:retry_failure:{attempt_number}`.
+
+### Fix 2: Action Reservation Pattern
+
+**The gap:** All three send paths (initial, delayed, escalation) inserted the DB row AFTER calling `send_message()`. If a worker crashed between provider acceptance and DB insert, the message was sent but never recorded -- and on retry, it would be sent again.
+
+**The fix:** Restructured all three paths to INSERT a "reserved" row BEFORE sending, then UPDATE with the real outcome after. Combined with the idempotency key constraint, a retry that hits an existing reservation skips instead of double-sending. The escalation path was refactored into two functions (`_reserve_attempt` and `_finalize_attempt`) for clarity.
+
+### Fix 3: Unit Test Suite
+
+**The gap:** All 114 tests required a running server, Redis, Celery, and valid API keys. Running `pytest` without services produced only failures. No way to verify logic changes without a full deployment.
+
+**The fix:** Split tests into `unit` (offline) and `live` (integration) markers. Created 244 unit tests covering every backend function: classifier (AI orchestration + all 12 fallback categories), router budget computation, quiet hours boundaries, escalation (channel rotation, decision logic, attempt finalization, state updates), idempotency key format conventions, reconciliation (amount/currency/duplicate checks), payment link generation edge cases, delivery failure gate, stale reservation cleanup, messenger (all 3 degradation chains + 4 provider guards), dedup (hash determinism + identifier priority), rate limiter (sliding window + cooldown), invoice scanner (API pagination + tracked filtering), message generator (AI fallback + URL safety + XSS prevention), all 10 Pydantic models, and recovery task internals (durable dedup + quiet hours). These run anywhere, instantly, with zero dependencies.

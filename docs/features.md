@@ -123,10 +123,11 @@ File: `backend/app/tasks/escalation.py` (Celery Beat task) + `backend/app/servic
 
 **Scheduling**: The escalation task `run_escalation_cycle` runs every 5 minutes via Celery Beat (`backend/app/celery_app.py`, line 22). It fetches up to 50 pending events whose `next_action_at` has passed, ordered by recovery probability (highest first), then by next_action_at (oldest first).
 
-**Filtering** (lines 43-61 in `tasks/escalation.py`): Before escalation, events are filtered out if they:
+**Filtering** (lines 43-66 in `tasks/escalation.py`): Before escalation, events are filtered out if they:
 - Have opted out
 - Have an expired recovery window (gets marked exhausted or extended)
 - Have exhausted their attempt budget
+- Have exceeded the delivery failure threshold (contact unreachable)
 - Are unrecoverable declines
 - Have zero recovery probability
 
@@ -417,7 +418,38 @@ Each phone number and email address has a 5-minute (300 second) cooldown after r
 
 Implementation: Redis SET with NX (only if not exists) and EX (expiry) flags. If the key already exists, the cooldown is active and the message is blocked. The messenger records this as a "blocked" outcome with "Cooldown active" error, and the degradation chain moves to the next channel/provider.
 
-### 5.4 Recovery Window + Extension
+### 5.4 Action Reservation Pattern (Double-Send Prevention)
+
+Files: `backend/app/tasks/recovery.py`, `backend/app/services/escalation.py`
+
+Every message send across all three paths (initial send, delayed send, escalation) follows a reserve-before-send pattern:
+
+1. INSERT a `recovery_attempts` row with `outcome = "reserved"` and a unique `idempotency_key` (format: `{event_id}:{type}:{attempt_number}`)
+2. If the INSERT hits a unique constraint violation → skip the send (another worker already reserved)
+3. Call `send_message()` to deliver the recovery message
+4. UPDATE the reserved row with the real outcome (`"sent"` or `"failed"`)
+
+This prevents double-sends when a Celery worker crashes between sending a message and recording the attempt. On retry, the unique constraint catches the duplicate and the message is not re-sent.
+
+### 5.5 Delivery Failure Detection (Unreachable Contacts)
+
+Files: `backend/app/tasks/recovery.py`, `backend/app/services/escalation.py`, `backend/app/tasks/escalation.py`
+
+A separate `delivery_failure_count` column tracks consecutive hard delivery failures (provider rejections, invalid contacts) independently from `attempt_count` (which only increments on successful sends). This solves the infinite retry problem: when a customer's contact details are invalid (wrong email, fake phone), every send attempt fails, `attempt_count` never advances, and without this feature the system would retry forever.
+
+**How it works:**
+
+1. Every send path (initial, delayed, escalation) checks whether a failure is a "hard failure" by testing `send_result.get("error") != "Cooldown active"`. Cooldowns and scheduling blocks are NOT counted.
+2. On hard failure, the counter increments: initial/delayed paths set `delivery_failure_count = 1` (they are always the first attempt), escalation increments from the current value.
+3. The gate triggers when `delivery_failure_count > max_attempts` (i.e., max_attempts + 1 failures). This is checked in two places:
+   - `tasks/escalation.py`: Pre-filter before events reach the escalation engine
+   - `services/escalation.py`: Post-lock gate after fresh data re-read
+4. If any outreach attempt was ever successfully sent (`outcome == "sent"`), the delivery failure gate is bypassed entirely — the contact was reachable at least once.
+5. When triggered, the event is marked `exhausted` with `current_strategy = "all_deliveries_failed"` and a descriptive `skip_reason`.
+
+**Migration:** `backend/migrations/006_delivery_failure_count.sql` adds the column. The code defaults gracefully to 0 if the column is missing.
+
+### 5.6 Recovery Window + Extension
 
 File: `backend/app/tasks/recovery.py` (line 95) and `backend/app/tasks/escalation.py` (line 75)
 
@@ -426,7 +458,7 @@ Every event gets a **72-hour recovery window** from creation. When the window ex
 - If at least one outreach attempt was sent: the event is marked `exhausted` with reason "Recovery window expired without payment"
 - If zero outreach attempts were sent (all were blocked/failed): the window is **extended by 24 hours** and the event stays pending with `current_strategy = "retry_after_window"`. This ensures every event gets at least one real attempt.
 
-### 5.5 Rate Limiting
+### 5.7 Rate Limiting
 
 File: `backend/app/utils/rate_limiter.py`, `check_rate_limit` (line 5)
 
@@ -716,7 +748,20 @@ Body size is capped at 256KB to prevent abuse.
 
 ---
 
-## 13. What's Not Built Yet
+## 13. Database Migrations
+
+Six SQL migration files in `backend/migrations/`, run in order in Supabase SQL Editor:
+
+1. `001_initial_schema.sql` — Core tables: `recovery_events`, `recovery_attempts`
+2. `002_reset_sequences_function.sql` — Sequence reset for data wipes
+3. `003_durable_idempotency.sql` — Unique partial indexes on payment_id, order_id, invoice_id
+4. `004_prevent_premature_exhaustion.sql` — PostgreSQL trigger blocking premature exhaustion
+5. `005_missing_columns_and_rls.sql` — Idempotency key column, unique index, RLS policies
+6. `006_delivery_failure_count.sql` — `delivery_failure_count` column for unreachable contact detection
+
+---
+
+## 14. What's Not Built Yet
 
 There are no TODO/FIXME comments in the codebase. The project is functionally complete for the buildathon. A few areas that are designed but not fully implemented:
 

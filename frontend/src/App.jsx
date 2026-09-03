@@ -6,6 +6,7 @@ import EventsPage from './components/EventsPage'
 import AnalyticsPage from './components/AnalyticsPage'
 import SimulatorPage from './components/SimulatorPage'
 import AuditLogsPage from './components/AuditLogsPage'
+import AgenticDemoPage from './components/AgenticDemoPage'
 import { getDateParams } from './components/DateRangePicker'
 import { useLoading } from './components/LoadingBar'
 
@@ -166,6 +167,9 @@ export default function App() {
         )}
         {page === 'audit-logs' && (
           <AuditLogsPage dateRange={dateRange} />
+        )}
+        {page === 'agentic' && (
+          <AgenticDemoPage />
         )}
       </Layout>
     </ErrorBoundary>

@@ -3,7 +3,7 @@
 > Recovery Router is an AI-powered payment recovery system handling real money flows through Razorpay. This document describes every security layer in the system, with exact file paths, line numbers, and code snippets.
 >
 > Author: Albert Abishek I  
-> Last updated: 2026-08-31
+> Last updated: 2026-09-03
 
 ---
 
@@ -175,7 +175,7 @@ These are partial unique indexes. They guarantee that even if Redis is unavailab
 
 Test events (prefixed `pay_TEST_` or `order_TEST_`) are excluded from uniqueness constraints so the simulator can generate repeated test data without constraint violations.
 
-**Action-level idempotency** (`backend/migrations/005_missing_columns_and_rls.sql`, lines 10-12): Recovery attempts have an `idempotency_key` with a unique index, preventing duplicate message sends if a Celery worker crashes and retries.
+**Action-level idempotency** (`backend/migrations/005_missing_columns_and_rls.sql`, lines 10-12): Recovery attempts have an `idempotency_key` with a unique index, preventing duplicate message sends if a Celery worker crashes and retries. Every send path (initial, delayed, escalation) writes a structured key in the format `{event_id}:{type}:{attempt_number}` -- e.g., `36:initial:1`, `36:delayed:2`, `36:escalation:3`.
 
 ### Why two levels?
 
@@ -214,7 +214,27 @@ LOCK_TTL = 240  # 4 minutes
 
 The escalation cycle itself uses a global lock so only one escalation sweep runs at a time, even with multiple Celery workers.
 
-### 5b. Optimistic Concurrency (Conditional Updates)
+### 5b. Action Reservation Pattern (Reserve-Before-Send)
+
+All three message send paths (initial send, delayed send, escalation) use a reserve-before-send pattern:
+
+1. **Reserve:** INSERT a `recovery_attempts` row with `outcome = "reserved"` and a unique `idempotency_key` BEFORE calling the messaging provider.
+2. **Catch duplicates:** If the INSERT hits a unique constraint violation (PostgreSQL error code `23505`), skip the send -- another worker already reserved this attempt.
+3. **Send:** Call `send_message()` to deliver the recovery message.
+4. **Finalize:** UPDATE the reserved row with the real outcome (`"sent"` or `"failed"`), message_id, and metadata.
+
+**Files:**
+- Initial send + delayed send: `backend/app/tasks/recovery.py`
+- Escalation: `backend/app/services/escalation.py` (`_reserve_attempt` and `_finalize_attempt` functions)
+
+**Why this matters:** Without the reservation, a worker crash between provider acceptance and database insert means the message was sent but never recorded. On retry, the worker sends the same message again. With the reservation, the retry sees the existing row (via the unique idempotency key) and skips.
+
+**Edge cases:**
+- Worker crash between reserve and send: retry hits 23505 → skip → no double send. A "reserved" row stays in the database, which is harmless.
+- Send succeeds but finalize fails: the row stays "reserved" but the message was delivered. Stale but harmless -- "reserved" doesn't match any existing outcome queries.
+- Concurrent Celery tasks: idempotency key + per-event distributed lock = double protection.
+
+### 5c. Optimistic Concurrency (Conditional Updates)
 
 **File:** `backend/app/tasks/recovery.py`, line 282
 
@@ -224,7 +244,7 @@ sb.table("recovery_events").update(update_data).eq("id", event_id).eq("status", 
 
 Every status-changing database update includes `.eq("status", "pending")` as a condition. If another process already changed the status (e.g., the payment was recovered between classification and send), the update silently becomes a no-op rather than overwriting the newer state. This pattern appears throughout `recovery.py` and `escalation.py`.
 
-### 5c. Three-Layer Give-Up Prevention
+### 5d. Three-Layer Give-Up Prevention
 
 A critical safety invariant: the system must never mark an event as "exhausted" before actually trying to reach the customer. Three layers enforce this:
 
@@ -554,16 +574,55 @@ Celery task
   +-- [7] Input sanitization (truncation + control char strip)
   +-- [8] AI output validation (12 categories, clamped floats)
   +-- [9] Per-event Redis distributed lock (300s TTL)
-  +-- [10] Conditional DB update (.eq("status", "pending"))
-  +-- [11] Per-resource messaging cooldown
+  +-- [10] Action reservation (INSERT "reserved" BEFORE send)
+  +-- [11] Idempotency key unique constraint (prevents double-send)
+  +-- [12] Conditional DB update (.eq("status", "pending"))
+  +-- [13] Per-resource messaging cooldown
+  +-- [14] Delivery failure count (stops retries to unreachable contacts)
   |
   v
 Database
   |
-  +-- [12] Premature exhaustion trigger
-  +-- [13] Row-Level Security (service_role only)
-  +-- [14] Unique indexes on payment_id/order_id/invoice_id
-  +-- [15] Idempotency key on recovery_attempts
+  +-- [15] Premature exhaustion trigger
+  +-- [16] Row-Level Security (service_role only)
+  +-- [17] Unique indexes on payment_id/order_id/invoice_id
+  +-- [18] Idempotency key unique index on recovery_attempts
 ```
 
 Each layer is independent. A failure in any single layer does not compromise the system because the next layer catches it.
+
+---
+
+## 13. Delivery Failure Detection (Unreachable Contact Protection)
+
+**Files:** `backend/app/tasks/recovery.py`, `backend/app/services/escalation.py`, `backend/app/tasks/escalation.py`
+
+**What it does:** Prevents infinite retry loops when customer contact details are invalid (wrong email, fake phone number). Without this, the system would cycle through WhatsApp → SMS → Email, all fail, and retry every 15 minutes indefinitely because `attempt_count` (success-only) never advances.
+
+**Implementation:**
+
+A separate `delivery_failure_count` column tracks consecutive hard delivery failures independently from `attempt_count`. The counter only increments on actual provider rejections — cooldown blocks and scheduling delays are excluded.
+
+```python
+# Hard failure detection (all three send paths)
+is_hard_failure = send_result.get("error") != "Cooldown active"
+if is_hard_failure:
+    update["delivery_failure_count"] = current_count + 1
+```
+
+**Gate condition:** `delivery_failure_count > max_attempts` (one more failure than the attempt budget allows). This is checked at two points:
+
+1. **Pre-filter** in `tasks/escalation.py` (line 57-61): Before events reach the escalation engine
+2. **Post-lock gate** in `services/escalation.py` (line 131-149): After fresh data re-read, with an additional check for any successful sends
+
+**Bypass:** If any outreach attempt was ever successfully sent (`outcome == "sent"`), the delivery failure gate is skipped entirely — the contact was reachable at least once.
+
+**Security properties:**
+
+- Does not weaken existing safety overrides (the three-layer give-up prevention is untouched)
+- Does not change `attempt_count` semantics (remains success-only)
+- Uses optimistic concurrency (`.eq("status", "pending")` on all updates)
+- Handles race conditions via the existing per-event Redis lock
+- Defaults gracefully to 0 if the database column is missing (`.get("delivery_failure_count", 0) or 0`)
+
+**Migration:** `backend/migrations/006_delivery_failure_count.sql`

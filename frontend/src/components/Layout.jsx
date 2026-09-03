@@ -71,6 +71,19 @@ export default function Layout({ activePage, onNavigate, dateRange, onDateChange
 
             <SidebarItem icon={<SimulatorIcon />} label="Simulator" active={activePage === 'simulator'} onClick={() => { onNavigate('simulator'); setMobileMenuOpen(false) }} />
             <SidebarItem icon={<AuditIcon />} label="Audit Logs" active={activePage === 'audit-logs'} onClick={() => { onNavigate('audit-logs'); setMobileMenuOpen(false) }} />
+
+            <div style={{
+              padding: '20px 20px 8px',
+              fontSize: 12,
+              fontWeight: 600,
+              color: 'hsla(216, 15%, 52%, 1)',
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+            }}>
+              Vision
+            </div>
+
+            <SidebarItem icon={<AgenticIcon />} label="Agentic Recovery" active={activePage === 'agentic'} onClick={() => { onNavigate('agentic'); setMobileMenuOpen(false) }} />
           </div>
 
           <div style={{ borderTop: '1px solid #E8EAED', padding: '4px 0' }}>
@@ -133,6 +146,9 @@ function SimulatorIcon() {
 }
 function AuditIcon() {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 4C4 2.89543 4.89543 2 6 2H14L20 8V20C20 21.1046 19.1046 22 18 22H6C4.89543 22 4 21.1046 4 20V4ZM6 4H13V9H18V20H6V4ZM15 4.5L17.5 7H15V4.5ZM8 12H16V14H8V12ZM8 16H13V18H8V16Z" clipRule="evenodd" fill="currentColor" fillRule="evenodd"/></svg>
+}
+function AgenticIcon() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
 }
 function SettingsIcon() {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M8.875 12C8.875 9.99797 10.498 8.375 12.5 8.375C14.502 8.375 16.125 9.99797 16.125 12C16.125 14.002 14.502 15.625 12.5 15.625C10.498 15.625 8.875 14.002 8.875 12ZM12.5 10.375C11.6025 10.375 10.875 11.1025 10.875 12C10.875 12.8975 11.6025 13.625 12.5 13.625C13.3975 13.625 14.125 12.8975 14.125 12C14.125 11.1025 13.3975 10.375 12.5 10.375Z" clipRule="evenodd" fill="currentColor" fillRule="evenodd"/><path d="M12.4997 1.25C11.3451 1.25 10.4392 2.21265 10.3749 3.3327L10.3712 3.39707C10.3514 3.74472 10.1414 4.05285 9.82567 4.18728C9.69614 4.24257 9.56894 4.30269 9.44425 4.36745C9.1362 4.52722 8.76563 4.52083 8.47215 4.33506L8.41753 4.30052C7.45788 3.69349 6.17362 3.83066 5.37135 4.63293L4.63371 5.37057C3.82783 6.17645 3.6935 7.46855 4.30921 8.42792L4.33689 8.47173C4.52282 8.76549 4.52902 9.13629 4.3688 9.44428C4.30308 9.57067 4.24209 9.69965 4.18604 9.83098C4.05172 10.1451 3.74517 10.354 3.39935 10.3741L3.33275 10.3779C2.21268 10.4422 1.25 11.3481 1.25 12.5027V13.4973C1.25 14.6519 2.21268 15.5578 3.33275 15.6221L3.39707 15.6258C3.74472 15.6456 4.05285 15.8556 4.18728 16.1713C4.24323 16.3031 4.30409 16.4326 4.36974 16.5595C4.52874 16.8668 4.52204 17.2361 4.33602 17.5292L4.30044 17.585C3.69337 18.5447 3.83054 19.829 4.63285 20.6313L5.37049 21.3689C6.17437 22.1728 7.46137 22.3092 8.42107 21.6988L8.47585 21.6638C8.76808 21.4778 9.13697 21.4709 9.44377 21.6299C9.57132 21.6963 9.70151 21.758 9.83413 21.8146C10.1474 21.9486 10.3559 22.254 10.376 22.5987L10.3799 22.6672C10.4442 23.7873 11.3501 24.75 12.5047 24.75H13.4993C14.6539 24.75 15.5598 23.7873 15.6241 22.6672L15.6278 22.6029C15.6476 22.2553 15.8576 21.9471 16.1733 21.8127C16.3019 21.7574 16.4279 21.6975 16.5514 21.6331C16.8587 21.4739 17.2282 21.4802 17.5213 21.6657L17.577 21.6998C18.5367 22.3069 19.821 22.1698 20.6233 21.3675L21.3609 20.6298C22.1668 19.824 22.3012 18.5319 21.6856 17.5725L21.6587 17.5298C21.4728 17.2361 21.466 16.8657 21.6254 16.5577C21.6924 16.4292 21.7546 16.2972 21.8115 16.1632C21.946 15.849 22.2528 15.6402 22.5988 15.6201L22.6653 15.6163C23.7873 15.5519 24.75 14.6441 24.75 13.4894V12.5106C24.75 11.3559 23.7873 10.4481 22.6653 10.3837L22.6029 10.38C22.2553 10.3602 21.9471 10.1502 21.8127 9.83452C21.7568 9.70266 21.6961 9.57319 21.6305 9.44634C21.4713 9.1389 21.478 8.76898 21.664 8.47579L21.6996 8.41997C22.3066 7.46028 22.1695 6.17605 21.3672 5.37378L20.6295 4.63614C19.8237 3.83022 18.5316 3.69589 17.5722 4.31164L17.5296 4.33872C17.2359 4.52481 16.8652 4.53091 16.5572 4.3706C16.4304 4.30475 16.3011 4.24365 16.1695 4.1876C15.8547 4.05316 15.6457 3.74568 15.6255 3.39866L15.6218 3.33271C15.5574 2.21265 14.6496 1.25 13.4949 1.25H12.4997Z" clipRule="evenodd" fill="currentColor" fillRule="evenodd"/></svg>

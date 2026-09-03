@@ -6,7 +6,7 @@ I built a system that runs on its own - it takes failed payments, abandoned cart
 
 Built for **Razorpay AI Buildathon 2026 - Track 3** (Revenue Recovery).
 
-**[Live Dashboard](https://app.albertabishek.com)** · **[API Docs](https://api.albertabishek.com/docs)** · **[Landing Page](https://albertabishek.com)**
+**[Live Dashboard](https://razorpay.albertabishek.com)** · **[API Docs](https://api.albertabishek.com/docs)** · **[Landing Page](https://albertabishek.com)**
 
 ---
 
@@ -308,6 +308,31 @@ def _acquire_event_lock(event_id, ttl=300):
     return bool(r.set(f"lock:event:{event_id}", "1", nx=True, ex=ttl))
 ```
 
+### Action Reservation Pattern
+
+Every message send follows a reserve-before-send pattern to prevent double-sends on worker crashes:
+
+```python
+# 1. Reserve the attempt row with an idempotency key BEFORE sending
+idem_key = f"{event_id}:initial:1"
+sb.table("recovery_attempts").insert({
+    "outcome": "reserved",
+    "idempotency_key": idem_key,
+    ...
+}).execute()
+
+# 2. Send the message
+result = send_message(channel, customer, message, link)
+
+# 3. Finalize with the real outcome AFTER sending
+sb.table("recovery_attempts").update({
+    "outcome": "sent" if result["success"] else "failed",
+    "message_id": result.get("message_id"),
+}).eq("idempotency_key", idem_key).execute()
+```
+
+If a worker crashes between reserve and send, the retry hits the unique constraint on `idempotency_key` and skips instead of double-sending. All three send paths (initial, delayed, escalation) use this pattern with structured keys: `{event_id}:{type}:{attempt_number}`.
+
 ### Race-Safe State Updates
 
 Every database update on `recovery_events` includes a conditional status filter:
@@ -421,30 +446,42 @@ Uses **Razorpay Orders API** (not Payment Links API) - the Payment Links API has
 
 ## Testing
 
-**114 tests. Zero mocks. All real.**
+**368+ tests across two tiers.**
 
-Every test hits the live server - real Redis, real Supabase, real AI classification.
+Tests are split into **unit** (offline, no credentials) and **live** (integration, hits real services):
 
 ```bash
 cd backend
 
-# Full E2E suite (31 tests)
-python tests/e2e_test.py
+# Unit tests — run anywhere, no services needed
+pytest tests/unit -v -m unit     # 244 offline logic tests
 
-# Individual test suites
-python tests/test_api.py        # 38 API endpoint tests
-python tests/test_security.py   # 20 security tests (SQL injection, XSS, CORS, path traversal)
-python tests/test_pipeline.py   # 15 pipeline tests (all 10 scenarios, fallback chain)
-python tests/test_errors.py     # 13 error handling tests
-python tests/test_load.py       # 6 concurrency/load tests
+# Live integration tests — requires server + Redis + Celery
+pytest tests/ -v -m live         # 92 integration tests
+
+# Full E2E suite (31 tests, standalone runner)
+python tests/e2e_test.py
 ```
 
-### What's Covered
+### Unit Tests (Offline)
 
-- **Security**: SQL injection (3 vectors), XSS (3 vectors), CORS (3 origins), webhook signature verification, input validation (5 edge cases), path traversal (2 vectors)
+Test pure business logic without any external services:
+
+- **Classifier logic** (14 tests): `_fallback_classify()` across all event types and fallback rules
+- **Router logic** (15 tests): `compute_max_attempts()` tiers and `route_action()` channel/timing
+- **Quiet hours** (10 tests): `_is_quiet_hours()` boundary conditions across IST timezones
+- **Escalation logic** (8 tests): `_pick_next_channel()` rotation, avoid sets, phone/email-only
+- **Idempotency keys** (6 tests): Key format conventions and cross-tag uniqueness
+
+### Live Integration Tests
+
+Every test hits the live server - real Redis, real Supabase, real AI classification:
+
+- **API**: 38 endpoint tests across all routes
+- **Security**: SQL injection (3 vectors), XSS (3 vectors), CORS (3 origins), webhook signatures, input validation (5 edge cases), path traversal (2 vectors)
 - **Pipeline**: All 10 failure scenarios classified correctly, AI fallback chain, dynamic budgets, ghost recovery prevention, race condition guards
-- **API**: 38 endpoints across all routes
-- **Load**: 6 concurrent scenario tests
+- **Edge cases**: 13 error handling tests (duplicate webhooks, invalid transitions, boundary values)
+- **Load**: 6 concurrent scenario tests (parallel simulations, race conditions, response times)
 
 ---
 
@@ -459,9 +496,10 @@ python tests/test_load.py       # 6 concurrency/load tests
 | 0:25–0:50 | How the pipeline works - 6-step overview |
 | 0:50–2:40 | **Live payment demo** - real Razorpay test-mode checkout fails, webhook triggers full pipeline, WhatsApp message arrives |
 | 2:40–3:20 | Simulator - different scenarios, dynamic budgets in action |
-| 3:20–4:00 | Safety - dedup, quiet hours, escalation with channel rotation |
-| 4:00–4:30 | The Ghost Writer bug - best debugging story |
-| 4:30–5:00 | Honest gaps and close |
+| 3:20–4:05 | Safety - dedup, quiet hours, escalation with channel rotation, 18 defense layers |
+| 4:05–4:25 | The Ghost Writer bug - database-level safety net |
+| 4:25–4:40 | The Infinite Retry Loop - fake contacts, deadlocked counters, delivery failure detection |
+| 4:40–5:00 | Honest gaps and close |
 
 ---
 
@@ -483,14 +521,14 @@ python tests/test_load.py       # 6 concurrency/load tests
 | API Server | FastAPI | Async webhooks, auto-generated Swagger docs, Pydantic validation |
 | Task Queue | Celery + Redis | Late ACK, crash recovery, exponential backoff retries |
 | Scheduler | Celery Beat | Escalation (5 min) + invoice scan (6h) |
-| Database | Supabase PostgreSQL | Persistent storage, Realtime pub/sub, RLS, triggers |
+| Database | Supabase PostgreSQL | Persistent storage, RLS, triggers, REST API |
 | AI Gateway | OpenRouter | Single API for Claude/Gemini/GPT, no vendor lock-in |
 | AI Models | Haiku 4.5 → Gemini 3.7 → GPT-4o-mini | Speed-first fallback: fastest first, cheapest last |
 | Payments | Razorpay Orders API | Unlimited test-mode orders (vs 30-link Payment Links limit) |
 | WhatsApp | Green API + Twilio | Green API for AI text, Twilio as template fallback |
 | SMS | Twilio | Standard SMS delivery |
 | Email | Resend | AI-personalized HTML with branded template |
-| Frontend | React 19 + Vite 8 + Tailwind 4 | Dashboard with Supabase Realtime live feed |
+| Frontend | React 19 + Vite 8 + Tailwind 4 | Dashboard with auto-refreshing live feed |
 | Cache/Locks | Redis (6 roles) | Broker, cache, dedup, rate limit, locks, PII store |
 
 ---
@@ -522,7 +560,7 @@ Three things separate Recovery Router from everything else I found in the market
 
 2. **Honest metrics by design.** If no outreach was sent before a customer pays, I mark it `organic_recovery`, not `recovered`. I track "sent" not "delivered" because I haven't built delivery receipts yet. I don't inflate numbers - a Razorpay product manager should be able to trust every metric on this dashboard.
 
-3. **Production-grade from day one.** Distributed locks, 3-layer give-up prevention, a PostgreSQL trigger as the last line of defense, 114 tests with zero mocks against live services. If Razorpay shipped this tomorrow, the architecture wouldn't need rewriting.
+3. **Production-grade from day one.** 18 defense layers: distributed locks, action reservation with idempotency keys (reserve-before-send prevents double messaging on worker crashes), 3-layer give-up prevention, delivery failure detection (stops infinite retries on unreachable contacts), a PostgreSQL trigger as the last line of defense, 368+ tests split across offline unit and live integration suites. If Razorpay shipped this tomorrow, the architecture wouldn't need rewriting.
 
 ---
 
@@ -537,7 +575,7 @@ Three things separate Recovery Router from everything else I found in the market
 ### Setup
 
 ```bash
-git clone https://github.com/albertabishek/Recovery-Router.git
+git clone https://github.com/albertabishek/Recovery-Router-.git
 cd Razorpay_buildathon
 
 # Backend
@@ -583,6 +621,7 @@ Run in order in Supabase SQL Editor:
 3. `backend/migrations/003_durable_idempotency.sql`
 4. `backend/migrations/004_prevent_premature_exhaustion.sql`
 5. `backend/migrations/005_missing_columns_and_rls.sql`
+6. `backend/migrations/006_delivery_failure_count.sql`
 
 ### Run
 
@@ -656,8 +695,8 @@ Razorpay_buildathon/
 │   │   └── utils/
 │   │       ├── dedup.py            # Redis deduplication (1h TTL)
 │   │       └── rate_limiter.py     # Sliding window + per-resource cooldown
-│   ├── migrations/                 # 5 SQL migration files
-│   └── tests/                      # 114 automated tests
+│   ├── migrations/                 # 6 SQL migration files
+│   └── tests/                      # 368+ automated tests
 ├── frontend/
 │   └── src/
 │       ├── App.jsx                 # Auth + routing + data loading
