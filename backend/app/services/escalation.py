@@ -95,12 +95,28 @@ def _release_event_lock(event_id: int):
     r.delete(f"lock:event:{event_id}")
 
 
+def _cleanup_stale_reservations(sb):
+    """Mark reservations older than 10 minutes that are still 'reserved' as failed.
+    This handles the case where a worker crashed between reservation and send."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
+    try:
+        stale = sb.table("recovery_attempts").update({
+            "outcome": "failed",
+            "notes": "Stale reservation — worker likely crashed before send",
+        }).eq("outcome", "reserved").lt("created_at", cutoff).execute()
+        if stale.data:
+            logger.warning("Cleaned up %d stale reservations", len(stale.data))
+    except Exception:
+        logger.warning("Stale reservation cleanup failed", exc_info=True)
+
+
 def run_escalation(events: list[dict]) -> list[dict]:
     """Process escalation for a batch of events."""
     if not events:
         return []
 
     sb = get_supabase()
+    _cleanup_stale_reservations(sb)
     results = []
 
     for event in events:
@@ -200,6 +216,15 @@ def run_escalation(events: list[dict]) -> list[dict]:
                 results.append({"event_id": event["id"], "action": "rescheduled_quiet_hours"})
                 continue
 
+            try:
+                next_number, idem_key = _reserve_attempt(sb, event, channel, decision)
+            except APIError as e:
+                if e.json().get("code") == "23505":
+                    logger.info("Escalation already reserved for event %d", event["id"])
+                    results.append({"event_id": event["id"], "action": "already_processed"})
+                    continue
+                raise
+
             recovery_window_ends = _parse_datetime(event.get("recovery_window_ends"))
 
             link = generate_payment_link(
@@ -218,21 +243,16 @@ def run_escalation(events: list[dict]) -> list[dict]:
             if not link.get("short_url"):
                 logger.error("Event %d: payment link creation failed, rescheduling in 15m", event["id"])
                 now = datetime.now(timezone.utc)
+                sb.table("recovery_attempts").update({
+                    "outcome": "failed",
+                    "notes": "Payment link creation failed",
+                }).eq("idempotency_key", idem_key).execute()
                 sb.table("recovery_events").update({
                     "next_action_at": (now + timedelta(minutes=15)).isoformat(),
                     "updated_at": now.isoformat(),
                 }).eq("id", event["id"]).eq("status", "pending").execute()
                 results.append({"event_id": event["id"], "action": "link_failed"})
                 continue
-
-            try:
-                next_number, idem_key = _reserve_attempt(sb, event, channel, decision, link)
-            except APIError as e:
-                if e.json().get("code") == "23505":
-                    logger.info("Escalation already reserved for event %d", event["id"])
-                    results.append({"event_id": event["id"], "action": "already_processed"})
-                    continue
-                raise
 
             send_result = send_message(
                 channel=channel,
@@ -432,7 +452,7 @@ def _parse_datetime(value) -> datetime | None:
         return None
 
 
-def _reserve_attempt(sb, event, channel, decision, link):
+def _reserve_attempt(sb, event, channel, decision):
     max_res = (
         sb.table("recovery_attempts")
         .select("attempt_number")
@@ -451,7 +471,6 @@ def _reserve_attempt(sb, event, channel, decision, link):
         "outcome": "reserved",
         "notes": decision.get("reasoning", ""),
         "idempotency_key": idem_key,
-        "metadata": {"payment_link_url": link.get("short_url")},
     }).execute()
     return next_number, idem_key
 

@@ -188,6 +188,23 @@ def process_recovery_event(self, event_data: dict) -> dict:
             logger.info("Event %d: quiet hours — rescheduled initial send to %s", event_id, wake_at.isoformat())
             return {"status": "rescheduled_quiet_hours", "event_id": event_id, "wake_at": wake_at.isoformat()}
 
+        idem_key = f"{event_id}:initial:1"
+        try:
+            sb.table("recovery_attempts").insert({
+                "recovery_event_id": event_id,
+                "attempt_number": 1,
+                "channel_used": action.channel,
+                "action_taken": f"{classification.recommended_action} via {action.channel}",
+                "outcome": "reserved",
+                "notes": classification.reasoning,
+                "idempotency_key": idem_key,
+            }).execute()
+        except APIError as e:
+            if e.json().get("code") == "23505":
+                logger.info("Idempotency hit: %s already reserved/sent", idem_key)
+                return {"status": "already_processed", "event_id": event_id}
+            raise
+
         link_amount = event.cart_value if (event.cart_value and event.amount <= 0) else event.amount
         link = generate_payment_link(
             amount=link_amount,
@@ -204,30 +221,16 @@ def process_recovery_event(self, event_data: dict) -> dict:
 
         if not link.get("short_url"):
             logger.error("Event %d: payment link creation failed, skipping outreach", event_id)
+            sb.table("recovery_attempts").update({
+                "outcome": "failed",
+                "notes": "Payment link creation failed",
+            }).eq("idempotency_key", idem_key).execute()
             sb.table("recovery_events").update({
                 "current_strategy": "link_creation_failed",
                 "next_action_at": (now + timedelta(minutes=15)).isoformat(),
                 "updated_at": now.isoformat(),
             }).eq("id", event_id).execute()
             return {"status": "link_failed", "event_id": event_id}
-
-        idem_key = f"{event_id}:initial:1"
-        try:
-            sb.table("recovery_attempts").insert({
-                "recovery_event_id": event_id,
-                "attempt_number": 1,
-                "channel_used": action.channel,
-                "action_taken": f"{classification.recommended_action} via {action.channel}",
-                "outcome": "reserved",
-                "notes": classification.reasoning,
-                "idempotency_key": idem_key,
-                "metadata": {"payment_link_url": link.get("short_url")},
-            }).execute()
-        except APIError as e:
-            if e.json().get("code") == "23505":
-                logger.info("Idempotency hit: %s already reserved/sent", idem_key)
-                return {"status": "already_processed", "event_id": event_id}
-            raise
 
         send_result = send_message(
             channel=action.channel,
@@ -469,28 +472,6 @@ def _send_delayed(self, event_id: int, channel: str, event_data: dict):
                 except (ValueError, TypeError):
                     pass
 
-            link = generate_payment_link(
-                amount=event.amount,
-                currency=event.currency,
-                customer_name=event.customer_name or "Customer",
-                customer_email=event.customer_email,
-                customer_phone=event.customer_phone,
-                order_id=event.order_id,
-                event_type=event.event_type,
-                failure_category=ev.get("failure_category", "unknown"),
-                event_id=event_id,
-                recovery_window_ends=recovery_window_ends,
-            )
-
-            if not link.get("short_url"):
-                logger.error("Delayed send event %d: payment link creation failed, rescheduling", event_id)
-                sb.table("recovery_events").update({
-                    "current_strategy": "link_creation_failed",
-                    "next_action_at": (now + timedelta(minutes=15)).isoformat(),
-                    "updated_at": now.isoformat(),
-                }).eq("id", event_id).eq("status", "pending").execute()
-                return {"status": "link_failed", "event_id": event_id}
-
             max_res = (
                 sb.table("recovery_attempts")
                 .select("attempt_number")
@@ -511,13 +492,38 @@ def _send_delayed(self, event_id: int, channel: str, event_data: dict):
                     "outcome": "reserved",
                     "notes": f"Delayed send (originally scheduled for {channel})",
                     "idempotency_key": idem_key,
-                    "metadata": {"payment_link_url": link.get("short_url")},
                 }).execute()
             except APIError as e:
                 if e.json().get("code") == "23505":
                     logger.info("Idempotency hit: %s already reserved/sent", idem_key)
                     return {"status": "already_processed", "event_id": event_id}
                 raise
+
+            link = generate_payment_link(
+                amount=event.amount,
+                currency=event.currency,
+                customer_name=event.customer_name or "Customer",
+                customer_email=event.customer_email,
+                customer_phone=event.customer_phone,
+                order_id=event.order_id,
+                event_type=event.event_type,
+                failure_category=ev.get("failure_category", "unknown"),
+                event_id=event_id,
+                recovery_window_ends=recovery_window_ends,
+            )
+
+            if not link.get("short_url"):
+                logger.error("Delayed send event %d: payment link creation failed, rescheduling", event_id)
+                sb.table("recovery_attempts").update({
+                    "outcome": "failed",
+                    "notes": "Payment link creation failed",
+                }).eq("idempotency_key", idem_key).execute()
+                sb.table("recovery_events").update({
+                    "current_strategy": "link_creation_failed",
+                    "next_action_at": (now + timedelta(minutes=15)).isoformat(),
+                    "updated_at": now.isoformat(),
+                }).eq("id", event_id).eq("status", "pending").execute()
+                return {"status": "link_failed", "event_id": event_id}
 
             send_result = send_message(
                 channel=channel,

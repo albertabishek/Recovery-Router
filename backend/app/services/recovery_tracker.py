@@ -123,7 +123,14 @@ def process_payment_captured(body: dict) -> dict:
                 "event_id": event["id"]}
 
     event_amount = float(event.get("amount", 0) or 0)
-    if event_amount > 0 and amount > 0:
+    if amount <= 0:
+        logger.warning(
+            "Reconciliation rejected: captured amount is zero/missing "
+            "(event_id=%d, payment_id=%s)", event["id"], payment_id,
+        )
+        return {"status": "rejected", "reason": "Captured amount is zero or missing",
+                "event_id": event["id"]}
+    if event_amount > 0:
         tolerance = 0.01
         if abs(amount - event_amount) > tolerance:
             logger.warning(
