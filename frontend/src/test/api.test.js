@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { getAuthToken, setAuthToken, clearAuthToken } from '../lib/api'
 
 describe('Auth token management', () => {

@@ -2,7 +2,7 @@
 
 **An autonomous, AI-native recovery engine for Razorpay merchants.**
 
-I built a system that runs on its own - it takes failed payments, abandoned carts, and overdue invoices, classifies why they failed using AI, decides the best recovery action, and sends personalized messages through WhatsApp, Email, or SMS. No manual intervention. No rules to configure. It classifies, decides, and acts.
+I built a system that takes failed payments, abandoned carts, and overdue invoices, classifies why they failed using AI, decides the best recovery action, and sends personalized messages through WhatsApp, Email, or SMS. Merchants configure credentials and deploy — the pipeline handles classification, routing, and messaging autonomously from there.
 
 Built for **Razorpay AI Buildathon 2026 - Track 3** (Revenue Recovery).
 
@@ -31,7 +31,7 @@ Recovery Router is my answer: one pipeline for all three leak types.
 | **Scheduler** | Celery Beat | Escalation every 5 min, invoice scan every 6h |
 | **Frontend** | React 19 + Vite 8 + Tailwind 4 | Merchant dashboard with live event feed |
 | **Broker/Cache** | Redis | Message broker, dedup, rate limiter, distributed locks, PII store |
-| **Database** | Supabase (PostgreSQL) | Persistent storage, Realtime subscriptions |
+| **Database** | Supabase (PostgreSQL) | Persistent storage, REST API |
 
 ---
 
@@ -440,13 +440,13 @@ Uses **Razorpay Orders API** (not Payment Links API) - the Payment Links API has
 - **SSL enforced** - `CERT_REQUIRED` on all Redis connections
 - **Server-side PII** - customer details in Redis with TTL tokens, never in URLs
 - **No hardcoded credentials** - all secrets via `.env`, `.gitignore` excludes `.env*`, `*.pem`, `*.key`
-- **RLS enabled** - only `service_role` can read/write, frontend uses anon key for Realtime only
+- **RLS enabled** - only `service_role` can read/write, frontend talks through the FastAPI backend
 
 ---
 
 ## Testing
 
-**368+ tests across two tiers.**
+**397 tests across two tiers.**
 
 Tests are split into **unit** (offline, no credentials) and **live** (integration, hits real services):
 
@@ -467,11 +467,11 @@ python tests/e2e_test.py
 
 Test pure business logic without any external services:
 
-- **Classifier logic** (14 tests): `_fallback_classify()` across all event types and fallback rules
+- **Classifier logic** (13 tests): `_fallback_classify()` across all event types and fallback rules
 - **Router logic** (15 tests): `compute_max_attempts()` tiers and `route_action()` channel/timing
 - **Quiet hours** (10 tests): `_is_quiet_hours()` boundary conditions across IST timezones
 - **Escalation logic** (8 tests): `_pick_next_channel()` rotation, avoid sets, phone/email-only
-- **Idempotency keys** (6 tests): Key format conventions and cross-tag uniqueness
+- **Idempotency keys** (9 tests): Key format conventions and cross-tag uniqueness
 
 ### Live Integration Tests
 
@@ -528,7 +528,7 @@ Every test hits the live server - real Redis, real Supabase, real AI classificat
 | WhatsApp | Green API + Twilio | Green API for AI text, Twilio as template fallback |
 | SMS | Twilio | Standard SMS delivery |
 | Email | Resend | AI-personalized HTML with branded template |
-| Frontend | React 19 + Vite 8 + Tailwind 4 | Dashboard with auto-refreshing live feed |
+| Frontend | React 19 + Vite 8 + Tailwind 4 | Dashboard with polling-based live feed |
 | Cache/Locks | Redis (6 roles) | Broker, cache, dedup, rate limit, locks, PII store |
 
 ---
@@ -560,7 +560,7 @@ Three things separate Recovery Router from everything else I found in the market
 
 2. **Honest metrics by design.** If no outreach was sent before a customer pays, I mark it `organic_recovery`, not `recovered`. I track "sent" not "delivered" because I haven't built delivery receipts yet. I don't inflate numbers - a Razorpay product manager should be able to trust every metric on this dashboard.
 
-3. **Production-grade from day one.** 18 defense layers: distributed locks, action reservation with idempotency keys (reserve-before-send prevents double messaging on worker crashes), 3-layer give-up prevention, delivery failure detection (stops infinite retries on unreachable contacts), a PostgreSQL trigger as the last line of defense, 368+ tests split across offline unit and live integration suites. If Razorpay shipped this tomorrow, the architecture wouldn't need rewriting.
+3. **Production-grade from day one.** 18 defense layers: distributed locks, action reservation with idempotency keys (reserve-before-send prevents double messaging on worker crashes), 3-layer give-up prevention, delivery failure detection (stops infinite retries on unreachable contacts), a PostgreSQL trigger as the last line of defense, 397 tests split across offline unit and live integration suites. If Razorpay shipped this tomorrow, the architecture wouldn't need rewriting.
 
 ---
 
@@ -696,7 +696,7 @@ Razorpay_buildathon/
 │   │       ├── dedup.py            # Redis deduplication (1h TTL)
 │   │       └── rate_limiter.py     # Sliding window + per-resource cooldown
 │   ├── migrations/                 # 6 SQL migration files
-│   └── tests/                      # 368+ automated tests
+│   └── tests/                      # 370 backend tests (247 unit + 92 live + 31 e2e)
 ├── frontend/
 │   └── src/
 │       ├── App.jsx                 # Auth + routing + data loading

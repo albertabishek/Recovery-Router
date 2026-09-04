@@ -6,7 +6,7 @@ const CARD = {
   borderRadius: 8,
 }
 
-export default function OverviewPage({ analytics, events, onNavigate, dateRange }) {
+export default function OverviewPage({ analytics, events, onNavigate, dateRange: _dateRange }) {
   const s = analytics?.summary || {}
   const ai = analytics?.ai_lift || {}
   const ranking = analytics?.channel_ranking || []

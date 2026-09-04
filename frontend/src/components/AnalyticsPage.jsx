@@ -6,7 +6,7 @@ export default function AnalyticsPage({ analytics }) {
   const s = analytics?.summary || {}
   const ai = analytics?.ai_lift || {}
   const byType = analytics?.by_event_type || {}
-  const byChannel = analytics?.by_channel || {}
+  const _byChannel = analytics?.by_channel || {}
   const byCategory = analytics?.by_failure_category || {}
   const ranking = analytics?.channel_ranking || []
 

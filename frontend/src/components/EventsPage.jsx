@@ -37,11 +37,10 @@ export default function EventsPage({ selectedEventId, dateRange }) {
   const [tabCounts, setTabCounts] = useState({})
   const hasLoaded = useRef(false)
 
-  const dp = getDateParams(dateRange || {})
-
   const load = useCallback(async (silent = false) => {
     if (!silent && !hasLoaded.current) setInitialLoading(true)
     try {
+      const dp = getDateParams(dateRange || {})
       const params = { limit: PAGE_SIZE, offset: page * PAGE_SIZE, ...dp }
       if (activeTab) params.status = activeTab
       const data = await fetchEvents(params)
@@ -57,6 +56,7 @@ export default function EventsPage({ selectedEventId, dateRange }) {
 
   const loadCounts = useCallback(async () => {
     try {
+      const dp = getDateParams(dateRange || {})
       const counts = await fetchEventCounts(dp)
       setTabCounts({
         all: counts.all || 0,

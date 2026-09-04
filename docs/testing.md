@@ -10,7 +10,7 @@
 
 | Metric | Value |
 |---|---|
-| Total test functions | 368+ |
+| Total test functions | 397 |
 | Test tiers | 2 (unit + live) |
 | Unit test files | 14 (classifier, router, quiet hours, escalation, idempotency, reconciliation, delivery failure gate, stale reservations, payment links, messenger, dedup, rate limiter, invoice scanner, message generator, models, recovery task, escalation helpers) |
 | Live integration test files | 5 (`test_api.py`, `test_pipeline.py`, `test_security.py`, `test_errors.py`, `test_load.py`) |
@@ -359,13 +359,13 @@ Tests are split using pytest markers defined in `backend/pytest.ini`:
 
 ---
 
-### 2.7 Unit Tests -- Offline Logic Tests (247 tests)
+### 2.7 Unit Tests -- Offline Logic Tests (247 tests, 18 files)
 
 All unit tests live in `backend/tests/unit/` and are automatically marked with `@pytest.mark.unit` via the `pytest_collection_modifyitems` hook in `backend/tests/unit/conftest.py`. They test pure business logic with no external dependencies -- no network calls, no credentials, no running services.
 
 **Shared fixture:** `backend/tests/unit/conftest.py` -- auto-applies the `unit` marker to all tests in the directory.
 
-#### 2.7.1 `test_classifier_logic.py` (14 tests)
+#### 2.7.1 `test_classifier_logic.py` (13 tests)
 
 **Path:** `backend/tests/unit/test_classifier_logic.py`
 **Purpose:** Tests `_fallback_classify()` -- the rule-based classifier that activates when all AI models fail.
@@ -414,14 +414,14 @@ All unit tests live in `backend/tests/unit/` and are automatically marked with `
 |---|---|---|
 | 1-8 | `test_pick_next_channel_*` | Channel switching: whatsapp→email, email→sms, sms→whatsapp, avoid blocked channels, phone-only customer, email-only customer, all channels blocked, first attempt default |
 
-#### 2.7.5 `test_idempotency_keys.py` (6 tests)
+#### 2.7.5 `test_idempotency_keys.py` (9 tests)
 
 **Path:** `backend/tests/unit/test_idempotency_keys.py`
 **Purpose:** Tests idempotency key format conventions across all send paths.
 
 | # | Test Function | What It Tests |
 |---|---|---|
-| 1-6 | `test_idempotency_key_*` | Key format: initial keys match `{id}:initial:1`, delayed keys match `{id}:delayed:{n}`, escalation keys match `{id}:escalation:{n}`, retry_failure keys, cross-tag uniqueness (same event_id, different types produce different keys) |
+| 1-9 | `test_idempotency_key_*` | Key format: initial keys match `{id}:initial:1`, delayed keys match `{id}:delayed:{n}`, escalation keys match `{id}:escalation:{n}`, retry_failure keys, cross-tag uniqueness (same event_id, different types produce different keys), reservation pattern verification |
 
 #### 2.7.6 `test_reconciliation.py` (10 tests)
 
@@ -476,7 +476,7 @@ All unit tests live in `backend/tests/unit/` and are automatically marked with `
 | 5 | `test_creates_order_and_returns_url` | Success → returns order ID, checkout URL with token |
 | 6 | `test_amount_converted_to_paise` | 499.50 → 49950 paise in API call |
 
-#### 2.7.10 `test_messenger_logic.py` (30 tests)
+#### 2.7.10 `test_messenger_logic.py` (27 tests)
 
 **Path:** `backend/tests/unit/test_messenger_logic.py`
 **Purpose:** Tests messenger.py — result helpers, channel routing, all 3 degradation chains, provider not-configured guards.
@@ -490,7 +490,7 @@ All unit tests live in `backend/tests/unit/` and are automatically marked with `
 | 21-23 | Email chain | Resend success, no-email failure, cooldown |
 | 24-30 | Provider guards | Not-configured detection for Twilio WA, Green API, Twilio SMS, Resend exceptions |
 
-#### 2.7.11 `test_classifier_orchestration.py` (28 tests)
+#### 2.7.11 `test_classifier_orchestration.py` (29 tests)
 
 **Path:** `backend/tests/unit/test_classifier_orchestration.py`
 **Purpose:** Tests classifier.py — `_sanitize`, `_fallback_classify` (all categories), `classify_event` AI→fallback orchestration, `_ai_classify` response parsing.
@@ -502,7 +502,7 @@ All unit tests live in `backend/tests/unit/` and are automatically marked with `
 | 24-26 | `classify_event` | AI success, AI returns None → fallback, AI exception → fallback |
 | 27-28 | `_ai_classify` | Success parsing, None channel sets skip_reason, default field filling |
 
-#### 2.7.12 `test_dedup.py` (10 tests)
+#### 2.7.12 `test_dedup.py` (15 tests)
 
 **Path:** `backend/tests/unit/test_dedup.py`
 **Purpose:** Tests all 3 dedup functions — hash determinism, identifier extraction priority, Redis-based duplicate detection.
@@ -533,7 +533,7 @@ All unit tests live in `backend/tests/unit/` and are automatically marked with `
 | 1-3 | `_already_tracked_batch` | Empty list, tracked IDs returned, None data handling |
 | 4-8 | `fetch_overdue_invoices` | Successful fetch + conversion, API error, exception, already tracked skip, not-yet-overdue skip |
 
-#### 2.7.15 `test_message_generator.py` (12 tests)
+#### 2.7.15 `test_message_generator.py` (18 tests)
 
 **Path:** `backend/tests/unit/test_message_generator.py`
 **Purpose:** Tests message personalization — URL safety, fallback templates, email rendering, AI orchestration.
@@ -545,7 +545,7 @@ All unit tests live in `backend/tests/unit/` and are automatically marked with `
 | 11-14 | `render_email_html` | Link insertion, XSS escaping, unsafe link → #, structure |
 | 15-18 | `generate_personalized_messages` | AI success, AI unavailable → fallback, None name, first-name extraction |
 
-#### 2.7.16 `test_models.py` (18 tests)
+#### 2.7.16 `test_models.py` (21 tests)
 
 **Path:** `backend/tests/unit/test_models.py`
 **Purpose:** Tests all Pydantic model validation — required fields, type constraints, Literal enforcement, defaults.

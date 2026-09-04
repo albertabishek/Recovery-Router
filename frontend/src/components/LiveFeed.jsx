@@ -16,15 +16,21 @@ const TYPE_LABELS = {
 
 export default function LiveFeed({ events: initialEvents }) {
   const [events, setEvents] = useState(initialEvents || [])
+  const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
     setEvents(initialEvents || [])
   }, [initialEvents])
 
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30000)
+    return () => clearInterval(timer)
+  }, [])
+
   const fmt = (n) => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(n)
   const timeAgo = (ts) => {
     if (!ts) return ''
-    const diff = Date.now() - new Date(ts).getTime()
+    const diff = now - new Date(ts).getTime()
     const mins = Math.floor(diff / 60000)
     if (mins < 1) return 'just now'
     if (mins < 60) return `${mins}m ago`

@@ -32,7 +32,7 @@ const OutcomeBadge = ({ outcome }) => {
   )
 }
 
-const ProviderStep = ({ step, index }) => {
+const ProviderStep = ({ step, index: _index }) => {
   const isOk = step.status === 'sent'
   const isFail = step.status === 'failed'
   return (
@@ -130,7 +130,7 @@ const TracePanel = ({ eventId, onClose }) => {
         {attempts.length === 0 ? (
           <div style={{ fontSize: 13, color: '#6B7280', fontStyle: 'italic' }}>No attempts recorded yet</div>
         ) : (
-          attempts.map((att, i) => {
+          attempts.map((att, _i) => {
             const meta = att.metadata || {}
             const path = meta.degradation_path || []
             return (
@@ -231,11 +231,10 @@ export default function AuditLogsPage({ dateRange }) {
   const [traceEventId, setTraceEventId] = useState(null)
   const [page, setPage] = useState(0)
 
-  const dp = getDateParams(dateRange || {})
-
   const load = useCallback(async () => {
     if (logs.length === 0) setLoading(true)
     try {
+      const dp = getDateParams(dateRange || {})
       const params = { limit: AUDIT_PAGE_SIZE, offset: page * AUDIT_PAGE_SIZE, ...dp }
       if (filterEventId) params.event_id = filterEventId
       const data = await fetchAuditLogs(params)
@@ -246,7 +245,7 @@ export default function AuditLogsPage({ dateRange }) {
     } finally {
       setLoading(false)
     }
-  }, [filterEventId, page, dateRange])
+  }, [filterEventId, page, dateRange, logs.length])
 
   useEffect(() => { load() }, [load])
 

@@ -21,7 +21,7 @@ Recovery Router is a working system, not a slide deck. But it runs on Razorpay t
 | Ghost recovery prevention | Working | Tracks "sent" (provider acceptance), separates organic recoveries from outreach-driven ones |
 | Per-resource cooldowns | Working | 5-minute cooldown per phone/email prevents message spam |
 | Quiet hours enforcement | Working | No messages sent during antisocial hours |
-| Automated test suite | Verified | 247 unit tests across 18 files + 92 live integration tests + 31 E2E tests + 27 frontend tests |
+| Automated test suite | Verified | 397 tests total: 247 unit (18 files) + 92 live integration (5 files) + 31 E2E + 27 frontend (4 files). CI executes 274 (unit + frontend) |
 | Redis deduplication | Working | 1-hour TTL prevents duplicate processing of the same webhook |
 
 ### 1.2 What Has NOT Been Validated

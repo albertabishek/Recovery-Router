@@ -38,10 +38,11 @@ export default function SimulatorPage({ events, onSimulated }) {
   const [results, setResults] = useState([])
   const [customer, setCustomer] = useState({ name: '', email: '', phone: '' })
   const [showCustomer, setShowCustomer] = useState(false)
+  const resultIdRef = useRef(0)
 
   const fire = async (scenario) => {
     setBusy(scenario.id)
-    const ts = Date.now()
+    const ts = ++resultIdRef.current
     try {
       const res = await simulateEvent(TYPE_MAP[scenario.group], scenario.id, customer)
       setResults(prev => [{ id: ts, scenario: scenario.label, group: scenario.group, status: 'queued', message: res.message, time: new Date() }, ...prev].slice(0, 20))
