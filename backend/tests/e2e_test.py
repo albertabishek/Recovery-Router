@@ -17,7 +17,7 @@ FAIL = 0
 ERRORS = []
 
 
-def test(name, fn):
+def run_test(name, fn):
     global PASS, FAIL
     try:
         fn()
@@ -433,53 +433,53 @@ def main():
     print("=" * 60)
 
     print("\n[1] Root & Health")
-    test("GET /", test_root)
-    test("GET /api/health", test_health)
-    test("GET /docs (Swagger)", test_docs)
+    run_test("GET /", test_root)
+    run_test("GET /api/health", test_health)
+    run_test("GET /docs (Swagger)", test_docs)
 
     print("\n[2] Webhook: recovery-router")
-    test("POST payment_failure", test_webhook_payment_failure)
-    test("POST cart_abandonment", test_webhook_cart_abandonment)
-    test("POST invoice_overdue", test_webhook_invoice_overdue)
-    test("POST razorpay raw format", test_webhook_razorpay_raw_format)
-    test("Dedup (same payment_id)", test_webhook_dedup)
-    test("Dedup hash fallback (no IDs)", test_webhook_dedup_hash_fallback)
-    test("Invalid payload (400)", test_webhook_invalid_payload)
-    test("Invalid event_type", test_webhook_invalid_event_type)
+    run_test("POST payment_failure", test_webhook_payment_failure)
+    run_test("POST cart_abandonment", test_webhook_cart_abandonment)
+    run_test("POST invoice_overdue", test_webhook_invoice_overdue)
+    run_test("POST razorpay raw format", test_webhook_razorpay_raw_format)
+    run_test("Dedup (same payment_id)", test_webhook_dedup)
+    run_test("Dedup hash fallback (no IDs)", test_webhook_dedup_hash_fallback)
+    run_test("Invalid payload (400)", test_webhook_invalid_payload)
+    run_test("Invalid event_type", test_webhook_invalid_event_type)
 
     print("\n[3] Webhook: recovery-tracker")
-    test("Ignored event type", test_tracker_ignored_event)
-    test("No matching event", test_tracker_no_match)
+    run_test("Ignored event type", test_tracker_ignored_event)
+    run_test("No matching event", test_tracker_no_match)
 
     print("\n[4] Events API")
-    test("GET /api/events", test_events_list)
-    test("Pagination (limit=5)", test_events_pagination)
-    test("Filter by status=pending", test_events_filter_status)
-    test("Filter by event_type", test_events_filter_event_type)
+    run_test("GET /api/events", test_events_list)
+    run_test("Pagination (limit=5)", test_events_pagination)
+    run_test("Filter by status=pending", test_events_filter_status)
+    run_test("Filter by event_type", test_events_filter_event_type)
 
     print("\n[5] Analytics")
-    test("GET /api/analytics", test_analytics)
-    test("Cache performance", test_analytics_cached)
+    run_test("GET /api/analytics", test_analytics)
+    run_test("Cache performance", test_analytics_cached)
 
     print("\n[6] Simulator")
-    test("Invalid scenario (400)", test_simulate_invalid_scenario)
-    test("All 10 scenarios", test_simulate_all_scenarios)
+    run_test("Invalid scenario (400)", test_simulate_invalid_scenario)
+    run_test("All 10 scenarios", test_simulate_all_scenarios)
 
     print("\n[7] Checkout page")
-    test("Valid checkout page", test_checkout_valid)
-    test("XSS blocked in name", test_checkout_xss_blocked)
-    test("Invalid order_id rejected", test_checkout_invalid_order_id)
-    test("SQL injection in order_id", test_checkout_order_id_injection)
+    run_test("Valid checkout page", test_checkout_valid)
+    run_test("XSS blocked in name", test_checkout_xss_blocked)
+    run_test("Invalid order_id rejected", test_checkout_invalid_order_id)
+    run_test("SQL injection in order_id", test_checkout_order_id_injection)
 
     print("\n[8] Rate limiting")
-    test("Simulator rate limit (10/60s)", test_rate_limit_simulation)
+    run_test("Simulator rate limit (10/60s)", test_rate_limit_simulation)
 
     print("\n[9] Edge cases")
-    test("Minimal payload", test_minimal_payload)
-    test("Very large amount", test_large_amount)
-    test("Unicode customer name", test_unicode_customer_name)
-    test("Empty optional fields", test_empty_optional_fields)
-    test("Zero-value cart", test_zero_amount_cart)
+    run_test("Minimal payload", test_minimal_payload)
+    run_test("Very large amount", test_large_amount)
+    run_test("Unicode customer name", test_unicode_customer_name)
+    run_test("Empty optional fields", test_empty_optional_fields)
+    run_test("Zero-value cart", test_zero_amount_cart)
 
     print("\n" + "=" * 60)
     print(f"  RESULTS: {PASS} passed, {FAIL} failed out of {PASS + FAIL}")

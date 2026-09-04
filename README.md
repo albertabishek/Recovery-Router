@@ -454,7 +454,7 @@ Tests are split into **unit** (offline, no credentials) and **live** (integratio
 cd backend
 
 # Unit tests — run anywhere, no services needed
-pytest tests/unit -v -m unit     # 244 offline logic tests
+pytest tests/unit -v -m unit     # 247 offline logic tests
 
 # Live integration tests — requires server + Redis + Celery
 pytest tests/ -v -m live         # 92 integration tests

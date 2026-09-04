@@ -56,7 +56,7 @@ python tests/generate_and_process.py
 
 Tests are split using pytest markers defined in `backend/pytest.ini`:
 
-- `@pytest.mark.unit` — Offline logic tests. No network, no credentials, no external services.
+- `@pytest.mark.unit` — Offline logic tests. No network, no credentials, no external services. Auto-applied to all tests under `tests/unit/` via `conftest.py` hook.
 - `@pytest.mark.live` — Integration tests. Requires running server, Redis, Celery, and valid API keys.
 
 ---
@@ -359,11 +359,11 @@ Tests are split using pytest markers defined in `backend/pytest.ini`:
 
 ---
 
-### 2.7 Unit Tests -- Offline Logic Tests (244 tests)
+### 2.7 Unit Tests -- Offline Logic Tests (247 tests)
 
-All unit tests live in `backend/tests/unit/` and are marked with `@pytest.mark.unit`. They test pure business logic with no external dependencies -- no network calls, no credentials, no running services.
+All unit tests live in `backend/tests/unit/` and are automatically marked with `@pytest.mark.unit` via the `pytest_collection_modifyitems` hook in `backend/tests/unit/conftest.py`. They test pure business logic with no external dependencies -- no network calls, no credentials, no running services.
 
-**Shared fixture:** `backend/tests/unit/conftest.py` -- minimal, imports nothing external.
+**Shared fixture:** `backend/tests/unit/conftest.py` -- auto-applies the `unit` marker to all tests in the directory.
 
 #### 2.7.1 `test_classifier_logic.py` (14 tests)
 

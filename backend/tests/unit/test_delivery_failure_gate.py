@@ -161,17 +161,18 @@ class TestDeliveryFailureGate:
         select_chain.order = MagicMock(return_value=select_chain)
         sb.table.return_value = select_chain
 
-        with patch("app.services.escalation._get_escalation_decision") as mock_decision:
-            mock_decision.return_value = {"action": "send", "channel": "email", "tone": "firm", "reasoning": "test"}
-            with patch("app.services.escalation._reserve_attempt") as mock_reserve:
-                mock_reserve.return_value = (2, "1:escalation:2")
-                with patch("app.services.escalation.generate_payment_link") as mock_link:
-                    mock_link.return_value = {"id": "ord_1", "short_url": "http://test"}
-                    with patch("app.services.escalation.send_message") as mock_send:
-                        mock_send.return_value = {"success": True, "message_id": "m2"}
-                        with patch("app.services.escalation._finalize_attempt"):
-                            with patch("app.services.escalation._update_event_state"):
-                                results = run_escalation([event])
+        with patch("app.services.escalation._is_quiet_hours", return_value=False):
+            with patch("app.services.escalation._get_escalation_decision") as mock_decision:
+                mock_decision.return_value = {"action": "send", "channel": "email", "tone": "firm", "reasoning": "test"}
+                with patch("app.services.escalation._reserve_attempt") as mock_reserve:
+                    mock_reserve.return_value = (2, "1:escalation:2")
+                    with patch("app.services.escalation.generate_payment_link") as mock_link:
+                        mock_link.return_value = {"id": "ord_1", "short_url": "http://test"}
+                        with patch("app.services.escalation.send_message") as mock_send:
+                            mock_send.return_value = {"success": True, "message_id": "m2"}
+                            with patch("app.services.escalation._finalize_attempt"):
+                                with patch("app.services.escalation._update_event_state"):
+                                    results = run_escalation([event])
 
         assert results[0]["action"] == "sent"
 

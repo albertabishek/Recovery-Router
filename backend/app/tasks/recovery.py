@@ -12,6 +12,7 @@ from app.services.classifier import classify_event
 from app.services.router import route_action, compute_max_attempts
 from app.services.payment_links import generate_payment_link
 from app.services.messenger import send_message
+from app.utils.idempotency import build_idempotency_key
 
 IST = ZoneInfo("Asia/Kolkata")
 QUIET_START_HOUR = 21
@@ -188,7 +189,7 @@ def process_recovery_event(self, event_data: dict) -> dict:
             logger.info("Event %d: quiet hours — rescheduled initial send to %s", event_id, wake_at.isoformat())
             return {"status": "rescheduled_quiet_hours", "event_id": event_id, "wake_at": wake_at.isoformat()}
 
-        idem_key = f"{event_id}:initial:1"
+        idem_key = build_idempotency_key(event_id, "initial", 1)
         try:
             sb.table("recovery_attempts").insert({
                 "recovery_event_id": event_id,
@@ -387,7 +388,7 @@ def handle_recovery_retry_failure(self, data: dict) -> dict:
                 ),
                 "outcome": "failed",
                 "notes": f"Error: {data.get('error_code')}: {error_desc}",
-                "idempotency_key": f"{parent_id}:retry_failure:{next_number}",
+                "idempotency_key": build_idempotency_key(parent_id, "retry_failure", next_number),
                 "metadata": {
                     "payment_id": data.get("payment_id"),
                     "order_id": data.get("order_id"),
@@ -481,7 +482,7 @@ def _send_delayed(self, event_id: int, channel: str, event_data: dict):
                 .execute()
             )
             next_number = (max_res.data[0]["attempt_number"] + 1) if max_res.data else 1
-            idem_key = f"{event_id}:delayed:{next_number}"
+            idem_key = build_idempotency_key(event_id, "delayed", next_number)
 
             try:
                 sb.table("recovery_attempts").insert({

@@ -16,6 +16,7 @@ from app.services.ai_client import ai_call
 from postgrest.exceptions import APIError
 from app.services.payment_links import generate_payment_link
 from app.services.messenger import send_message
+from app.utils.idempotency import build_idempotency_key
 
 logger = logging.getLogger(__name__)
 
@@ -462,7 +463,7 @@ def _reserve_attempt(sb, event, channel, decision):
         .execute()
     )
     next_number = (max_res.data[0]["attempt_number"] + 1) if max_res.data else 1
-    idem_key = f"{event['id']}:escalation:{next_number}"
+    idem_key = build_idempotency_key(event['id'], "escalation", next_number)
     sb.table("recovery_attempts").insert({
         "recovery_event_id": event["id"],
         "attempt_number": next_number,
