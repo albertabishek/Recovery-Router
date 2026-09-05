@@ -386,6 +386,18 @@ Sliding window per-endpoint using Redis sorted sets:
 
 No messages between 9 PM and 9 AM IST. Events hitting quiet hours are rescheduled to 9 AM the next day.
 
+### Merchant Controls
+
+Merchants get full authority over the recovery pipeline through three controls:
+
+| Action | What It Does | Allowed From |
+|--------|-------------|--------------|
+| **Pause** | Stops all recovery attempts. Escalation skips paused events. | `pending` |
+| **Resume** | Re-enters the event into the pipeline. Next escalation cycle picks it up. | `paused` |
+| **Cancel** | Permanently stops recovery. Marked as merchant-cancelled with reason. | `pending`, `paused`, `exhausted` |
+
+All three are exposed via `PATCH /api/events/{id}/control` and as buttons in the event detail panel. State transitions are guarded — you can't pause an already-recovered event or cancel a terminal one.
+
 ---
 
 ## Recovery Tracking & Honest Metrics
