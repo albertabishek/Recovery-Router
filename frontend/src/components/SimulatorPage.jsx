@@ -468,7 +468,19 @@ function LivePaymentSection({ customer, onResult }) {
           </button>
 
           <div style={{ fontSize: 12, color: '#5e6c84', lineHeight: 1.5 }}>
-            <strong>Test cards:</strong> Use any card number like <code style={{ background: '#f4f5f7', padding: '1px 4px', borderRadius: 3 }}>4111 1111 1111 1111</code> with any future expiry and CVV.
+            <strong>Test card:</strong>{' '}
+            <code style={{ background: '#f4f5f7', padding: '2px 6px', borderRadius: 3, fontWeight: 600, fontSize: 13, userSelect: 'all' }}>4111 1111 1111 1111</code>
+            <button
+              onClick={(e) => { navigator.clipboard.writeText('4111111111111111'); e.currentTarget.textContent = 'Copied!'; setTimeout(() => { if (e.target) e.target.textContent = 'Copy' }, 1500) }}
+              style={{
+                marginLeft: 6, padding: '2px 8px', fontSize: 11, fontWeight: 500,
+                background: '#fff', border: '1px solid #ebecf0', borderRadius: 3,
+                cursor: 'pointer', color: '#0D94FB', fontFamily: 'inherit', verticalAlign: 'middle',
+              }}
+            >
+              Copy
+            </button>
+            {' '}· Any future expiry · Any CVV.
             In test mode, Razorpay lets you choose to succeed or fail the payment.
           </div>
         </div>

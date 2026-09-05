@@ -95,6 +95,31 @@ function LoginPage({ onLogin }) {
         >
           {loading ? 'Signing in...' : 'Sign In'}
         </button>
+        <div style={{
+          marginTop: 20, padding: '12px 16px', background: '#f4f5f7', borderRadius: 4,
+          border: '1px solid #ebecf0', textAlign: 'left',
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#5e6c84', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
+            For Judges & Reviewers
+          </div>
+          <div style={{ fontSize: 13, color: '#172b4d', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>Password:</span>
+            <code style={{ background: '#fff', padding: '3px 8px', borderRadius: 3, border: '1px solid #ebecf0', fontFamily: 'monospace', fontSize: 13, fontWeight: 600, userSelect: 'all' }}>
+              recovery@router2026
+            </code>
+            <button
+              type="button"
+              onClick={(e) => { e.preventDefault(); navigator.clipboard.writeText('recovery@router2026'); e.currentTarget.textContent = 'Copied!' ; setTimeout(() => e.currentTarget.textContent = 'Copy', 1500) }}
+              style={{
+                padding: '3px 10px', fontSize: 12, fontWeight: 500,
+                background: '#fff', border: '1px solid #ebecf0', borderRadius: 3,
+                cursor: 'pointer', color: '#0D94FB', fontFamily: 'inherit',
+              }}
+            >
+              Copy
+            </button>
+          </div>
+        </div>
       </form>
     </div>
   )
