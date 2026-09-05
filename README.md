@@ -507,6 +507,61 @@ Every test hits the live server - real Redis, real Supabase, real AI classificat
 
 ---
 
+## Dashboard Screenshots
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="screenshots/login.png" alt="Login Page" width="100%"/>
+      <br/><b>Login</b><br/>
+      <sub>Razorpay-themed authentication with Prussian Blue gradient</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="screenshots/overview.png" alt="Overview Dashboard" width="100%"/>
+      <br/><b>Overview Dashboard</b><br/>
+      <sub>Revenue recovered, at-risk amount, recovery trend chart, and donut breakdown by event type</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="screenshots/events.png" alt="Recovery Events" width="100%"/>
+      <br/><b>Recovery Events</b><br/>
+      <sub>Filterable event list with status tabs, category/channel/amount filters, and search</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="screenshots/event-detail.png" alt="Event Detail Panel" width="100%"/>
+      <br/><b>Event Detail Panel</b><br/>
+      <sub>Full event trace — AI classification, recovery pipeline, attempt history, and timeline</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="screenshots/reports.png" alt="Reports & Analytics" width="100%"/>
+      <br/><b>Reports & Analytics</b><br/>
+      <sub>Recovery by event type, channel performance, trend line, and failure category breakdown</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="screenshots/simulator.png" alt="Simulator" width="100%"/>
+      <br/><b>Simulator</b><br/>
+      <sub>10 built-in test scenarios with live Razorpay checkout integration</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="screenshots/audit-logs.png" alt="Audit Logs" width="100%"/>
+      <br/><b>Audit Logs</b><br/>
+      <sub>Every recovery attempt logged — channel, outcome, message content, and provider trace</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="screenshots/agentic-recovery.png" alt="Agentic Recovery" width="100%"/>
+      <br/><b>Agentic Recovery</b><br/>
+      <sub>Agent-initiated payment failure scenarios with animated 5-step pipeline visualization</sub>
+    </td>
+  </tr>
+</table>
+
+---
+
 ## Honest Gaps
 
 - **Test-mode only** - all Razorpay calls use test keys, no real merchant data
