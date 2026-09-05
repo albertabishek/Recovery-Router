@@ -44,6 +44,7 @@ describe('Layout', () => {
   it('calls onLogout when logout button is clicked', () => {
     const onLogout = vi.fn()
     renderLayout({ onLogout })
+    fireEvent.click(screen.getByText('Account & Settings'))
     fireEvent.click(screen.getByText('Logout'))
     expect(onLogout).toHaveBeenCalled()
   })
