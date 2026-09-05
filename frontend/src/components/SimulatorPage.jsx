@@ -467,21 +467,24 @@ function LivePaymentSection({ customer, onResult }) {
             {loading ? 'Checkout Open...' : 'Open Razorpay Checkout'}
           </button>
 
-          <div style={{ fontSize: 12, color: '#5e6c84', lineHeight: 1.5 }}>
-            <strong>Test card:</strong>{' '}
-            <code style={{ background: '#f4f5f7', padding: '2px 6px', borderRadius: 3, fontWeight: 600, fontSize: 13, userSelect: 'all' }}>4111 1111 1111 1111</code>
-            <button
-              onClick={(e) => { navigator.clipboard.writeText('4111111111111111'); e.currentTarget.textContent = 'Copied!'; setTimeout(() => { if (e.target) e.target.textContent = 'Copy' }, 1500) }}
-              style={{
-                marginLeft: 6, padding: '2px 8px', fontSize: 11, fontWeight: 500,
-                background: '#fff', border: '1px solid #ebecf0', borderRadius: 3,
-                cursor: 'pointer', color: '#0D94FB', fontFamily: 'inherit', verticalAlign: 'middle',
-              }}
-            >
-              Copy
-            </button>
-            {' '}· Any future expiry · Any CVV.
-            In test mode, Razorpay lets you choose to succeed or fail the payment.
+          <div style={{ fontSize: 12, color: '#5e6c84', lineHeight: 1.8 }}>
+            <strong>Razorpay test cards:</strong><br/>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              Visa: <code style={{ background: '#f4f5f7', padding: '2px 6px', borderRadius: 3, fontWeight: 600, fontSize: 13, userSelect: 'all' }}>4100 2800 0000 1007</code>
+              <button
+                onClick={(e) => { navigator.clipboard.writeText('4100280000001007'); const b = e.currentTarget; b.textContent = 'Copied!'; setTimeout(() => b.textContent = 'Copy', 1500) }}
+                style={{ padding: '2px 8px', fontSize: 11, fontWeight: 500, background: '#fff', border: '1px solid #ebecf0', borderRadius: 3, cursor: 'pointer', color: '#0D94FB', fontFamily: 'inherit' }}
+              >Copy</button>
+            </span>
+            {' '}·{' '}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              MC: <code style={{ background: '#f4f5f7', padding: '2px 6px', borderRadius: 3, fontWeight: 600, fontSize: 13, userSelect: 'all' }}>5555 5100 0008 1006</code>
+              <button
+                onClick={(e) => { navigator.clipboard.writeText('5555510000081006'); const b = e.currentTarget; b.textContent = 'Copied!'; setTimeout(() => b.textContent = 'Copy', 1500) }}
+                style={{ padding: '2px 8px', fontSize: 11, fontWeight: 500, background: '#fff', border: '1px solid #ebecf0', borderRadius: 3, cursor: 'pointer', color: '#0D94FB', fontFamily: 'inherit' }}
+              >Copy</button>
+            </span>
+            <br/>Any future expiry · Any CVV · Razorpay shows succeed/fail buttons in test mode.
           </div>
         </div>
       </div>
