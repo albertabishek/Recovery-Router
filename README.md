@@ -610,6 +610,18 @@ Every test hits the live server - real Redis, real Supabase, real AI classificat
       <sub>AI-generated contextual email explaining the failure reason to the customer</sub>
     </td>
   </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="screenshots/railway-deployment.png" alt="Railway Deployment" width="100%"/>
+      <br/><b>Railway — Backend Infra</b><br/>
+      <sub>API server, Celery worker, Beat scheduler, and Redis — all services online in production</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="screenshots/vercel-deployment.png" alt="Vercel Deployment" width="100%"/>
+      <br/><b>Vercel — Frontend Deployment</b><br/>
+      <sub>React dashboard deployed at razorpay.albertabishek.com with auto-deploy from main</sub>
+    </td>
+  </tr>
 </table>
 
 ---
