@@ -518,8 +518,9 @@ Every test hits the live server - real Redis, real Supabase, real AI classificat
 
 ## Demo
 
-<!-- Replace with actual video link when ready -->
-**[Watch the full demo →](#)**
+[![Watch the Demo](https://img.youtube.com/vi/CudnQag7uEU/maxresdefault.jpg)](https://www.youtube.com/watch?v=CudnQag7uEU)
+
+**[Watch the full demo on YouTube →](https://www.youtube.com/watch?v=CudnQag7uEU)**
 
 | Section | What's Shown |
 |---------|-------------|
