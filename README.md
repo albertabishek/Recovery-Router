@@ -20,7 +20,7 @@ Recovery Router is my answer: one pipeline for all three leak types.
 
 ## System Architecture
 
-![Recovery Router System Architecture](landing-page/recovery-router-system-architecture.png)
+![Recovery Router System Architecture](recovery-router-system-architecture.png)
 
 ### Six Components
 
@@ -715,29 +715,8 @@ Razorpay_buildathon/
 │   └── src/
 │       ├── App.jsx                 # Auth + routing + data loading
 │       └── components/             # Dashboard pages (Events, Analytics, Simulator, Agentic Recovery)
-├── docs/                           # Detailed documentation
-└── landing-page/                   # Buildathon submission page
+└── recovery-router-system-architecture.png
 ```
-
----
-
-## Documentation
-
-For deep dives into specific areas:
-
-| Document | What it covers |
-|----------|---------------|
-| [Architecture](docs/architecture.md) | Full system architecture, data flow diagrams, database schema |
-| [Features](docs/features.md) | Complete feature inventory verified against source code |
-| [Recovery Logic](docs/recovery_logic.md) | Pipeline internals, state machine, edge cases |
-| [AI & Prompts](docs/ai_and_prompts.md) | Prompt engineering, model selection, fallback strategy |
-| [Security](docs/security.md) | Threat model, mitigations, audit findings |
-| [Testing](docs/testing.md) | Test strategy, coverage, how to run |
-| [Tech Stack](docs/tech_stack.md) | Why each technology was chosen over alternatives |
-| [Challenges](docs/challenges.md) | War stories - every bug, investigation, and fix |
-| [Decisions](docs/decisions.md) | Every technical decision and what was intentionally avoided |
-| [Impact & ROI](docs/impact_and_roi.md) | Cost analysis, recovery opportunity, honest limitations |
-| [Journey](docs/journey.md) | How Recovery Router was built, day by day |
 
 ---
 
