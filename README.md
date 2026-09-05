@@ -446,9 +446,9 @@ Uses **Razorpay Orders API** (not Payment Links API) - the Payment Links API has
 
 ## Testing
 
-**397 tests across two tiers.**
+**397 tests across four tiers.**
 
-Tests are split into **unit** (offline, no credentials) and **live** (integration, hits real services):
+Tests are split into **unit** (247 offline, no credentials), **live** (92 integration, real services), **e2e** (31 standalone flows), and **frontend** (27 component tests). CI runs 274 tests (unit + frontend) on every push.
 
 ```bash
 cd backend
@@ -461,6 +461,9 @@ pytest tests/ -v -m live         # 92 integration tests
 
 # Full E2E suite (31 tests, standalone runner)
 python tests/e2e_test.py
+
+# Frontend component tests
+cd ../frontend && npx vitest run  # 27 component tests
 ```
 
 ### Unit Tests (Offline)
@@ -488,18 +491,19 @@ Every test hits the live server - real Redis, real Supabase, real AI classificat
 ## Demo
 
 <!-- Replace with actual video link when ready -->
-**[Watch the 5-minute demo →](#)**
+**[Watch the full demo →](#)**
 
-| Timestamp | What's shown |
-|-----------|-------------|
-| 0:00–0:25 | The problem - why this matters for Razorpay merchants |
-| 0:25–0:50 | How the pipeline works - 6-step overview |
-| 0:50–2:40 | **Live payment demo** - real Razorpay test-mode checkout fails, webhook triggers full pipeline, WhatsApp message arrives |
-| 2:40–3:20 | Simulator - different scenarios, dynamic budgets in action |
-| 3:20–4:05 | Safety - dedup, quiet hours, escalation with channel rotation, 18 defense layers |
-| 4:05–4:25 | The Ghost Writer bug - database-level safety net |
-| 4:25–4:40 | The Infinite Retry Loop - fake contacts, deadlocked counters, delivery failure detection |
-| 4:40–5:00 | Honest gaps and close |
+| Section | What's Shown |
+|---------|-------------|
+| Opening | Personal intro — why Track 3, the insight behind Recovery Router |
+| Architecture | Six-component architecture with decision reasons for each choice |
+| Live Demo | Simulator scenarios with dynamic budgets, then real Razorpay test-mode checkout |
+| Dashboard | Events page walkthrough — classifications, budgets, AI reasoning |
+| Safety | 18 defense layers, 3-layer give-up prevention, the Ghost Writer bug story |
+| Analytics | Honest metrics — organic vs recovered, ghost recovery prevention |
+| Testing | 397-test suite run + CI pipeline + bug war stories |
+| Ecosystem | Where Recovery Router fits in Razorpay's product suite |
+| Future | Agent-to-agent recovery — when the payer is an AI agent |
 
 ---
 
@@ -511,6 +515,16 @@ Every test hits the live server - real Redis, real Supabase, real AI classificat
 - **Supabase service key in backend** - bypasses RLS, production would use scoped tokens
 - **One Celery worker** - handles current load, would bottleneck at scale (architecture supports horizontal scaling)
 - **Quiet hours are IST-only** - no per-customer timezone support
+
+---
+
+## Future Vision: Agent-to-Agent Recovery
+
+Razorpay's Agent Studio launched AI agents that initiate payments on behalf of businesses. When the *payer* is also an agent — handling procurement, subscriptions, automated purchasing — traditional recovery channels fail. Agents don't check WhatsApp. They don't read SMS or email.
+
+Recovery Router's classify-route-act pipeline is channel-agnostic. Today the channels are WhatsApp, SMS, and email. Tomorrow, the channel could be an API callback to the paying agent. The pipeline doesn't change — only the last mile does.
+
+The dashboard includes an **Agentic Recovery** page that demonstrates this: agent-initiated payment failure scenarios (expired authorization mandates, delegation limit exceeded, consumed payment credentials) with an animated pipeline visualization showing why traditional channels can't reach AI agents.
 
 ---
 
@@ -700,7 +714,7 @@ Razorpay_buildathon/
 ├── frontend/
 │   └── src/
 │       ├── App.jsx                 # Auth + routing + data loading
-│       └── components/             # Dashboard pages + widgets
+│       └── components/             # Dashboard pages (Events, Analytics, Simulator, Agentic Recovery)
 ├── docs/                           # Detailed documentation
 └── landing-page/                   # Buildathon submission page
 ```
