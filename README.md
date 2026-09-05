@@ -1,12 +1,28 @@
+<div align="center">
+
+<img src="screenshots/overview.png" alt="Recovery Router Dashboard" width="720"/>
+
 # Recovery Router
 
-**An autonomous, AI-native recovery engine for Razorpay merchants.**
+**Autonomous AI-Powered Revenue Recovery Engine for Razorpay Merchants**
 
-I built a system that takes failed payments, abandoned carts, and overdue invoices, classifies why they failed using AI, decides the best recovery action, and sends personalized messages through WhatsApp, Email, or SMS. Merchants configure credentials and deploy — the pipeline handles classification, routing, and messaging autonomously from there.
+[![Live Dashboard](https://img.shields.io/badge/Live_Dashboard-razorpay.albertabishek.com-0D94FB?style=for-the-badge&logo=razorpay&logoColor=white)](https://razorpay.albertabishek.com)
+[![Submission Page](https://img.shields.io/badge/Submission-submission.albertabishek.com-012652?style=for-the-badge&logo=cloudflare&logoColor=white)](https://submission.albertabishek.com)
+[![API Docs](https://img.shields.io/badge/API_Docs-api.albertabishek.com-10b981?style=for-the-badge&logo=swagger&logoColor=white)](https://api.albertabishek.com/docs)
 
-Built for **Razorpay AI Buildathon 2026 - Track 3** (Revenue Recovery).
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat-square&logo=fastapi&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)
+![Celery](https://img.shields.io/badge/Celery-5.4-37814A?style=flat-square&logo=celery&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-7-DC382D?style=flat-square&logo=redis&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3FCF8E?style=flat-square&logo=supabase&logoColor=white)
+![Razorpay](https://img.shields.io/badge/Razorpay-Test_Mode-0D94FB?style=flat-square&logo=razorpay&logoColor=white)
 
-**[Live Dashboard](https://razorpay.albertabishek.com)** · **[API Docs](https://api.albertabishek.com/docs)** · **[Landing Page](https://albertabishek.com)**
+*Classifies every revenue leak with AI · Routes to optimal recovery action · Sends personalized messages via WhatsApp, Email, SMS*
+
+**Razorpay AI Buildathon 2026 — Track 3: Revenue Recovery**
+
+</div>
 
 ---
 
@@ -526,7 +542,7 @@ Every test hits the live server - real Redis, real Supabase, real AI classificat
     <td align="center" width="50%">
       <img src="screenshots/login.png" alt="Login Page" width="100%"/>
       <br/><b>Login</b><br/>
-      <sub>Razorpay-themed authentication with Prussian Blue gradient</sub>
+      <sub>Razorpay-themed authentication with judge password hint</sub>
     </td>
     <td align="center" width="50%">
       <img src="screenshots/overview.png" alt="Overview Dashboard" width="100%"/>
@@ -543,7 +559,7 @@ Every test hits the live server - real Redis, real Supabase, real AI classificat
     <td align="center" width="50%">
       <img src="screenshots/event-detail.png" alt="Event Detail Panel" width="100%"/>
       <br/><b>Event Detail Panel</b><br/>
-      <sub>Full event trace — AI classification, recovery pipeline, attempt history, and timeline</sub>
+      <sub>Full event trace with Pause/Cancel controls, recovery pipeline, and attempt history</sub>
     </td>
   </tr>
   <tr>
@@ -562,12 +578,36 @@ Every test hits the live server - real Redis, real Supabase, real AI classificat
     <td align="center" width="50%">
       <img src="screenshots/audit-logs.png" alt="Audit Logs" width="100%"/>
       <br/><b>Audit Logs</b><br/>
-      <sub>Every recovery attempt logged — channel, outcome, message content, and provider trace</sub>
+      <sub>Every recovery attempt logged — channel, outcome, provider chain, and error traces</sub>
     </td>
+    <td align="center" width="50%">
+      <img src="screenshots/audit-trace.png" alt="Audit Trace Panel" width="100%"/>
+      <br/><b>Audit Trace Panel</b><br/>
+      <sub>AI reasoning, pipeline steps, provider chain with fallback details per attempt</sub>
+    </td>
+  </tr>
+  <tr>
     <td align="center" width="50%">
       <img src="screenshots/agentic-recovery.png" alt="Agentic Recovery" width="100%"/>
       <br/><b>Agentic Recovery</b><br/>
       <sub>Agent-initiated payment failure scenarios with animated 5-step pipeline visualization</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="screenshots/whatsapp-channel.png" alt="WhatsApp Recovery Messages" width="100%"/>
+      <br/><b>WhatsApp Channel</b><br/>
+      <sub>Real WhatsApp recovery messages with personalized payment links sent to customers</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="screenshots/email-channel.png" alt="Email Recovery" width="100%"/>
+      <br/><b>Email Channel</b><br/>
+      <sub>Branded HTML recovery email with one-click payment button</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="screenshots/email-channel-2.png" alt="Email Recovery Variant" width="100%"/>
+      <br/><b>Email — Retry Variant</b><br/>
+      <sub>AI-generated contextual email explaining the failure reason to the customer</sub>
     </td>
   </tr>
 </table>
