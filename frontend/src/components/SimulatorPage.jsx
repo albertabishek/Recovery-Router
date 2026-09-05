@@ -23,10 +23,10 @@ const TYPE_MAP = { 'Payment Failure': 'payment_failure', 'Cart Abandonment': 'ca
 const inputStyle = {
   width: '100%',
   padding: '9px 12px',
-  border: '1px solid #E8EAED',
-  borderRadius: 6,
+  border: '1px solid #ebecf0',
+  borderRadius: 4,
   fontSize: 14,
-  color: '#1A1A1A',
+  color: '#172b4d',
   background: '#fff',
   outline: 'none',
   transition: 'border-color 0.15s',
@@ -57,14 +57,14 @@ export default function SimulatorPage({ events, onSimulated }) {
   return (
     <div style={{ padding: '28px 32px' }}>
       <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: 18, fontWeight: 600, color: '#1A1A1A', margin: '0 0 6px' }}>Simulator</h1>
-        <p style={{ fontSize: 14, color: '#6B7280', margin: 0 }}>
+        <h1 style={{ fontSize: 18, fontWeight: 600, color: '#172b4d', margin: '0 0 6px' }}>Simulator</h1>
+        <p style={{ fontSize: 14, color: '#5e6c84', margin: 0 }}>
           Fire real events through the live pipeline. Each event goes through: AI Classify → Route → Payment Link → Send Message → Track.
         </p>
       </div>
 
       <div style={{
-        background: '#fff', border: '1px solid #E8EAED', borderRadius: 8,
+        background: '#fff', border: '1px solid #ebecf0', borderRadius: 4,
         marginBottom: 24, overflow: 'hidden',
       }}>
         <button
@@ -72,17 +72,17 @@ export default function SimulatorPage({ events, onSimulated }) {
           style={{
             width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '14px 20px', background: 'none', border: 'none', cursor: 'pointer',
-            fontFamily: 'inherit', fontSize: 14, fontWeight: 600, color: '#1A1A1A',
+            fontFamily: 'inherit', fontSize: 14, fontWeight: 600, color: '#172b4d',
           }}
         >
           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
-              <path d="M8 8a3 3 0 100-6 3 3 0 000 6zm0 1.5c-3.315 0-6 1.343-6 3v.5a1 1 0 001 1h10a1 1 0 001-1v-.5c0-1.657-2.685-3-6-3z" fill="#6B7280"/>
+              <path d="M8 8a3 3 0 100-6 3 3 0 000 6zm0 1.5c-3.315 0-6 1.343-6 3v.5a1 1 0 001 1h10a1 1 0 001-1v-.5c0-1.657-2.685-3-6-3z" fill="#5e6c84"/>
             </svg>
             Customer Details
             {(customer.name || customer.email || customer.phone) && (
               <span style={{
-                fontSize: 11, fontWeight: 500, color: '#528FF0', background: '#F0F4FF',
+                fontSize: 11, fontWeight: 500, color: '#0D94FB', background: '#F0F4FF',
                 padding: '2px 8px', borderRadius: 10,
               }}>
                 Custom
@@ -91,18 +91,18 @@ export default function SimulatorPage({ events, onSimulated }) {
           </span>
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none"
             style={{ transform: showCustomer ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }}>
-            <path d="M2.5 4.5L6 8l3.5-3.5" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M2.5 4.5L6 8l3.5-3.5" stroke="#5e6c84" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </button>
 
         {showCustomer && (
-          <div style={{ padding: '0 20px 20px', borderTop: '1px solid #E8EAED' }}>
-            <p style={{ fontSize: 13, color: '#6B7280', margin: '14px 0 16px' }}>
+          <div style={{ padding: '0 20px 20px', borderTop: '1px solid #ebecf0' }}>
+            <p style={{ fontSize: 13, color: '#5e6c84', margin: '14px 0 16px' }}>
               Override the default test recipient. Leave blank to use the system defaults.
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#6B7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#5e6c84', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Name
                 </label>
                 <input
@@ -111,12 +111,12 @@ export default function SimulatorPage({ events, onSimulated }) {
                   value={customer.name}
                   onChange={e => setCustomer(c => ({ ...c, name: e.target.value }))}
                   style={inputStyle}
-                  onFocus={e => e.target.style.borderColor = '#528FF0'}
-                  onBlur={e => e.target.style.borderColor = '#E8EAED'}
+                  onFocus={e => e.target.style.borderColor = '#0D94FB'}
+                  onBlur={e => e.target.style.borderColor = '#ebecf0'}
                 />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#6B7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#5e6c84', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Email
                 </label>
                 <input
@@ -125,12 +125,12 @@ export default function SimulatorPage({ events, onSimulated }) {
                   value={customer.email}
                   onChange={e => setCustomer(c => ({ ...c, email: e.target.value }))}
                   style={inputStyle}
-                  onFocus={e => e.target.style.borderColor = '#528FF0'}
-                  onBlur={e => e.target.style.borderColor = '#E8EAED'}
+                  onFocus={e => e.target.style.borderColor = '#0D94FB'}
+                  onBlur={e => e.target.style.borderColor = '#ebecf0'}
                 />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#6B7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#5e6c84', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Phone
                 </label>
                 <input
@@ -139,8 +139,8 @@ export default function SimulatorPage({ events, onSimulated }) {
                   value={customer.phone}
                   onChange={e => setCustomer(c => ({ ...c, phone: e.target.value }))}
                   style={inputStyle}
-                  onFocus={e => e.target.style.borderColor = '#528FF0'}
-                  onBlur={e => e.target.style.borderColor = '#E8EAED'}
+                  onFocus={e => e.target.style.borderColor = '#0D94FB'}
+                  onBlur={e => e.target.style.borderColor = '#ebecf0'}
                 />
               </div>
             </div>
@@ -148,8 +148,8 @@ export default function SimulatorPage({ events, onSimulated }) {
               <button
                 onClick={() => setCustomer({ name: '', email: '', phone: '' })}
                 style={{
-                  marginTop: 12, padding: '6px 14px', fontSize: 13, color: '#6B7280',
-                  background: 'none', border: '1px solid #E8EAED', borderRadius: 6,
+                  marginTop: 12, padding: '6px 14px', fontSize: 13, color: '#5e6c84',
+                  background: 'none', border: '1px solid #ebecf0', borderRadius: 4,
                   cursor: 'pointer', fontFamily: 'inherit',
                 }}
               >
@@ -163,7 +163,7 @@ export default function SimulatorPage({ events, onSimulated }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24, marginBottom: 32 }}>
         {GROUPS.map(group => (
           <div key={group}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#5e6c84', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>
               {group}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
@@ -176,24 +176,24 @@ export default function SimulatorPage({ events, onSimulated }) {
                     display: 'flex', flexDirection: 'column', gap: 6,
                     padding: '16px 20px',
                     background: busy === s.id ? '#F0F4FF' : '#fff',
-                    border: busy === s.id ? '1px solid #528FF0' : '1px solid #E8EAED',
-                    borderRadius: 8,
+                    border: busy === s.id ? '1px solid #0D94FB' : '1px solid #ebecf0',
+                    borderRadius: 4,
                     cursor: busy ? 'not-allowed' : 'pointer',
                     textAlign: 'left',
                     transition: 'border-color 0.15s, box-shadow 0.15s',
                     opacity: busy && busy !== s.id ? 0.5 : 1,
                     fontFamily: 'inherit',
                   }}
-                  onMouseEnter={e => { if (!busy) e.currentTarget.style.borderColor = '#528FF0' }}
-                  onMouseLeave={e => { if (busy !== s.id) e.currentTarget.style.borderColor = '#E8EAED' }}
+                  onMouseEnter={e => { if (!busy) e.currentTarget.style.borderColor = '#0D94FB' }}
+                  onMouseLeave={e => { if (busy !== s.id) e.currentTarget.style.borderColor = '#ebecf0' }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: '#1A1A1A' }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: '#172b4d' }}>
                       {busy === s.id ? 'Sending…' : s.label}
                     </span>
-                    <span style={{ fontSize: 12, color: '#6B7280' }}>{s.amount}</span>
+                    <span style={{ fontSize: 12, color: '#5e6c84' }}>{s.amount}</span>
                   </div>
-                  <span style={{ fontSize: 13, color: '#6B7280' }}>{s.desc}</span>
+                  <span style={{ fontSize: 13, color: '#5e6c84' }}>{s.desc}</span>
                 </button>
               ))}
             </div>
@@ -207,23 +207,23 @@ export default function SimulatorPage({ events, onSimulated }) {
       }} />
 
       {results.length > 0 && (
-        <div style={{ background: '#fff', border: '1px solid #E8EAED', borderRadius: 8, overflow: 'hidden' }}>
-          <div style={{ padding: '16px 24px', borderBottom: '1px solid #E8EAED', fontSize: 14, fontWeight: 600, color: '#1A1A1A' }}>
+        <div style={{ background: '#fff', border: '1px solid #ebecf0', borderRadius: 4, overflow: 'hidden' }}>
+          <div style={{ padding: '16px 24px', borderBottom: '1px solid #ebecf0', fontSize: 14, fontWeight: 600, color: '#172b4d' }}>
             Simulation Log
           </div>
           <div style={{ maxHeight: 300, overflow: 'auto' }}>
             {results.map(r => (
               <div key={r.id} style={{
                 display: 'flex', alignItems: 'center', gap: 12,
-                padding: '12px 24px', borderBottom: '1px solid #E8EAED', fontSize: 14,
+                padding: '12px 24px', borderBottom: '1px solid #ebecf0', fontSize: 14,
               }}>
                 <span style={{
                   width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
-                  background: r.status === 'queued' ? '#12B76A' : '#F04438',
+                  background: r.status === 'queued' ? '#04db7c' : '#F04438',
                 }} />
-                <span style={{ fontWeight: 500, color: '#1A1A1A', minWidth: 130 }}>{r.scenario}</span>
-                <span style={{ color: '#6B7280', flex: 1 }}>{r.message}</span>
-                <span style={{ color: '#6B7280', fontSize: 13, flexShrink: 0 }}>{r.time.toLocaleTimeString()}</span>
+                <span style={{ fontWeight: 500, color: '#172b4d', minWidth: 130 }}>{r.scenario}</span>
+                <span style={{ color: '#5e6c84', flex: 1 }}>{r.message}</span>
+                <span style={{ color: '#5e6c84', fontSize: 13, flexShrink: 0 }}>{r.time.toLocaleTimeString()}</span>
               </div>
             ))}
           </div>
@@ -231,14 +231,14 @@ export default function SimulatorPage({ events, onSimulated }) {
       )}
 
       {(events || []).length > 0 && (
-        <div style={{ background: '#fff', border: '1px solid #E8EAED', borderRadius: 8, overflow: 'hidden', marginTop: 16 }}>
+        <div style={{ background: '#fff', border: '1px solid #ebecf0', borderRadius: 4, overflow: 'hidden', marginTop: 16 }}>
           <div style={{
-            padding: '16px 24px', borderBottom: '1px solid #E8EAED', fontSize: 14, fontWeight: 600, color: '#1A1A1A',
+            padding: '16px 24px', borderBottom: '1px solid #ebecf0', fontSize: 14, fontWeight: 600, color: '#172b4d',
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
             Pipeline Results
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#12B76A', animation: 'pulse 2s infinite' }} />
-            <span style={{ fontSize: 12, color: '#6B7280', fontWeight: 400 }}>Live from Supabase</span>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#04db7c', animation: 'pulse 2s infinite' }} />
+            <span style={{ fontSize: 12, color: '#5e6c84', fontWeight: 400 }}>Live from Supabase</span>
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 780 }}>
@@ -247,9 +247,9 @@ export default function SimulatorPage({ events, onSimulated }) {
                   {['ID', 'Type', 'Amount', 'AI Category', 'Routed To', 'Probability', 'Status', 'Time'].map(h => (
                     <th key={h} style={{
                       padding: '10px 16px', fontSize: 12, fontWeight: 600,
-                      color: '#6B7280', textAlign: 'left',
+                      color: '#5e6c84', textAlign: 'left',
                       textTransform: 'uppercase', letterSpacing: '0.04em',
-                      borderBottom: '1px solid #E8EAED',
+                      borderBottom: '1px solid #ebecf0',
                       whiteSpace: 'nowrap',
                     }}>{h}</th>
                   ))}
@@ -257,15 +257,15 @@ export default function SimulatorPage({ events, onSimulated }) {
               </thead>
               <tbody>
                 {(events || []).slice(0, 20).map(e => (
-                  <tr key={e.id} style={{ borderBottom: '1px solid #E8EAED' }}>
-                    <td style={{ padding: '10px 16px', fontSize: 13, fontFamily: 'monospace', color: '#6B7280', whiteSpace: 'nowrap' }}>#{e.id}</td>
+                  <tr key={e.id} style={{ borderBottom: '1px solid #ebecf0' }}>
+                    <td style={{ padding: '10px 16px', fontSize: 13, fontFamily: 'monospace', color: '#5e6c84', whiteSpace: 'nowrap' }}>#{e.id}</td>
                     <td style={{ padding: '10px 16px', whiteSpace: 'nowrap' }}><TypeBadge type={e.event_type} /></td>
                     <td style={{ padding: '10px 16px', fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap' }}>₹{fmt(e.amount)}</td>
-                    <td style={{ padding: '10px 16px', fontSize: 14, color: '#5F6B7A', whiteSpace: 'nowrap' }}>{formatCategory(e.failure_category)}</td>
-                    <td style={{ padding: '10px 16px', fontSize: 14, color: '#5F6B7A', textTransform: 'capitalize', whiteSpace: 'nowrap' }}>{e.recommended_channel || '—'}</td>
-                    <td style={{ padding: '10px 16px', fontSize: 14, color: '#528FF0', fontWeight: 600, whiteSpace: 'nowrap' }}>{Math.round((e.recovery_probability || 0) * 100)}%</td>
+                    <td style={{ padding: '10px 16px', fontSize: 14, color: '#5e6c84', whiteSpace: 'nowrap' }}>{formatCategory(e.failure_category)}</td>
+                    <td style={{ padding: '10px 16px', fontSize: 14, color: '#5e6c84', textTransform: 'capitalize', whiteSpace: 'nowrap' }}>{e.recommended_channel || '—'}</td>
+                    <td style={{ padding: '10px 16px', fontSize: 14, color: '#0D94FB', fontWeight: 600, whiteSpace: 'nowrap' }}>{Math.round((e.recovery_probability || 0) * 100)}%</td>
                     <td style={{ padding: '10px 16px', whiteSpace: 'nowrap' }}><StatusBadge status={e.status} /></td>
-                    <td style={{ padding: '10px 16px', fontSize: 13, color: '#6B7280', whiteSpace: 'nowrap' }}>{timeAgo(e.created_at)}</td>
+                    <td style={{ padding: '10px 16px', fontSize: 13, color: '#5e6c84', whiteSpace: 'nowrap' }}>{timeAgo(e.created_at)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -331,7 +331,7 @@ function LivePaymentSection({ customer, onResult }) {
           email: liveCustomer.email || undefined,
           contact: liveCustomer.phone || undefined,
         },
-        theme: { color: '#528FF0' },
+        theme: { color: '#0D94FB' },
         handler: function (response) {
           onResult({
             id: Date.now(),
@@ -379,26 +379,26 @@ function LivePaymentSection({ customer, onResult }) {
 
   return (
     <div style={{
-      background: '#fff', border: '2px solid #528FF0', borderRadius: 8,
+      background: '#fff', border: '2px solid #0D94FB', borderRadius: 4,
       marginBottom: 24, overflow: 'hidden',
     }}>
       <div style={{
-        padding: '18px 24px', borderBottom: '1px solid #E8EAED',
+        padding: '18px 24px', borderBottom: '1px solid #ebecf0',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 15, fontWeight: 600, color: '#1A1A1A' }}>
+            <span style={{ fontSize: 15, fontWeight: 600, color: '#172b4d' }}>
               Try Live Payment
             </span>
             <span style={{
-              fontSize: 11, fontWeight: 500, color: '#528FF0', background: '#F0F4FF',
+              fontSize: 11, fontWeight: 500, color: '#0D94FB', background: '#F0F4FF',
               padding: '2px 8px', borderRadius: 10,
             }}>
               Razorpay Test Mode
             </span>
           </div>
-          <p style={{ fontSize: 13, color: '#6B7280', margin: '4px 0 0' }}>
+          <p style={{ fontSize: 13, color: '#5e6c84', margin: '4px 0 0' }}>
             Opens real Razorpay checkout. Choose succeed or fail — the webhook flows through our pipeline live.
           </p>
         </div>
@@ -457,8 +457,8 @@ function LivePaymentSection({ customer, onResult }) {
             disabled={!canOpen || loading}
             style={{
               padding: '10px 24px', fontSize: 14, fontWeight: 600,
-              color: '#fff', background: canOpen && !loading ? '#528FF0' : '#D0D5DD',
-              border: 'none', borderRadius: 8,
+              color: '#fff', background: canOpen && !loading ? '#0D94FB' : '#D0D5DD',
+              border: 'none', borderRadius: 4,
               cursor: canOpen && !loading ? 'pointer' : 'not-allowed',
               fontFamily: 'inherit',
               transition: 'background 0.15s',
@@ -467,8 +467,8 @@ function LivePaymentSection({ customer, onResult }) {
             {loading ? 'Checkout Open...' : 'Open Razorpay Checkout'}
           </button>
 
-          <div style={{ fontSize: 12, color: '#6B7280', lineHeight: 1.5 }}>
-            <strong>Test cards:</strong> Use any card number like <code style={{ background: '#F2F4F7', padding: '1px 4px', borderRadius: 3 }}>4111 1111 1111 1111</code> with any future expiry and CVV.
+          <div style={{ fontSize: 12, color: '#5e6c84', lineHeight: 1.5 }}>
+            <strong>Test cards:</strong> Use any card number like <code style={{ background: '#f4f5f7', padding: '1px 4px', borderRadius: 3 }}>4111 1111 1111 1111</code> with any future expiry and CVV.
             In test mode, Razorpay lets you choose to succeed or fail the payment.
           </div>
         </div>
@@ -478,6 +478,6 @@ function LivePaymentSection({ customer, onResult }) {
 }
 
 const labelStyle = {
-  display: 'block', fontSize: 11, fontWeight: 600, color: '#6B7280',
+  display: 'block', fontSize: 11, fontWeight: 600, color: '#5e6c84',
   marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em',
 }

@@ -439,7 +439,7 @@ async def control_event(event_id: int, req: EventControlRequest):
         raise HTTPException(status_code=400, detail=f"Unknown action: {req.action}. Use 'pause', 'resume', or 'cancel'")
 
 
-@router.post("/migrate/fix-exhausted")
+@router.post("/migrate/fix-exhausted", include_in_schema=False)
 async def fix_exhausted_events():
     """One-time migration: backfill skip_reason and clear stale fields on old exhausted events."""
     sb = get_supabase()
@@ -492,7 +492,7 @@ async def fix_exhausted_events():
     return {"status": "done", "fixed": fixed}
 
 
-@router.post("/migrate/fix-premature-exhaustion")
+@router.post("/migrate/fix-premature-exhaustion", include_in_schema=False)
 async def fix_premature_exhaustion():
     """Fix events exhausted prematurely due to cooldown failures being counted as real failures."""
     sb = get_supabase()
@@ -551,7 +551,7 @@ async def fix_premature_exhaustion():
     return {"status": "done", "fixed_events": fixed_events, "fixed_attempts": fixed_attempts}
 
 
-@router.post("/debug/escalate/{event_id}")
+@router.post("/debug/escalate/{event_id}", include_in_schema=False)
 async def debug_escalate_event(event_id: int):
     """Debug: manually trigger escalation for a single event and return full trace."""
     from app.services.escalation import run_escalation
@@ -573,7 +573,7 @@ async def debug_escalate_event(event_id: int):
     }
 
 
-@router.post("/debug/test-update/{event_id}")
+@router.post("/debug/test-update/{event_id}", include_in_schema=False)
 async def debug_test_update(event_id: int):
     """Debug: test if Supabase updates persist."""
     import time as _time
@@ -600,7 +600,7 @@ async def debug_test_update(event_id: int):
     }
 
 
-@router.delete("/reset/all-data")
+@router.delete("/reset/all-data", include_in_schema=False)
 async def reset_all_data(confirm: str = Query(None)):
     """Delete all recovery data and reset ID sequences to start from 1."""
     if confirm != "yes-delete-everything":

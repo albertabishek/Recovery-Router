@@ -38,7 +38,7 @@ function LoadingBar({ active }) {
     }}>
       <div style={{
         height: '100%',
-        background: 'linear-gradient(90deg, #528FF0, #36b3f0, #528FF0)',
+        background: 'linear-gradient(90deg, #0D94FB, #36b3f0, #0D94FB)',
         backgroundSize: '300% 100%',
         animation: active ? 'loadingBar 1.5s ease-in-out infinite, loadingGrow 8s ease-out forwards' : 'none',
         borderRadius: '0 2px 2px 0',

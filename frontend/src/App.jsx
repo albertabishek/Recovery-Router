@@ -25,7 +25,7 @@ class ErrorBoundary extends Component {
           <h2 style={{ color: '#B42318', marginBottom: 12 }}>Something went wrong</h2>
           <p style={{ color: '#6B7280', marginBottom: 20 }}>{this.state.error?.message || 'An unexpected error occurred'}</p>
           <button onClick={() => { this.setState({ hasError: false, error: null }); window.location.reload() }}
-            style={{ padding: '8px 20px', background: '#528FF0', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
+            style={{ padding: '8px 20px', background: '#0D94FB', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
             Reload
           </button>
         </div>
@@ -61,15 +61,15 @@ function LoginPage({ onLogin }) {
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'linear-gradient(135deg, #1A1A2E 0%, #16213E 50%, #0F3460 100%)',
+      background: 'linear-gradient(135deg, #012652 0%, #01305e 50%, #014f8a 100%)',
     }}>
       <form onSubmit={handleSubmit} style={{
-        background: '#fff', borderRadius: 16, padding: '48px 40px', width: 400,
+        background: '#fff', borderRadius: 12, padding: '48px 40px', width: 400,
         boxShadow: '0 20px 60px rgba(0,0,0,0.3)', textAlign: 'center',
       }}>
         <div style={{ fontSize: 36, marginBottom: 8 }}>🔐</div>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1A1A2E', margin: '0 0 8px' }}>Recovery Router</h1>
-        <p style={{ fontSize: 14, color: '#6B7280', margin: '0 0 28px' }}>Enter your password to access the dashboard</p>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#172b4d', margin: '0 0 8px' }}>Recovery Router</h1>
+        <p style={{ fontSize: 14, color: '#5e6c84', margin: '0 0 28px' }}>Enter your password to access the dashboard</p>
         <input
           type="password"
           value={password}
@@ -78,7 +78,7 @@ function LoginPage({ onLogin }) {
           autoFocus
           style={{
             width: '100%', padding: '12px 16px', fontSize: 15, border: '1px solid #D0D5DD',
-            borderRadius: 8, outline: 'none', boxSizing: 'border-box', marginBottom: 16,
+            borderRadius: 4, outline: 'none', boxSizing: 'border-box', marginBottom: 16,
             fontFamily: 'inherit',
           }}
         />
@@ -88,8 +88,8 @@ function LoginPage({ onLogin }) {
           disabled={loading || !password}
           style={{
             width: '100%', padding: '12px 0', fontSize: 15, fontWeight: 600,
-            color: '#fff', background: loading || !password ? '#94A3B8' : '#528FF0',
-            border: 'none', borderRadius: 8, cursor: loading ? 'not-allowed' : 'pointer',
+            color: '#fff', background: loading || !password ? '#94A3B8' : '#0D94FB',
+            border: 'none', borderRadius: 4, cursor: loading ? 'not-allowed' : 'pointer',
             fontFamily: 'inherit',
           }}
         >

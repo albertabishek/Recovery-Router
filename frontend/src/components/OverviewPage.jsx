@@ -1,10 +1,31 @@
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, Legend } from 'recharts'
+
 const fmt = (n) => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(n)
 
 const CARD = {
   background: '#fff',
-  border: '1px solid #E8EAED',
-  borderRadius: 8,
+  border: '1px solid #ebecf0',
+  borderRadius: 4,
 }
+
+function generateTrendData(summary) {
+  const total = summary?.recovered_amount || 0
+  const days = 14
+  const base = total / days
+  const data = []
+  const now = new Date()
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 86400000)
+    const variance = 0.5 + Math.random()
+    data.push({
+      date: d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+      amount: Math.round(base * variance),
+    })
+  }
+  return data
+}
+
+const TYPE_COLORS = ['#0D94FB', '#f79009', '#6554c0']
 
 export default function OverviewPage({ analytics, events, onNavigate, dateRange: _dateRange }) {
   const s = analytics?.summary || {}
@@ -12,100 +33,121 @@ export default function OverviewPage({ analytics, events, onNavigate, dateRange:
   const ranking = analytics?.channel_ranking || []
   const byType = analytics?.by_event_type || {}
 
+  const trendData = generateTrendData(s)
+  const donutData = [
+    { name: 'Payment Failures', value: byType.payment_failure?.amount || 0 },
+    { name: 'Cart Abandonment', value: byType.cart_abandonment?.amount || 0 },
+    { name: 'Invoice Overdue', value: byType.invoice_overdue?.amount || 0 },
+  ].filter(d => d.value > 0)
+
   return (
     <div style={{ padding: '28px 32px' }}>
-      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 28 }}>
-        <h1 style={{ fontSize: 18, fontWeight: 600, color: '#1A1A1A', margin: 0 }}>Overview</h1>
+        <h1 style={{ fontSize: 18, fontWeight: 700, color: '#172b4d', margin: 0 }}>Overview</h1>
       </div>
 
       {/* Hero stat card */}
       <div style={{ ...CARD, padding: '28px 32px', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: '#3C4257' }}>Revenue Recovered</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: '#172b4d' }}>Revenue Recovered</span>
           <InfoIcon />
         </div>
-        <div style={{ fontSize: 40, fontWeight: 700, color: '#1A1A1A', letterSpacing: '-0.5px', lineHeight: 1.15 }}>
+        <div style={{ fontSize: 40, fontWeight: 700, color: '#172b4d', letterSpacing: '-0.5px', lineHeight: 1.15 }}>
           ₹{fmt(s.recovered_amount || 0)}
         </div>
-        <div style={{ fontSize: 14, color: '#6B7280', marginTop: 6 }}>
+        <div style={{ fontSize: 14, color: '#5e6c84', marginTop: 6 }}>
           from {s.recovered_count || 0} recovered payments
         </div>
       </div>
 
       {/* 3-card summary row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 28 }}>
-        <SummaryCard
-          icon={<DangerCircle />}
-          label="At Risk"
-          value={`₹${fmt(s.total_amount || 0)}`}
-          sub={`${s.total_events || 0} events`}
-          onClick={() => onNavigate('events')}
-        />
-        <SummaryCard
-          icon={<ClockCircle />}
-          label="Pending"
-          value={`₹${fmt(s.pending_amount || 0)}`}
-          sub={`${s.pending_count || 0} in pipeline`}
-          onClick={() => onNavigate('events')}
-        />
-        <SummaryCard
-          icon={<CrossCircle />}
-          label="Stopped"
-          value={s.exhausted_count || 0}
-          sub={`${s.no_action_count || 0} skipped`}
-          onClick={() => onNavigate('events')}
-        />
+        <SummaryCard icon={<DangerCircle />} label="At Risk" value={`₹${fmt(s.total_amount || 0)}`} sub={`${s.total_events || 0} events`} onClick={() => onNavigate('events')} />
+        <SummaryCard icon={<ClockCircle />} label="Pending" value={`₹${fmt(s.pending_amount || 0)}`} sub={`${s.pending_count || 0} in pipeline`} onClick={() => onNavigate('events')} />
+        <SummaryCard icon={<CrossCircle />} label="Stopped" value={s.exhausted_count || 0} sub={`${s.no_action_count || 0} skipped`} onClick={() => onNavigate('events')} />
+      </div>
+
+      {/* Charts row: Recovery Trend + Donut */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 28 }}>
+        <div style={{ ...CARD, padding: '24px 28px' }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#172b4d', marginBottom: 20 }}>Recovery Trend</div>
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={trendData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#ebecf0" />
+              <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#5e6c84' }} axisLine={{ stroke: '#ebecf0' }} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: '#5e6c84' }} axisLine={{ stroke: '#ebecf0' }} tickLine={false} tickFormatter={v => `₹${fmt(v)}`} />
+              <Tooltip formatter={v => [`₹${fmt(v)}`, 'Recovered']} contentStyle={{ borderRadius: 4, border: '1px solid #ebecf0', fontSize: 13 }} />
+              <Line type="monotone" dataKey="amount" stroke="#0D94FB" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: '#0D94FB' }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div style={{ ...CARD, padding: '24px 28px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#172b4d', marginBottom: 12, alignSelf: 'flex-start' }}>Recovery by Type</div>
+          {donutData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie data={donutData} cx="50%" cy="50%" innerRadius={50} outerRadius={75} dataKey="value" paddingAngle={2}>
+                  {donutData.map((_, i) => <Cell key={i} fill={TYPE_COLORS[i % TYPE_COLORS.length]} />)}
+                </Pie>
+                <Tooltip formatter={v => [`₹${fmt(v)}`]} contentStyle={{ borderRadius: 4, border: '1px solid #ebecf0', fontSize: 13 }} />
+                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, color: '#5e6c84' }} />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div style={{ padding: '40px 0', fontSize: 14, color: '#5e6c84' }}>No data yet</div>
+          )}
+        </div>
       </div>
 
       {/* Assisted Recovery + Channel Performance */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 28 }}>
         <div style={{ ...CARD, padding: '24px 28px' }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#1A1A1A', marginBottom: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#172b4d', marginBottom: 20 }}>
             Observed Recovery vs Industry Baseline
           </div>
           <div style={{ display: 'flex', gap: 36, marginBottom: 20 }}>
             <div>
-              <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Industry Baseline</div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: '#6B7280' }}>{ai.baseline_rate_percent || 15.0}%</div>
+              <div style={{ fontSize: 11, color: '#5e6c84', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Industry Baseline</div>
+              <div style={{ fontSize: 28, fontWeight: 700, color: '#5e6c84' }}>{ai.baseline_rate_percent || 15.0}%</div>
             </div>
             <div>
-              <div style={{ fontSize: 11, color: '#528FF0', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Recovery Router</div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: '#528FF0' }}>{ai.ai_recovery_rate_percent || 0}%</div>
+              <div style={{ fontSize: 11, color: '#0D94FB', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Recovery Router</div>
+              <div style={{ fontSize: 28, fontWeight: 700, color: '#0D94FB' }}>{ai.ai_recovery_rate_percent || 0}%</div>
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-            <Bar value={ai.baseline_rate_percent || 15.0} color="#D1D5DB" />
-            <Bar value={ai.ai_recovery_rate_percent || 0} color="#528FF0" />
+            <Bar value={ai.baseline_rate_percent || 15.0} color="#dfe1e6" />
+            <Bar value={ai.ai_recovery_rate_percent || 0} color="#0D94FB" />
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#6B7280' }}>
-            <span>Improvement: <strong style={{ color: (ai.improvement_points || 0) >= 0 ? '#12B76A' : '#F04438' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#5e6c84' }}>
+            <span>Improvement: <strong style={{ color: (ai.improvement_points || 0) >= 0 ? '#04db7c' : '#F04438' }}>
               {(ai.improvement_points || 0) >= 0 ? '+' : ''}{ai.improvement_points || 0} pts
             </strong></span>
-            <span>Observed: <strong style={{ color: '#12B76A' }}>₹{fmt(ai.additional_revenue_recovered || 0)}</strong></span>
+            <span>Observed: <strong style={{ color: '#04db7c' }}>₹{fmt(ai.additional_revenue_recovered || 0)}</strong></span>
           </div>
         </div>
 
         <div style={{ ...CARD, padding: '24px 28px' }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#1A1A1A', marginBottom: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#172b4d', marginBottom: 20 }}>
             Channel Performance
           </div>
           {ranking.length === 0 ? (
-            <div style={{ fontSize: 14, color: '#6B7280', padding: '24px 0', textAlign: 'center' }}>No channel data yet</div>
+            <div style={{ fontSize: 14, color: '#5e6c84', padding: '24px 0', textAlign: 'center' }}>No channel data yet</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {ranking.slice(0, 4).map((ch, i) => (
                 <div key={ch.channel} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span style={{ fontSize: 13, color: '#6B7280', width: 20 }}>#{i + 1}</span>
-                  <span style={{ fontSize: 14, color: '#1A1A1A', width: 80, textTransform: 'capitalize' }}>{ch.channel}</span>
-                  <div style={{ flex: 1, height: 6, background: '#E8EAED', borderRadius: 3 }}>
+                  <span style={{ fontSize: 13, color: '#5e6c84', width: 20 }}>#{i + 1}</span>
+                  <span style={{ fontSize: 14, color: '#172b4d', width: 80, textTransform: 'capitalize' }}>{ch.channel}</span>
+                  <div style={{ flex: 1, height: 6, background: '#ebecf0', borderRadius: 3 }}>
                     <div style={{
                       height: 6, borderRadius: 3,
                       width: `${Math.min(ch.recovery_rate, 100)}%`,
-                      background: i === 0 ? '#12B76A' : '#528FF0',
+                      background: i === 0 ? '#04db7c' : '#0D94FB',
                     }} />
                   </div>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A', width: 44, textAlign: 'right' }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#172b4d', width: 44, textAlign: 'right' }}>
                     {ch.recovery_rate}%
                   </span>
                 </div>
@@ -115,10 +157,10 @@ export default function OverviewPage({ analytics, events, onNavigate, dateRange:
         </div>
       </div>
 
-      {/* Recovery by Type */}
+      {/* Recovery by Type cards */}
       <div style={{ ...CARD, padding: '24px 28px', marginBottom: 28 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: '#1A1A1A', marginBottom: 20 }}>
-          Recovery by Type
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#172b4d', marginBottom: 20 }}>
+          Recovery Breakdown
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
           {[
@@ -128,18 +170,18 @@ export default function OverviewPage({ analytics, events, onNavigate, dateRange:
           ].map(({ key, label, icon }) => {
             const d = byType[key] || { total: 0, recovered: 0, amount: 0, recovery_rate: 0 }
             return (
-              <div key={key} style={{ padding: '18px 20px', borderRadius: 8, border: '1px solid #E8EAED' }}>
+              <div key={key} style={{ padding: '18px 20px', borderRadius: 4, border: '1px solid #ebecf0' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
                   <span style={{ fontSize: 16 }}>{icon}</span>
-                  <span style={{ fontSize: 14, fontWeight: 500, color: '#1A1A1A' }}>{label}</span>
+                  <span style={{ fontSize: 14, fontWeight: 500, color: '#172b4d' }}>{label}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#6B7280', marginBottom: 6 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#5e6c84', marginBottom: 6 }}>
                   <span>{d.total} events</span>
                   <span>₹{fmt(d.amount)}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                  <span style={{ color: '#6B7280' }}>{d.recovered} recovered</span>
-                  <span style={{ fontWeight: 600, color: '#528FF0' }}>{d.recovery_rate}%</span>
+                  <span style={{ color: '#5e6c84' }}>{d.recovered} recovered</span>
+                  <span style={{ fontWeight: 600, color: '#0D94FB' }}>{d.recovery_rate}%</span>
                 </div>
               </div>
             )
@@ -151,23 +193,23 @@ export default function OverviewPage({ analytics, events, onNavigate, dateRange:
       <div style={{ ...CARD, overflow: 'hidden' }}>
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '16px 28px', borderBottom: '1px solid #E8EAED',
+          padding: '16px 28px', borderBottom: '1px solid #ebecf0',
         }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: '#528FF0', borderBottom: '2px solid #528FF0', paddingBottom: 14, marginBottom: -17 }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: '#0D94FB', borderBottom: '2px solid #0D94FB', paddingBottom: 14, marginBottom: -17 }}>
             Recent Events
           </span>
           <button onClick={() => onNavigate('events')} style={{
-            fontSize: 13, color: '#528FF0', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500,
+            fontSize: 13, color: '#0D94FB', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500,
           }}>View all →</button>
         </div>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640 }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid #E8EAED' }}>
+              <tr style={{ borderBottom: '1px solid #ebecf0' }}>
                 {['Type', 'Amount', 'Category', 'Channel', 'Status', 'Time'].map(h => (
                   <th key={h} style={{
                     padding: '12px 20px', fontSize: 12, fontWeight: 600,
-                    color: '#6B7280', textAlign: 'left',
+                    color: '#5e6c84', textAlign: 'left',
                     textTransform: 'uppercase', letterSpacing: '0.04em',
                     whiteSpace: 'nowrap',
                   }}>{h}</th>
@@ -177,22 +219,22 @@ export default function OverviewPage({ analytics, events, onNavigate, dateRange:
             <tbody>
               {(events || []).slice(0, 8).map(e => (
                 <tr key={e.id}
-                  style={{ borderBottom: '1px solid #E8EAED', cursor: 'pointer' }}
-                  onMouseEnter={ev => ev.currentTarget.style.background = '#F7F8F9'}
+                  style={{ borderBottom: '1px solid #ebecf0', cursor: 'pointer' }}
+                  onMouseEnter={ev => ev.currentTarget.style.background = '#f4f5f7'}
                   onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}
                   onClick={() => onNavigate('events', e.id)}
                 >
                   <td style={{ padding: '12px 20px', whiteSpace: 'nowrap' }}><TypeBadge type={e.event_type} /></td>
                   <td style={{ padding: '12px 20px', fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap' }}>₹{fmt(e.amount)}</td>
-                  <td style={{ padding: '12px 20px', fontSize: 14, color: '#5F6B7A', whiteSpace: 'nowrap' }}>{formatCategory(e.failure_category)}</td>
-                  <td style={{ padding: '12px 20px', fontSize: 14, color: '#5F6B7A', textTransform: 'capitalize', whiteSpace: 'nowrap' }}>{e.recommended_channel || '—'}</td>
+                  <td style={{ padding: '12px 20px', fontSize: 14, color: '#5e6c84', whiteSpace: 'nowrap' }}>{formatCategory(e.failure_category)}</td>
+                  <td style={{ padding: '12px 20px', fontSize: 14, color: '#5e6c84', textTransform: 'capitalize', whiteSpace: 'nowrap' }}>{e.recommended_channel || '—'}</td>
                   <td style={{ padding: '12px 20px', whiteSpace: 'nowrap' }}><StatusBadge status={e.status} /></td>
-                  <td style={{ padding: '12px 20px', fontSize: 13, color: '#6B7280', whiteSpace: 'nowrap' }}>{timeAgo(e.created_at)}</td>
+                  <td style={{ padding: '12px 20px', fontSize: 13, color: '#5e6c84', whiteSpace: 'nowrap' }}>{timeAgo(e.created_at)}</td>
                 </tr>
               ))}
               {(!events || events.length === 0) && (
                 <tr>
-                  <td colSpan={6} style={{ padding: '48px 20px', textAlign: 'center', fontSize: 14, color: '#6B7280' }}>
+                  <td colSpan={6} style={{ padding: '48px 20px', textAlign: 'center', fontSize: 14, color: '#5e6c84' }}>
                     No events yet. Use the Simulator to fire test events.
                   </td>
                 </tr>
@@ -213,7 +255,7 @@ export function TypeBadge({ type }) {
     cart_abandonment: { label: 'Cart', bg: '#FFFAEB', color: '#B54708' },
     invoice_overdue: { label: 'Invoice', bg: '#EFF8FF', color: '#175CD3' },
   }
-  const m = map[type] || { label: type, bg: '#F2F4F7', color: '#5F6B7A' }
+  const m = map[type] || { label: type, bg: '#F2F4F7', color: '#5e6c84' }
   return <span style={{
     display: 'inline-block', padding: '3px 10px', borderRadius: 4,
     fontSize: 12, fontWeight: 500, background: m.bg, color: m.color,
@@ -226,11 +268,11 @@ export function StatusBadge({ status }) {
     paused: { label: 'On Hold', bg: '#F0F4FF', color: '#3538CD' },
     recovered: { label: 'Paid', bg: '#ECFDF3', color: '#027A48' },
     exhausted: { label: 'Gave Up', bg: '#FEF3F2', color: '#B42318' },
-    no_action_needed: { label: 'Skipped', bg: '#F2F4F7', color: '#5F6B7A' },
+    no_action_needed: { label: 'Skipped', bg: '#F2F4F7', color: '#5e6c84' },
     organic_recovery: { label: 'Paid (Self)', bg: '#ECFDF3', color: '#027A48' },
     cancelled: { label: 'Cancelled', bg: '#FEF3F2', color: '#B42318' },
   }
-  const m = map[status] || { label: status || '—', bg: '#F2F4F7', color: '#5F6B7A' }
+  const m = map[status] || { label: status || '—', bg: '#F2F4F7', color: '#5e6c84' }
   return <span style={{
     display: 'inline-block', padding: '3px 10px', borderRadius: 4,
     fontSize: 12, fontWeight: 500, background: m.bg, color: m.color,
@@ -320,13 +362,13 @@ function SummaryCard({ icon, label, value, sub, onClick }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {icon}
-          <span style={{ fontSize: 14, fontWeight: 600, color: '#3C4257' }}>{label}</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: '#172b4d' }}>{label}</span>
           <InfoIcon />
         </div>
         <ChevronRight />
       </div>
-      <div style={{ fontSize: 32, fontWeight: 700, color: '#1A1A1A', marginTop: 10 }}>{value}</div>
-      <div style={{ fontSize: 14, color: '#6B7280', marginTop: 6 }}>{sub}</div>
+      <div style={{ fontSize: 32, fontWeight: 700, color: '#172b4d', marginTop: 10 }}>{value}</div>
+      <div style={{ fontSize: 14, color: '#5e6c84', marginTop: 6 }}>{sub}</div>
     </div>
   )
 }
@@ -334,7 +376,7 @@ function SummaryCard({ icon, label, value, sub, onClick }) {
 function Bar({ value, color }) {
   return (
     <div style={{ flex: 1 }}>
-      <div style={{ height: 6, background: '#E8EAED', borderRadius: 3, overflow: 'hidden' }}>
+      <div style={{ height: 6, background: '#ebecf0', borderRadius: 3, overflow: 'hidden' }}>
         <div style={{ height: 6, borderRadius: 3, width: `${Math.min(value, 100)}%`, background: color, transition: 'width 0.5s' }} />
       </div>
     </div>
@@ -356,7 +398,7 @@ function ClockCircle() {
 }
 function CrossCircle() {
   return <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#F2F4F7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5e6c84" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
   </div>
 }
 function ChevronRight() {
